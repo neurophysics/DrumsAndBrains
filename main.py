@@ -11,7 +11,7 @@ from csv import DictReader
 
 def main():
     parser=argparse.ArgumentParser( description='Package for combined classifier - welcome!')
-    parser.add_argument('-d', '--data', default='/Users/Carola/Documents/Uni/Berufspraktikum/data/',
+    parser.add_argument('-d', '--data', default='/Users/Carola/Documents/Uni/Berufspraktikum/',
     help='Path to data folder.')
     parser.add_argument('-n', '--nrofsubjects', default=1, type=int,
     help='Number of subjects.')
@@ -29,6 +29,18 @@ def main():
         behaviouraldict['s'+str(i)] = d
 
 ####1. Plot self assessment vs real performance:
+    #read self assessment:
+    sadict = defaultdict(list) #(s01:[(5,8),(6,7),..], )
+    for i in range(1, args.nrofsubjects+1):
+        a_file = open('S%02d' % i +'_self-assessment.txt', 'r')
+        salist = []
+        for l in range(0, 6): #6 trials
+            performance = file.readline(i*4+1)
+            vigilance = file.readline(i*4+2)
+            salist.append((performance, vigilance))
+        sadict['s'+str(i)] = salist
+    print sadict
+
 
     #plot list of snare_precision, woodblk_prescision, self assessment vs
     #trials (x-axis = trial 1-150, y is deviation and self assessment)
@@ -89,7 +101,7 @@ def main():
 ###2. plot performance and musical background:
     #read subject background (LQ and music qualification)
     #background is a dict {"subjectnr":[LQ, Quali, Level, years]}
-    filename = os.path.join(args.data,'additionalSubjectInfo.csv')
+    filename = os.path.join(args.data,'data','additionalSubjectInfo.csv')
     background = defaultdict(list)
     with open(filename) as infile:
         reader = DictReader(infile, fieldnames=None, delimiter=';')
