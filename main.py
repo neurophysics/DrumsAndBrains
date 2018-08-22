@@ -20,8 +20,10 @@ if 'hansmitdampf' in home_folder:
             'Neuro/Python-Reps/Scripts/2018-Polyrhythm/Results')
     python_exec = 'python2'
 elif 'Carola' in home_folder:
-    data_default = os.path.join(home_folder, 'Documents/Uni/Berufspraktikum')
-    result_default = os.path.join(data_default, 'results')
+    data_default = os.path.join(home_folder,
+            'Documents/Uni/Berufspraktikum/data')
+    result_default = os.path.join(home_folder,
+            'Documents/Uni/Berufspraktikum/results')
     python_exec = 'python'
 # add more users by inserting elif lines
 else:
