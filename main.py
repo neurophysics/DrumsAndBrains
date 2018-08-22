@@ -17,22 +17,27 @@ if 'hansmitdampf' in home_folder:
     data_default = os.path.join(home_folder,
             'Neuro/Data/2018-Polyrhythm')
     result_default = os.path.join(home_folder,
-            'Neuro/Python-Reps/Scripts/2018-Polyrhythm')
+            'Neuro/Python-Reps/Scripts/2018-Polyrhythm/Results')
+    python_exec = 'python2'
 elif 'Carola' in home_folder:
     data_default = os.path.join(home_folder, 'Documents/Uni/Berufspraktikum')
     result_default = os.path.join(data_default, 'results')
+    python_exec = 'python'
 # add more users by inserting elif lines
 else:
     data_default = home_folder
     result_default = home_folder
+    python_exec = 'python'
 
 # parse all the arguments
 parser= argparse.ArgumentParser(
         description='Package for combined classifier - welcome!')
-parser.add_argument('-d', '--data', default=data_default,
+parser.add_argument('-p', '--python', default=python_exec,
+        help='python executable')
+parser.add_argument('-d', '--data_folder', default=data_default,
         help='Path to data folder.')
 parser.add_argument('-r', '--result_folder', default=result_default,
-        help='Path to data folder.')
+        help='Path to result folder.')
 parser.add_argument('-n', '--nrofsubjects', default=10, type=int,
         help='Number of subjects.')
 args=parser.parse_args()
@@ -51,8 +56,9 @@ for i in range(1,args.nrofsubjects+1):
             behaviouraldict['S%02d' % i] = dict(behave_file)
     except:
         # run the script to analyze the behavioural data
-        subprocess.call("python read_aif.py %s %d %s" % (
-            args.data_folder, i, args.result_folder), shell=True)
+        subprocess.call("%s read_aif.py %s %d %s" % (
+            args.python, args.data_folder, i, args.result_folder),
+            shell=True)
         with np.load(os.path.join(args.result_folder,'S%02d' % i,
             'behavioural_results.npz')) as behave_file:
             behaviouraldict['S%02d' % i] = dict(behave_file)
@@ -129,7 +135,7 @@ plt.savefig(os.path.join(args.result_folder, 'performance_plot.pdf'))
 ###2. plot performance and musical background:
 #read subject background (LQ and music qualification)
 #background is a dict {"subjectnr":[LQ, Quali, Level, years]}
-filename = os.path.join(args.data,'additionalSubjectInfo.csv')
+filename = os.path.join(args.data_folder,'additionalSubjectInfo.csv')
 background = {}
 with open(filename) as infile:
     reader = DictReader(infile, fieldnames=None, delimiter=';')

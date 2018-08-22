@@ -4,9 +4,9 @@ import matplotlib.pyplot as plt
 import sys
 import os.path
 
-data_folder = int(sys.argv[1])
+data_folder = sys.argv[1]
 subject = int(sys.argv[2])
-result_folder = int(sys.argv[3])
+result_folder = sys.argv[3]
 
 data_folder = os.path.join(data_folder, 'S%02d' % subject)
 save_folder = os.path.join(result_folder, 'S%02d' % subject)
