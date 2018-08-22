@@ -3,15 +3,13 @@ import aifc
 import matplotlib.pyplot as plt
 import sys
 import os.path
-from csv import DictReader
-from collections import defaultdict
 
+data_folder = int(sys.argv[1])
+subject = int(sys.argv[2])
+result_folder = int(sys.argv[3])
 
-data_folder = os.path.join(os.getcwd(),'data')
-subject = int(sys.argv[1])
-
-data_folder = os.path.join(data_folder, 'Ss%02d' % subject)
-save_folder = 'Ss%02d' % subject
+data_folder = os.path.join(data_folder, 'S%02d' % subject)
+save_folder = os.path.join(result_folder, 'S%02d' % subject)
 
 if not os.path.exists(save_folder):
     os.mkdir(save_folder)
@@ -40,8 +38,23 @@ def check_length(*fnames):
 
 check_length(wdBlkStim_fname, snareStim_fname, syncIn_fname, drumIn_fname)
 
+
 # define the funtions to get timings of all beats and to extract cues
-def get_ClickTime(fname, thresh=5000, mindiff=0.1):
+def moving_average(a, n):
+    """
+    Calculate the moving average of a sequence a across n samples
+    the ends are mirrored to ameliorate edge effects
+
+    Notes:
+    Needed for normalizing the noise level of the syncIn recordings
+    """
+    # mirror the edges
+    a = np.r_[a[1:n//2 + 1][::-1], a, a[-n//2: - 1][::-1]]
+    ret = np.cumsum(a, dtype=float)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:] / n
+
+def get_ClickTime(fname, thresh=2000, mindiff=0.1, normalize=False):
     """
     Read data from file and extract the timing of all signals
 
@@ -51,13 +64,23 @@ def get_ClickTime(fname, thresh=5000, mindiff=0.1):
         thresh (int): threshold to extract click signals, defaults to 1000
         mindiff (float): minimal latency difference (in seconds) that is
             expected to be between consecutive click signals
+        normalize (bool): if true, the noise level is normalized
+            needed for the syncIn files because they com with different
+            gain settings
     Returns:
         threshtimes (ndarray): an array of the timings of clicks in s
     """
     f = aifc.open(fname, 'r')
-    data = np.frombuffer(f.readframes(f.getnframes()), dtype='<i2')
-    # check that the number of entries equalis the number of samples
+    data = np.frombuffer(f.readframes(f.getnframes()), dtype='>i2')
+    # check that the number of entries equals the number of samples
     assert len(data) == f.getnframes()
+    if normalize:
+       # calculate the moving standard deviation across 1s
+       data_mean = moving_average(data, f.getframerate())
+       data_sd = np.sqrt(moving_average((data - data_mean)**2,
+               f.getframerate()))
+       # normalize
+       data = data/data_sd
     threshtime = (np.abs(data)>thresh).nonzero()[0]/float(f.getframerate())
     f.close()
     while not np.all(np.diff(threshtime) >= mindiff):
@@ -149,20 +172,26 @@ wdBlk_deviation = wdBlk_latencies - 2*bar_duration/3
 snare_precision = np.abs(snare_deviation)
 wdBlk_precision = np.abs(wdBlk_deviation)
 
+hist_bins = np.arange(0.5, 1.5 + 0.025, 0.025)
+
 # plot the results
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.hist(snare_latencies, 20, color='r', label='duple cue', edgecolor='w')
+ax1.hist(snare_latencies, bins=hist_bins, color='r', label='duple cue',
+        edgecolor='w', alpha=0.6)
 ax1.axvline(bar_duration/2., color='r', label='correct duple lat.')
-ax1.hist(wdBlk_latencies, 20, color='b', label='triple cue', edgecolor='w')
+ax1.hist(wdBlk_latencies, bins=hist_bins, color='b', label='triple cue',
+        edgecolor='w', alpha=0.6)
 ax1.axvline(2*bar_duration/3., color='b', label='correct triple lat.')
 ax1.set_xlabel('latency to cue (s)')
 ax1.set_ylabel('\# of trials')
 ax1.legend(loc='upper left')
-plt.title('Subject %02d' % subject)
+ax1.set_ylim([0,30])
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder, 'NeuralEntrl_Ss%02dresponse.png' % subject))
-fig.savefig(os.path.join(save_folder, 'NeuralEntrl_Ss%02dresponse.pdf' % subject))
+fig.savefig(os.path.join(save_folder,
+    'NeuralEntrl_Ss%02dresponse.png' % subject))
+fig.savefig(os.path.join(save_folder,
+    'NeuralEntrl_Ss%02dresponse.pdf' % subject))
 
 # seperate clock into sessions and measure deviation to closes clock of
 # session
@@ -194,7 +223,7 @@ def DevFromNearestClock(clocks, t):
             for s, e in zip(session_start, np.r_[session_start[1:], np.inf])]
     return nearest_sessionClock, nearest_sessionDev
 
-syncIn_times = get_ClickTime(syncIn_fname, thresh=25000)
+syncIn_times = get_ClickTime(syncIn_fname, thresh=20, normalize=True)
 
 snareCue_nearestClock, snareCue_DevToClock = DevFromNearestClock(
         syncIn_times, snareCue_times)
@@ -213,3 +242,7 @@ np.savez(os.path.join(save_folder, 'behavioural_results.npz'),
     snare_deviation = snare_deviation.data,
     wdBlk_deviation = wdBlk_deviation.data,
     )
+
+
+
+
