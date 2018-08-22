@@ -7,11 +7,12 @@ import helper_functions
 
 s_rate = 1000
 
-data_folder = '/home/hansmitdampf/Neuro/Data/2018-Polyrhythm'
-subject = int(sys.argv[1])
+data_folder = sys.argv[1]
+subject = int(sys.argv[2])
+result_folder = sys.argv[3]
 
 data_folder = os.path.join(data_folder, 'S%02d' % subject)
-save_folder = 'S%02d' % subject
+save_folder = os.path.join(result_folder, 'S%02d' % subject)
 
 if not os.path.exists(save_folder):
     os.mkdir(save_folder)
