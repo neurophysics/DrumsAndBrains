@@ -7,7 +7,9 @@ Run the script eeg_outlier.py with
 3. 3rd argument: result folder
 
 e.g., the line
+
     python eeg_outlier.py ~/Data 01 Results
+
 looks for subject "S01" in folder ~/Data and will put the results into folder ./Results 
 
 ### Outlier Rejection Process
