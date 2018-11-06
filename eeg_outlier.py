@@ -7,8 +7,10 @@ import os.path
 import helper_functions
 import meet
 import scipy.signal
+from sklearn.decomposition import PCA
 from sklearn.decomposition import FastICA
-import pickle
+from sklearn.externals import joblib
+from sklearn.pipeline import Pipeline
 
 mpl.rcParams['axes.labelsize'] = 7
 mpl.rcParams['axes.titlesize'] = 10
@@ -48,7 +50,13 @@ eeg_fname = os.path.join(data_folder, 'S%02d_eeg.eeg' % subject)
 data = np.fromfile(eeg_fname, '<i2').reshape(len(channames), -1,
         order='F')/10.
 
+# reference to the average of all electrodes
 data -= data.mean(0)
+# apply a 0.1 Hz high-pass filter
+data = meet.iir.butterworth(data, fp=0.1, fs=0.08, s_rate=s_rate, axis=-1)
+
+## remove the mean across all samples
+#data -= data.mean(1)[:,np.newaxis]
 
 # calculate spectrum of all channels before outlier/artifact rejection
 F, psd_pre =  scipy.signal.welch(
@@ -82,6 +90,9 @@ plt.close(fig)
 # downsample the data
 data_ds = meet.iir.butterworth(data, s_rate=s_rate,
         fs=0.5*s_rate_ds, fp=0.4*s_rate_ds)[:,::4]
+# high-pass filter at around 2 Hz
+data_ds = meet.iir.butterworth(data_ds, s_rate=s_rate_ds,
+        fs=1, fp=2)
 t = np.arange(data_ds.shape[-1])/float(s_rate_ds)
 
 try:
@@ -91,7 +102,20 @@ except:
     # manual outlier rejection
     eeg_viewer = meet.eeg_viewer.plotEEG(data_ds, channames, t)
     eeg_viewer.show()
-    artifact_segments = np.asarray(eeg_viewer.select)
+    artifact_segments1 = np.asarray(eeg_viewer.select)
+    # mask the segments
+    artifact_samples_ds = (artifact_segments1*s_rate_ds).astype(int)
+    artifact_mask_ds = np.ones(data_ds.shape[-1], dtype=bool)
+    for start, end in artifact_samples_ds:
+        artifact_mask_ds[start:end] = False
+    # repeat the manual rejection for a 2nd pass
+    data_ds_masked = data_ds
+    data_ds_masked[:,~artifact_mask_ds] = 0
+    eeg_viewer = meet.eeg_viewer.plotEEG(data_ds_masked,
+            channames, t)
+    eeg_viewer.show()
+    artifact_segments2 = np.asarray(eeg_viewer.select)
+    artifact_segments = np.vstack([artifact_segments1, artifact_segments2])
     np.save(os.path.join(data_folder, 'artifact_segments.npy'),
             artifact_segments)
 
@@ -122,23 +146,31 @@ for start, end in artifact_samples:
 for start, end in artifact_samples_ds:
     artifact_mask_ds[start:end] = False
 
+# make the data zero mean in the non-artifact regions
+data -= data[:,artifact_mask].mean(-1)[:,np.newaxis]
+data_ds -= data_ds[:,artifact_mask_ds].mean(-1)[:,np.newaxis]
+
 try:
-    with np.load(os.path.join(data_folder, 'ICA_result.npz'), 'rb') as f:
-        mixing_matrix = f['mixing_matrix']
-        unmixing_matrix = f['unmixing_matrix']
+    # try to read the results of a previous ICA run
+    ica = joblib.load(os.path.join(data_folder, 'ICA_result.joblib'))
 except:
-    # apply an ICA on the rest
-    ica = FastICA(max_iter=1000, random_state=0)
+    # apply a PCA for whitening purposes and apply an ICA on the rest
+    ica = Pipeline([
+        ('pca', PCA(n_components='mle', whiten=True)),
+        ('ica', FastICA(max_iter=1000, random_state=0, whiten=False))
+        ])
+    # fit the model
     ica.fit(data_ds[:,artifact_mask_ds].T)
-    mixing_matrix = ica.mixing_.T
-    unmixing_matrix = ica.components_.T
-    np.savez(os.path.join(data_folder, 'ICA_result.npz'),
-            mixing_matrix = mixing_matrix,
-            unmixing_matrix = unmixing_matrix)
+    # store the result
+    joblib.dump(ica, os.path.join(data_folder, 'ICA_result.joblib'))
 
 # apply the ICA
-sources_ds = np.dot(unmixing_matrix.T, data_ds)
-sources = np.dot(unmixing_matrix.T, data)
+sources_ds = ica.transform(data_ds.T).T
+sources = ica.transform(data.T).T
+
+# get the mixing matrix
+mixing_matrix = np.linalg.lstsq(sources_ds.T[artifact_mask_ds],
+        data_ds.T[artifact_mask_ds])[0]
 
 # name the ica channels
 ica_channames = ['IC%02d' % i for i in xrange(len(sources_ds))]
@@ -201,9 +233,12 @@ fig.suptitle('ICA spectra, Subject S%02d' % subject, size=14)
 gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
 fig.savefig(os.path.join(save_folder, 'ICA_spectra.pdf'))
 
-# have a look at the ica components
-ica_viewer = meet.eeg_viewer.plotEEG(sources_ds, ica_channames,
-        t[artifact_mask_ds])
+# have a look at the ica components - scaled according to their relative
+# variances
+ica_viewer = meet.eeg_viewer.plotEEG(sources_ds*
+        np.sqrt((mixing_matrix**2).sum(1)/
+            (mixing_matrix**2).sum())[:,np.newaxis],
+        ica_channames, t)
 ica_viewer.show()
 reject_ICs = np.atleast_1d(
         np.loadtxt(os.path.join(data_folder,
@@ -213,13 +248,11 @@ ica_reject_mask = np.any([np.array(ica_channames) == ch.upper()
 
 # get the 'clean' downsampled data
 sources_ds[ica_reject_mask] = 0
-unmixed_data_ds = data_ds.copy()
-unmixed_data_ds = np.dot(mixing_matrix.T, sources_ds)
+unmixed_data_ds = ica.inverse_transform(sources_ds.T).T
 
 # get the 'clean' data at full sampling rate
 sources[ica_reject_mask] = 0
-unmixed_data = data.copy()
-unmixed_data = np.dot(mixing_matrix.T, sources)
+unmixed_data = ica.inverse_transform(sources.T).T
 
 # plot the data before and after artifact rejection
 eeg_viewer = meet.eeg_viewer.plotEEG(data_ds, channames, t)
