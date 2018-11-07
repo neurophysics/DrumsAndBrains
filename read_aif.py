@@ -38,7 +38,6 @@ def check_length(*fnames):
 
 check_length(wdBlkStim_fname, snareStim_fname, syncIn_fname, drumIn_fname)
 
-
 # define the funtions to get timings of all beats and to extract cues
 def moving_average(a, n):
     """
@@ -193,7 +192,7 @@ fig.savefig(os.path.join(save_folder,
 fig.savefig(os.path.join(save_folder,
     'NeuralEntrl_Ss%02dresponse.pdf' % subject))
 
-# seperate clock into sessions and measure deviation to closes clock of
+# seperate clock into sessions and measure deviation to closest clock of
 # session
 def getSessionClocks(fname, thresh=25000):
     syncIn_times = get_ClickTime(fname, thresh=thresh)

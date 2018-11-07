@@ -1,4 +1,36 @@
 # DrumsAndBrains
+The DrumsAndBrain experiments aims at revealing the relation between neuronal oscillations and polyrhythmic listening experience and performance.
+
+## Description of the experiment.
+Sujects were listening to a drum beat (snare and woodblock) playing a duple (two notes per bar) vs. a triple (3 beats per bar) rhythm. This polyrhythm was played for two bars to the subjects followed by a bar of silence. An auditory cue beat (snare or woodblock) at the start of the subsequent bar indicated whether the subjects should tap the last note of that bar of either the duple or triple rhythm on an electronic drumpad.
+The paradigm forces the subjects to concentrate on both rhythms and keep the rhythmis active internally during the break bar since only after the break bar the cue indicates which rhythm should be performed. 
+The tempo of the rhythm had been 150 QPM (quarter notes per minute), i.e. complete bar took around 1.71 s.
+32 Channel EEG with BrainAmp EEG amplifiers had been recorded from the subjects during the experiments. Subjects were requested to relax, fixate a cross at the wall and perform as precisely as possible. Synchronisation between the EEG recordings and the cues and behavioural responses was achieved by feeding a 1/s trigger simultaneously into the audio recordings (cues and behavioural responses) and EEG.
+Handedness was recorded using the Edinburgh Handedness Inventory and question regarding the musical experience of the subjects were asked an responses recorded.
+
+## Analysis of behavioural data
+Run the script read_aif.py with
+1. 1st argument: data folder
+2. 2nd argument: subject number
+3. 3rd argument: result folder
+
+e.g., the line
+
+    python read_aif.py ~/Data 01 Results
+
+looks for subject "S01" in folder ~/Data and will put the results into folder ./Results 
+
+The script will store a file 'behavioural_results.npz' in the result forder of that subject. It contains the following fields:
+
+* snareCue_nearestClock: for each snare drum cue, the index of the closest trigger 'clock'
+* snareCue_DevToClock: for each snare drum cue, the deviation (in s) to the nearest clock
+* snareCuetimes: the times (in s of the aif file) of snare drum cues
+* snare_deviation: the deviation of the performed snare drum rhythm beats to the optimal timing (in s)
+* bar_duration
+
+All 'snare_' fields equally exist for 'wdBlk_'
+
+Additionally some plots are saved in the Results folder of that subject.
 
 ## Outlier Rejection
 Run the script eeg_outlier.py with
@@ -22,3 +54,4 @@ looks for subject "S01" in folder ~/Data and will put the results into folder ./
 
 The ICA results are stored in the data folder of every single subject as a file "ICA_result.joblib". If the ICA should be re-computed, delete that file.
 
+Additionally some plots are saved in the Results folder of that subject.
