@@ -1,12 +1,12 @@
 # DrumsAndBrains
-The DrumsAndBrain experiments aims at revealing the relation between neuronal oscillations and polyrhythmic listening experience and performance.
+The DrumsAndBrain experiment aims at revealing the relation between neuronal oscillations and polyrhythmic listening experience and performance.
 
 ## Description of the experiment.
 Sujects were listening to a drum beat (snare and woodblock) playing a duple (two notes per bar) vs. a triple (3 beats per bar) rhythm. This polyrhythm was played for two bars to the subjects followed by a bar of silence. An auditory cue beat (snare or woodblock) at the start of the subsequent bar indicated whether the subjects should tap the last note of that bar of either the duple or triple rhythm on an electronic drumpad.
-The paradigm forces the subjects to concentrate on both rhythms and keep the rhythmis active internally during the break bar since only after the break bar the cue indicates which rhythm should be performed. 
-The tempo of the rhythm had been 150 QPM (quarter notes per minute), i.e. complete bar took around 1.71 s.
-32 Channel EEG with BrainAmp EEG amplifiers had been recorded from the subjects during the experiments. Subjects were requested to relax, fixate a cross at the wall and perform as precisely as possible. Synchronisation between the EEG recordings and the cues and behavioural responses was achieved by feeding a 1/s trigger simultaneously into the audio recordings (cues and behavioural responses) and EEG.
-Handedness was recorded using the Edinburgh Handedness Inventory and question regarding the musical experience of the subjects were asked an responses recorded.
+This paradigm forces the subjects to concentrate on both rhythms and keep the rhythms active internally during the break bar - since only after the break bar the cue indicates which rhythm should be performed. 
+The tempo of the rhythm had been 150 QPM (quarter notes per minute), i.e. a complete bar took around 1.71 s.
+32-channel EEG with BrainAmp EEG amplifiers had been recorded from the subjects during the experiments. Subjects were requested to relax, fixate a cross at the wall and perform as precisely as possible. Synchronisation between the EEG recordings and the cues and behavioural responses was achieved by feeding a 1/s trigger (referred to as 'clock') simultaneously into the audio recordings (cues and behavioural responses) and EEG.
+Handedness was recorded using the Edinburgh Handedness Inventory and questions regarding the musical experience of the subjects were asked an their responses recorded.
 
 ## Analysis of behavioural data
 Run the script read_aif.py with
