@@ -21,9 +21,9 @@ if 'hansmitdampf' in home_folder:
     python_exec = 'python2'
 elif 'Carola' in home_folder:
     data_default = os.path.join(home_folder,
-            'Documents/Uni/Berufspraktikum/data')
+            'Documents/Arbeit/Charite/DrumsAndBrains/Data')
     result_default = os.path.join(home_folder,
-            'Documents/Uni/Berufspraktikum/results')
+            'Documents/Arbeit/Charite/DrumsAndBrains/Results')
     python_exec = 'python'
 # add more users by inserting elif lines
 else:
