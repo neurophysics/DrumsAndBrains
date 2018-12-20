@@ -65,76 +65,7 @@ for i in range(1,args.nrofsubjects+1):
             'behavioural_results.npz')) as behave_file:
             behaviouraldict['S%02d' % i] = dict(behave_file)
 
-"""
-####1. Plot self assessment vs real performance:
-#read self assessment:
-
-
-sadict = defaultdict(list) #(s01:[(1,5,8),(2,6,7),..], )
-for i in range(1, args.nrofsubjects+1):
-    subject_sa = np.loadtxt(os.path.join(args.data,'S%02d' % i, 'S%02d_self-assessment.txt' % i), delimiter=' ', usecols=[1], dtype=int)
-    session = subject_sa[::3]
-    assert np.all(session == np.arange(1, len(session) + 1, 1))
-    performance = subject_sa[1::3]
-    vigilance = subject_sa[2::3]
-    sadict['S%02d' %i] = zip(session, performance, vigilance)
-
-#plot list of snare_precision, woodblk_prescision, self assessment vs
-#trials (x-axis = trial 1-150, y is deviation and self assessment)
-#print behaviouraldict['s1'].keys()
-fig = plt.figure()
-ax = fig.add_subplot(111)
-trials = range(1,151)
-
-wdBlkCue_nearestClock = []
-for elem in behaviouraldict['s1']['wdBlkCue_nearestClock']:
-    wdBlkCue_nearestClock = wdBlkCue_nearestClock + list(elem)
-wdBlk_deviation = behaviouraldict['s1']['wdBlk_deviation']
-
-snareCue_nearestClock = []
-for elem in behaviouraldict['s1']['snareCue_nearestClock']:
-    snareCue_nearestClock = snareCue_nearestClock + list(elem)
-snare_deviation = behaviouraldict['s1']['snare_deviation']
-len(snareCue_nearestClock), len(snare_deviation)
-'''
-wdBlkzip = []
-snarezip = []
-posw = 0
-poss = 0
-for i in range(0,6): #for every of the 6 parts
-    wdBlkzip.append(zip(wdBlkCue_nearestClock[i],
-        wdBlk_deviation[posw:posw+len(wdBlkCue_nearestClock[i])]))
-    posw = posw + len(wdBlkCue_nearestClock[i])
-    snarezip.append(zip(snareCue_nearestClock[i],
-        snare_deviation[posw:posw+len(snareCue_nearestClock[i])]))
-    posw = posw + len(snareCue_nearestClock[i])
-# gives us: two zips [([1,2,3,4,5,6],[1,2,3,4,5,6]), (Part 2),...]
-#total_deviation = [i for k,i in sorted(zipSnare+zipWdBlk)]
-#make 5 vertikel lines for each of the 6 parts
-
-'''
-for i in range(0,5):
-    x = min(behaviouraldict['s1']['snareCue_nearestClock'][i][0],
-        behaviouraldict['s1']['wdBlkCue_nearestClock'][i][0])
-    plt.axvline(x=25*(i+1)) #is it really 25 trials/session? - rather divide into 6 subplots?
-total_deviation = [a for i,a in sorted(
-    zip(snareCue_nearestClock,snare_deviation)+
-    zip(wdBlkCue_nearestClock,wdBlk_deviation)
-    )]
-colorzip = sorted(zip(snare_deviation,['b']*75) + zip(wdBlk_deviation,['r']*75))
-cd = {}
-for k,v in colorzip:
-    cd[k] = v
-plt.axhline(y=0)
-#ax.plot(trials, total_deviation, color = [e for i,e in colorzip], linewidth = 0.1, marker='o', label='')
-#ax.plot(trials, wdBlk_deviation, snare_deviationlinewidth = 0.1, marker='o', label='')
-#ax.plot(trials, selfassessment, linewidth = 1, marker='o', label='')
-plt.xlabel('Trial number')
-legend = ax.legend(prop={'size': 8})
-plt.savefig(os.path.join(args.result_folder, 'performance_plot.pdf'))
-
-"""
-###2. plot performance and musical background:
+###1. plot performance vs musical background:
 #read subject background (LQ and music qualification)
 #background is a dict {"subjectnr":[LQ, Quali, Level, years]}
 filename = os.path.join(args.data_folder,'additionalSubjectInfo.csv')
