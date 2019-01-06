@@ -242,6 +242,34 @@ np.savez(os.path.join(save_folder, 'behavioural_results.npz'),
     wdBlk_deviation = wdBlk_deviation.data,
     )
 
+# plot self performance
+self_perf = []
+self_vigil = []
+with open(os.path.join(data_folder,'S%02d_self-assessment.txt' % subject)) as f:
+    for line in f:
+        l = line.split(' ')
+        if line[0] == 'P':
+            self_perf.append(int(l[1]))
+        if line[0] == 'V':
+            self_vigil.append(int(l[1]))
 
-
-
+fig = plt.figure()
+absDev_snare = np.abs(snareCue_DevToClock)
+meandevs_snare = [np.mean(s) for s in absDev_snare]
+absDev_wdBlk = np.abs(wdBlkCue_DevToClock)
+meandevs_wdBlk = [np.mean(s) for s in absDev_wdBlk]
+corrSnare = np.corrcoef(meandevs_snare, self_perf)[0][1]
+corrWdBlk = np.corrcoef(meandevs_wdBlk, self_perf)[0][1]
+plt.plot(meandevs_snare, marker = 'o', label = 'abs mean dev snare')
+plt.plot(meandevs_wdBlk, marker = 'o', label = 'abs mean dev wdBlk')
+plt.plot([(10.-s)/10 for s in self_perf], marker = 'o', label = '10-Performance / 10')
+plt.plot([(10.-s)/10 for s in self_vigil], marker = 'o', label = '10-Vigilance / 10')
+plt.legend()
+plt.xlabel('sessions (~25 trials each)')
+plt.ylabel('absolute deviation / self assessment score')
+plt.title('self assessment vs snare/wdblk performance (r = %02f / %02f)'% (corrSnare, corrWdBlk))
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder,
+    'SelfAssessmentAndResponseSs%02d.png' % subject))
+fig.savefig(os.path.join(save_folder,
+    'SelfAssessmentAndResponseSs%02d.pdf' % subject))
