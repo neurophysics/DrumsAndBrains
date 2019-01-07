@@ -53,7 +53,8 @@ def moving_average(a, n):
     ret[n:] = ret[n:] - ret[:-n]
     return ret[n - 1:] / n
 
-def get_ClickTime(fname, thresh=2000, mindiff=0.1, normalize=False):
+def get_ClickTime(fname, thresh=2000, mindiff=0.1, normalize=False,
+        stop=False):
     """
     Read data from file and extract the timing of all signals
 
@@ -80,6 +81,7 @@ def get_ClickTime(fname, thresh=2000, mindiff=0.1, normalize=False):
                f.getframerate()))
        # normalize
        data = data/data_sd
+    if stop: 1/0
     threshtime = (np.abs(data)>thresh).nonzero()[0]/float(f.getframerate())
     f.close()
     while not np.all(np.diff(threshtime) >= mindiff):
@@ -222,7 +224,7 @@ def DevFromNearestClock(clocks, t):
             for s, e in zip(session_start, np.r_[session_start[1:], np.inf])]
     return nearest_sessionClock, nearest_sessionDev
 
-syncIn_times = get_ClickTime(syncIn_fname, thresh=20, normalize=True)
+syncIn_times = get_ClickTime(syncIn_fname, thresh=10, normalize=True)
 
 snareCue_nearestClock, snareCue_DevToClock = DevFromNearestClock(
         syncIn_times, snareCue_times)
