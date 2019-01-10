@@ -97,7 +97,7 @@ t_all = np.arange(listen_win[0], silence_win[1], 1)/float(s_rate)
 EEG -= EEG.mean(0)
 
 # calculate the evoked potential to the listening and silence bars
-all_trials = meet.epochEEG(EEG_hp, 
+all_trials = meet.epochEEG(EEG_hp,
         np.r_[snareListenMarker[snareInlier],
             wdBlkListenMarker[wdBlkInlier]],
         all_win)
@@ -237,7 +237,10 @@ snareListenData_rec = listen_fit_matrix.dot(snareFit).swapaxes(0,1)
 wdBlkListenData_rec = listen_fit_matrix.dot(wdBlkFit).swapaxes(0,1)
 
 # calculate spatial filters enhancing the reconstructed data with only the
-# two oscillations included - this is in the end a sort of SSD
+# two oscillations included - this is in the end
+# a sort of SSD (spatial spectral decomposition)
+# enhance the frequencies were searching for (douple/tripple beat)
+# and suppress other frequencies
 ssd_filter, ssd_eigvals = meet.spatfilt.CSP(
         np.concatenate((snareListenData_rec, wdBlkListenData_rec),
             axis=2).reshape(
@@ -348,3 +351,108 @@ wdBlkSilenceBestPhase = np.array([
     np.arctan2(*wdBlkFit_silence[2:4]),
     np.arctan2(*wdBlkFit_silence[4:6])
     ])
+
+#save the eeg results
+np.savez(os.path.join(save_folder, 'eeg_results.npz'),
+    snareListenBestAmp = snareListenBestAmp,
+    wdBlkListenBestAmp = wdBlkListenBestAmp,
+    snareListenBestPhase = snareListenBestPhase,
+    wdBlkListenBestPhase = wdBlkListenBestPhase,
+    snareSilenceBestAmp = snareSilenceBestAmp,
+    wdBlkSilenceBestAmp = wdBlkSilenceBestAmp,
+    snareSilenceBestPhase = snareSilenceBestPhase,
+    wdBlkSilenceBestPhase = wdBlkSilenceBestPhase,
+    snareInlier = snareInlier,
+    wdBlkInlier = wdBlkInlier
+    )
+
+
+#plot oscillation amplitude/phase vs performance
+# 1a Listen, Amplitude
+r_snareListenAmp = np.corrcoef(snareListenBestAmp[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier])[0][1]
+r_wdBlkListenAmp = np.corrcoef(wdBlkListenBestAmp[0],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier])[0][1]
+fig = plt.figure(figsize=(10,10))
+ax1 = fig.add_subplot(211)
+ax1.set_title('oscillation amplitude in listening period vs snare performance, r = %02f'
+        % r_snareListenAmp)
+ax1.plot(snareListenBestAmp[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier], 'ro')
+ax2 = fig.add_subplot(212, sharex=ax1)
+ax2.set_title('oscillation amplitude in listening period vs wdBlk performance, r = %02f'
+        % r_wdBlkListenAmp)
+ax2.plot(wdBlkListenBestAmp[1],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier], 'bo')
+plt.xlabel('Oscillation Amplitude')
+plt.ylabel('Absolute Deviation')
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder, 'OszillationAmp_Performance_Listen.png'))
+fig.savefig(os.path.join(save_folder, 'OszillationAmp_Performance_Listen.pdf'))
+
+# 1b Listen, Phase
+r_snareListenPhase = np.corrcoef(snareListenBestPhase[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier])[0][1]
+r_wdBlkListenPhase = np.corrcoef(wdBlkListenBestPhase[0],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier])[0][1]
+fig = plt.figure(figsize=(10,10))
+ax1 = fig.add_subplot(211)
+ax1.set_title('oscillation phase in listening period vs snare performance, r = %02f'
+        % r_snareListenPhase)
+ax1.plot(snareListenBestPhase[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier], 'ro')
+ax2 = fig.add_subplot(212, sharex=ax1)
+ax2.set_title('oscillation phase in listening period vs wdBlk performance, r = %02f'
+        % r_wdBlkListenPhase)
+ax2.plot(wdBlkListenBestPhase[1],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier], 'bo')
+plt.xlabel('Oscillation Phase')
+plt.ylabel('Absolute Deviation')
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder, 'OszillationPhase_Performance_Listen.png'))
+fig.savefig(os.path.join(save_folder, 'OszillationPhase_Performance_Listen.pdf'))
+
+
+# 2a. Silence, Amplitude
+r_snareSilenceAmp = np.corrcoef(snareSilenceBestAmp[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier])[0][1]
+r_wdBlkSilenceAmp = np.corrcoef(wdBlkSilenceBestAmp[0],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier])[0][1]
+fig = plt.figure(figsize=(10,10))
+ax1 = fig.add_subplot(211)
+ax1.set_title('oscillation amplitude in silence period vs snare performance, r = %02f'
+        % r_snareSilenceAmp)
+ax1.plot(snareSilenceBestAmp[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier], 'ro')
+ax2 = fig.add_subplot(212, sharex=ax1)
+ax2.set_title('oscillation amplitude in silence period vs wdBlk performance, r = %02f'
+        % r_wdBlkSilenceAmp)
+ax2.plot(wdBlkSilenceBestAmp[0],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier], 'bo')
+plt.xlabel('Oscillation Amplitude')
+plt.ylabel('Absolute Deviation')
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder, 'OszillationAmp_Performance_Silence.png'))
+fig.savefig(os.path.join(save_folder, 'OszillationAmp_Performance_Silence.pdf'))
+
+# 2b. Silence, Phase
+r_snareSilencePhase = np.corrcoef(snareSilenceBestPhase[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier])[0][1]
+r_wdBlkSilencePhase = np.corrcoef(wdBlkSilenceBestPhase[0],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier])[0][1]
+fig = plt.figure(figsize=(10,10))
+ax1 = fig.add_subplot(211)
+ax1.set_title('oscillation phase in silence period vs snare performance, r = %02f'
+        % r_snareSilencePhase)
+ax1.plot(snareSilenceBestPhase[0],
+        np.abs(np.concatenate(snareCue_DevToClock))[snareInlier], 'ro')
+ax2 = fig.add_subplot(212, sharex=ax1)
+ax2.set_title('oscillation phase in silence period vs wdBlk performance, r = %02f'
+        % r_wdBlkSilencePhase)
+ax2.plot(wdBlkSilenceBestPhase[0],
+        np.abs(np.concatenate(wdBlkCue_DevToClock))[wdBlkInlier], 'bo')
+plt.xlabel('Oscillation Phase')
+plt.ylabel('Absolute Deviation')
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder, 'OszillationPhase_Performance_Silence.png'))
+fig.savefig(os.path.join(save_folder, 'OszillationPhase_Performance_Silence.pdf'))
