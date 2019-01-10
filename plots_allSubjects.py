@@ -113,25 +113,28 @@ for subject in range(1,subjectnr+1):
     with np.load(os.path.join(result_folder, 'S%02d' % subject,
             'eeg_results.npz'), 'r') as f:
         snareInlier[subject-1] = f['snareInlier']
-        snarePos = np.where([not s for s in snareInlier[subject-1]])
+        snarePos = [x-i for i,x in enumerate(
+                np.where([not s for s in snareInlier[subject-1]])[0])]
+        #print snarePos
         wdBlkInlier[subject-1] = f['wdBlkInlier']
-        wdBlkPos = np.where([not s for s in wdBlkInlier[subject-1]])
+        wdBlkPos = [x-i for i,x in enumerate(
+                np.where([not s for s in wdBlkInlier[subject-1]])[0])]
         snareListenBestAmp[subject-1] = np.insert(
-                f['snareListenBestAmp'][0], snarePos[0], np.nan, axis=0)
+                f['snareListenBestAmp'][0], snarePos, np.nan, axis=0)
         wdBlkListenBestAmp[subject-1] = np.insert(
-                f['wdBlkListenBestAmp'][0], wdBlkPos[0], np.nan, axis=0)
+                f['wdBlkListenBestAmp'][0], wdBlkPos, np.nan, axis=0)
         snareListenBestPhase[subject-1] = np.insert(
-                f['snareListenBestPhase'][0], snarePos[0], np.nan, axis=0)
+                f['snareListenBestPhase'][0], snarePos, np.nan, axis=0)
         wdBlkListenBestPhase[subject-1] = np.insert(
-                f['wdBlkListenBestPhase'][0], wdBlkPos[0], np.nan, axis=0)
+                f['wdBlkListenBestPhase'][0], wdBlkPos, np.nan, axis=0)
         snareSilenceBestAmp[subject-1] = np.insert(
-                f['snareSilenceBestAmp'][0], snarePos[0], np.nan, axis=0)
+                f['snareSilenceBestAmp'][0], snarePos, np.nan, axis=0)
         wdBlkSilenceBestAmp[subject-1] = np.insert(
-                f['wdBlkSilenceBestAmp'][0], wdBlkPos[0], np.nan, axis=0)
+                f['wdBlkSilenceBestAmp'][0], wdBlkPos, np.nan, axis=0)
         snareSilenceBestPhase[subject-1] = np.insert(
-                f['snareSilenceBestPhase'][0], snarePos[0], np.nan, axis=0)
+                f['snareSilenceBestPhase'][0], snarePos, np.nan, axis=0)
         wdBlkSilenceBestPhase[subject-1] = np.insert(
-                f['wdBlkSilenceBestPhase'][0], wdBlkPos[0], np.nan, axis=0)
+                f['wdBlkSilenceBestPhase'][0], wdBlkPos, np.nan, axis=0)
 
 # average over all subjects
 mean_snareCue_DevToClock = []
@@ -140,6 +143,10 @@ mean_snareListenBestAmp = []
 mean_wdBlkListenBestAmp = []
 mean_snareListenBestPhase = []
 mean_wdBlkListenBestPhase = []
+mean_snareSilenceBestAmp = []
+mean_wdBlkSilenceBestAmp = []
+mean_snareSilenceBestPhase = []
+mean_wdBlkSilenceBestPhase = []
 for trial in range(0, 75):
     snareDevs = []
     wdBlkDevs = []
@@ -147,32 +154,103 @@ for trial in range(0, 75):
     wdBlkListenAmps = []
     snareListenPhases = []
     wdBlkListenPhases = []
+    snareSilenceAmps = []
+    wdBlkSilenceAmps = []
+    snareSilencePhases = []
+    wdBlkSilencePhases = []
     for subject in range(0, subjectnr):
         if snareInlier[subject][trial]: #only append trials of subjects that are Inlier
+            #print subject, trial, snareInlier[subject][trial]
             snareDevs.append(snareCue_DevToClock[subject][trial])
             snareListenAmps.append(snareListenBestAmp[subject][trial])
             snareListenPhases.append(snareListenBestPhase[subject][trial])
+            snareSilenceAmps.append(snareSilenceBestAmp[subject][trial])
+            snareSilencePhases.append(snareSilenceBestPhase[subject][trial])
         if wdBlkInlier[subject][trial]: #only append trials of subjects that are Inlier
             wdBlkDevs.append(wdBlkCue_DevToClock[subject][trial])
             wdBlkListenAmps.append(wdBlkListenBestAmp[subject][trial])
             wdBlkListenPhases.append(wdBlkListenBestPhase[subject][trial])
+            wdBlkSilenceAmps.append(wdBlkSilenceBestAmp[subject][trial])
+            wdBlkSilencePhases.append(wdBlkSilenceBestPhase[subject][trial])
     mean_snareCue_DevToClock.append(np.mean(snareDevs))
     mean_wdBlkCue_DevToClock.append(np.mean(wdBlkDevs))
     mean_snareListenBestAmp.append(np.mean(snareListenAmps))
     mean_wdBlkListenBestAmp.append(np.mean(wdBlkListenAmps))
-    mean_snareListenBestPhase.append(np.mean(snareDevs))
-    mean_wdBlkListenBestPhase.append(np.mean(snareDevs))
-# 1. for listening period (3 bars)
-# plot - one for snare, one for wdBlk
+    mean_snareListenBestPhase.append(np.mean(snareListenPhases))
+    mean_wdBlkListenBestPhase.append(np.mean(wdBlkListenPhases))
+    mean_snareSilenceBestAmp.append(np.mean(snareSilenceAmps))
+    mean_wdBlkSilenceBestAmp.append(np.mean(wdBlkSilenceAmps))
+    mean_snareSilenceBestPhase.append(np.mean(snareSilencePhases))
+    mean_wdBlkSilenceBestPhase.append(np.mean(wdBlkSilencePhases))
+
+# 1a. Listen, Amplitude
+r_snareListenAmp = np.corrcoef(mean_snareListenBestAmp,
+        mean_snareCue_DevToClock)[0][1]
+r_wdBlkListenAmp = np.corrcoef(mean_wdBlkListenBestAmp,
+        mean_wdBlkCue_DevToClock)[0][1]
 fig = plt.figure(figsize=(10,10))
 plt.title('oscillation amplitude in listening period vs snare performance')
 plt.plot(mean_snareListenBestAmp, mean_snareCue_DevToClock, 'ro',
-        label = 'Snare')
+        label = 'Snare, r = %02f' % r_snareListenAmp)
 plt.plot(mean_wdBlkListenBestAmp, mean_wdBlkCue_DevToClock, 'bo',
-        label = 'Wood Block')
+        label = 'Wood Block, r = %02f' % r_wdBlkListenAmp)
 plt.legend()
 plt.xlabel('Oscillation Amplitude')
 plt.ylabel('Absolute Deviation')
 fig.tight_layout(pad=0.3)
 fig.savefig(os.path.join(save_folder, 'ListeningAmp_Performance.png'))
 fig.savefig(os.path.join(save_folder, 'ListeningAmp_Performance.pdf'))
+
+# 1b. Listen, Phase
+r_snareListenPhase = np.corrcoef(mean_snareListenBestPhase,
+        mean_snareCue_DevToClock)[0][1]
+r_wdBlkListenPhase = np.corrcoef(mean_wdBlkListenBestPhase,
+        mean_wdBlkCue_DevToClock)[0][1]
+fig = plt.figure(figsize=(10,10))
+plt.title('oscillation phase in listening period vs snare performance')
+plt.plot(mean_snareListenBestPhase, mean_snareCue_DevToClock, 'ro',
+        label = 'Snare, r = %02f' % r_snareListenPhase)
+plt.plot(mean_wdBlkListenBestPhase, mean_wdBlkCue_DevToClock, 'bo',
+        label = 'Wood Block, r = %02f' % r_wdBlkListenPhase)
+plt.legend()
+plt.xlabel('Oscillation Phase')
+plt.ylabel('Absolute Deviation')
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder, 'ListeningPhase_Performance.png'))
+fig.savefig(os.path.join(save_folder, 'ListeningPhase_Performance.pdf'))
+
+# 2a. Silence, Amplitude
+r_snareSilenceAmp = np.corrcoef(mean_snareSilenceBestAmp,
+        mean_snareCue_DevToClock)[0][1]
+r_wdBlkSilenceAmp = np.corrcoef(mean_wdBlkSilenceBestAmp,
+        mean_wdBlkCue_DevToClock)[0][1]
+fig = plt.figure(figsize=(10,10))
+plt.title('oscillation amplitude in silence period vs snare performance')
+plt.plot(mean_snareSilenceBestAmp, mean_snareCue_DevToClock, 'ro',
+        label = 'Snare, r = %02f' % r_snareSilenceAmp)
+plt.plot(mean_wdBlkSilenceBestAmp, mean_wdBlkCue_DevToClock, 'bo',
+        label = 'Wood Block, r = %02f' % r_wdBlkSilenceAmp)
+plt.legend()
+plt.xlabel('Oscillation Amplitude')
+plt.ylabel('Absolute Deviation')
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder, 'SilenceAmp_Performance.png'))
+fig.savefig(os.path.join(save_folder, 'SilenceAmp_Performance.pdf'))
+
+# 1b. Silence, Phase
+r_snareSilencePhase = np.corrcoef(mean_snareSilenceBestPhase,
+        mean_snareCue_DevToClock)[0][1]
+r_wdBlkSilencePhase = np.corrcoef(mean_wdBlkSilenceBestPhase,
+        mean_wdBlkCue_DevToClock)[0][1]
+fig = plt.figure(figsize=(10,10))
+plt.title('oscillation phase in silence period vs snare performance')
+plt.plot(mean_snareSilenceBestPhase, mean_snareCue_DevToClock, 'ro',
+        label = 'Snare, r = %02f' % r_snareSilencePhase)
+plt.plot(mean_wdBlkSilenceBestPhase, mean_wdBlkCue_DevToClock, 'bo',
+        label = 'Wood Block, r = %02f' % r_wdBlkSilencePhase)
+plt.legend()
+plt.xlabel('Oscillation Phase')
+plt.ylabel('Absolute Deviation')
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder, 'SilencePhase_Performance.png'))
+fig.savefig(os.path.join(save_folder, 'SilencePhase_Performance.pdf'))
