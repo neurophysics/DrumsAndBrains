@@ -44,11 +44,36 @@ chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
 chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
         projection='stereographic')
 
-eeg_fname = os.path.join(data_folder, 'S%02d_eeg.eeg' % subject)
+eeg_fnames = []
+marker_fnames = []
+for f in sorted(os.listdir(data_folder)):
+    if f.startswith('S{:02d}_eeg'.format(subject)) and f.endswith('.eeg'):
+        eeg_fnames.append(os.path.join(data_folder, f))
+        marker_fnames.append(os.path.join(data_folder,
+            f.replace('.eeg', '.vmrk')))
 
-# read the eeg
-data = np.fromfile(eeg_fname, '<i2').reshape(len(channames), -1,
-        order='F')/10.
+if len(eeg_fnames) == 1:
+    # read the eeg
+    data = np.fromfile(eeg_fnames[0], '<i2').reshape(len(channames), -1,
+            order='F')/10.
+else:
+    # if there is more than one file, stitch them together with
+    # 1006 samples of zeros added at every end
+    data = [np.fromfile(f, '<i2').reshape(len(channames), -1,
+            order='F')/10.
+            for f in eeg_fnames]
+    data = [np.hstack([d, np.zeros([len(channames), 1006], float)])
+            for d in data]
+    # now, the marker file has to be read as well and adapted
+    add_len = np.r_[0,np.cumsum([d.shape[-1] for d in data])[:-1]]
+    markers = [np.loadtxt(f, skiprows=12, usecols=2, delimiter=',',
+            dtype=int) + add_len[i] for i,f in enumerate(marker_fnames)]
+    # now, write the markers to a new file
+    with open(os.path.join(data_folder, 'S{:02d}_eeg_all_files.vmrk'.format(
+        subject)), 'w') as csvfile:
+        # write 12 empty lines
+        [csvfile.write('IGNORE\n') for _ in xrange(12)]
+        [csvfile.write(' , ,{}\n'.format(m)) for m in np.hstack(markers)]
 
 # reference to the average of all electrodes
 data -= data.mean(0)

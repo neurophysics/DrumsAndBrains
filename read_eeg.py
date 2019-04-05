@@ -30,7 +30,13 @@ if not os.path.exists(save_folder):
     os.mkdir(save_folder)
 
 eeg_fname = os.path.join(data_folder, 'clean_data.npz')
-marker_fname = os.path.join(data_folder, 'S%02d_eeg.vmrk' % subject)
+
+if os.path.exists(os.path.join(
+    data_folder, 'S{:02d}_eeg_all_files.vmrk'.format(subject))):
+    marker_fname = os.path.join(
+            data_folder, 'S{:02d}_eeg_all_files.vmrk'.format(subject))
+else:
+    marker_fname = os.path.join(data_folder, 'S%02d_eeg.vmrk' % subject)
 
 eeg_clocks = helper_functions.getSessionClocks(marker_fname)
 eeg_clocks = [c for c in eeg_clocks if len(c) > 100]
