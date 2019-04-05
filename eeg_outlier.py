@@ -66,6 +66,7 @@ else:
             for d in data]
     # now, the marker file has to be read as well and adapted
     add_len = np.r_[0,np.cumsum([d.shape[-1] for d in data])[:-1]]
+    data = np.hstack(data)
     markers = [np.loadtxt(f, skiprows=12, usecols=2, delimiter=',',
             dtype=int) + add_len[i] for i,f in enumerate(marker_fnames)]
     # now, write the markers to a new file
