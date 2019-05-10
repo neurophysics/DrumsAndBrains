@@ -79,6 +79,7 @@ def get_ClickTime(fname, thresh=2000, mindiff=0.1, normalize=False):
        data_sd = np.sqrt(moving_average((data - data_mean)**2,
                f.getframerate()))
        # normalize
+       data_sd[data_sd < 0.1*np.mean(data_sd)]=np.mean(data_sd)
        data = data/data_sd
     threshtime = (np.abs(data)>thresh).nonzero()[0]/float(f.getframerate())
     f.close()
