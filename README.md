@@ -93,6 +93,7 @@ Methods 3+4 directly maximize the relation between oscillations and
 behaviour and thus might be prone to overfitting (towards that specific
 relation).
 
+### Analysis *across subjects*
 Here, we chose an approach to train the spatial filters across subjects,
 which (1) increases the amount of data and hereby decreases the risk of
 overfitting and (2) should lead to a generalized result - approximately

@@ -120,6 +120,6 @@ gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
 fig.savefig(os.path.join(result_folder, 'SSD_patterns_norm_%s.pdf' % normalize))
 
 # save the results
-np.savez(os.path.join(result_folder, 'SSD_norm_%s.pdf' % normalize),
+np.savez(os.path.join(result_folder, 'SSD_norm_%s.npz' % normalize),
         ssd_eigvals = ssd_eigvals,
         ssd_filter = ssd_filter)
