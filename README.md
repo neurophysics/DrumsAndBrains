@@ -10,7 +10,7 @@ The tempo of the rhythm had been 150 QPM (quarter notes per minute), i.e. a comp
 Handedness was recorded using the Edinburgh Handedness Inventory and questions regarding the musical experience of the subjects were asked an their responses recorded.
 
 ## Analysis of behavioural data
-Run the script read_aif.py with
+Run the script `read_aif.py` with
 1. 1st argument: data folder
 2. 2nd argument: subject number
 3. 3rd argument: result folder
@@ -19,22 +19,22 @@ e.g., the line
 
     python read_aif.py ~/Data 01 Results
 
-looks for subject "S01" in folder ~/Data and will put the results into folder ./Results 
+looks for subject `S01` in folder `~/Data` and will put the results into folder `./Results`
 
-The script will store a file 'behavioural_results.npz' in the result forder of that subject. It contains the following fields:
+The script will store a file `behavioural_results.npz` in the result forder of that subject. It contains the following fields:
 
-* snareCue_nearestClock: for each snare drum cue, the index of the closest trigger 'clock'
-* snareCue_DevToClock: for each snare drum cue, the deviation (in s) to the nearest clock
-* snareCuetimes: the times (in s of the aif file) of snare drum cues
-* snare_deviation: the deviation of the performed snare drum rhythm beats to the optimal timing (in s)
-* bar_duration
+- `snareCue_nearestClock`: for each snare drum cue, the index of the closest trigger 'clock'
+- `snareCue_DevToClock`: for each snare drum cue, the deviation (in s) to the nearest clock
+- `snareCuetimes`: the times (in s of the aif file) of snare drum cues
+- `snare_deviation`: the deviation of the performed snare drum rhythm beats to the optimal timing (in s)
+- `bar_duration`
 
-All 'snare_' fields equally exist for 'wdBlk_'
+All `snare_` fields equally exist for `wdBlk_`
 
 Additionally some plots are saved in the Results folder of that subject.
 
 ## Outlier Rejection
-Run the script eeg_outlier.py with
+Run the script `eeg_outlier.py` with
 1. 1st argument: data folder
 2. 2nd argument: subject number
 3. 3rd argument: result folder
@@ -43,17 +43,17 @@ e.g., the line
 
     python eeg_outlier.py ~/Data 01 Results
 
-looks for subject "S01" in folder ~/Data and will put the results into folder ./Results 
+looks for subject `S01` in folder `~/Data` and will put the results into folder `./Results` 
 
 ### Outlier Rejection Process
 1. A window with the EEG data will open. Change gain with +/- and scroll with 'Home'/'End', LeftArrow, RightArrow, PgUp, PgDown Keys. Select artifactual segments by drawing a rectangle (only temporal information will be recorded, the selected channels are irrelavant) and save by pressing 'r'. After you think all relevant artifact segments were selected, close the window. The plotted EEG data had been downsampled to 250 Hz, high-pass filtered above 2 Hz for subsequent ICA, and re-referenced to the average potential.
 2. Repeat the process in a new window to be sure you selected everything important.
-3. (optional) "Bad" channels can be rejected (and interpolated by a spherical spline algorithm) by creating a file 'interpolate_channels.txt' in the data folder of that subject and containing the channel names to be rejected (uppercase letters), one per line.
-4. ICA (FastICA after a whitening step using PCA) will be performed and the independent components, their scalp projections and powers will be plotted. The variance of the independent components will reflect the contribution to the surface EEG. Create a file 'reject_ICs.txt' in the data folder of the subject containing the names of the components to be rejected ('IC00', 'IC01' etc - one per line).
+3. (optional) "Bad" channels can be rejected (and interpolated by a spherical spline algorithm) by creating a file `interpolate_channels.txt` in the data folder of that subject and containing the channel names to be rejected (uppercase letters), one per line.
+4. ICA (FastICA after a whitening step using PCA) will be performed and the independent components, their scalp projections and powers will be plotted. The variance of the independent components will reflect the contribution to the surface EEG. Create a file `reject_ICs.txt` in the data folder of the subject containing the names of the components to be rejected ('IC00', 'IC01' etc - one per line).
 5. The final 2 windows show the data before (Figure 1) and after (Figure 2) ICA-based artifact rejection. You may make a screenshot for documentation purposes.
-6. The 'cleaned' data is stored in the data folder of the subject as 'clean_data.npz' with fields 'clean data' containing the data (high-pass filtered at 0.1 Hz, 1000 Hz sampling rate, average reference), and 'artifact_mask', a boolean array of the same length as the data with Trues at non-selected timepoints and Falses at all timepoints selected as artifacts (in Step 1).
+6. The 'cleaned' data is stored in the data folder of the subject as `clean_data.npz` with fields `clean data` containing the data (high-pass filtered at 0.1 Hz, 1000 Hz sampling rate, average reference), and `artifact_mask`, a boolean array of the same length as the data with Trues at non-selected timepoints and Falses at all timepoints selected as artifacts (in Step 1).
 
-The ICA results are stored in the data folder of every single subject as a file "ICA_result.joblib". If the ICA should be re-computed, delete that file.
+The ICA results are stored in the data folder of every single subject as a file `ICA_result.joblib`. If the ICA should be re-computed, delete that file.
 
 Additionally some plots are saved in the Results folder of that subject.
 
@@ -70,12 +70,11 @@ single trials and the average across single trials.
 2. Spatio-spectral decomposition (SSD): Filters are trained from the
 listening period to maximize the power of oscillations at the frequencies
 of the polyrhythm the subjects were listening to.
-Algorithmically, this works by (1) low-frequency band-pass filtering
-between 0.5 and 2.5 Hz (lf-data), (2) extracting the requested frequencies
-from the data by fitting sines and cosines at those frequencies (= explicite
-Fourier transform) and reconstructing with only those frequencies included
-(entrained-data), (3) common spatial pattern (CSP) of lf-data vs. entrained
-data.
+Algorithmically, this works by (1) low-pass filtering at 3 Hz (lf-data),
+(2) extracting the requested frequencies from the data by fitting sines and
+cosines at those frequencies (= explicite Fourier transform) and
+reconstructing with only those frequencies included (entrained-data),
+(3) common spatial pattern (CSP) of lf-data vs. entrained data.
 
 3. Phase coupling optimization (PCO): Filters are trained from the silence
 period to maximize the dependence between the phases of neuronal
@@ -110,13 +109,20 @@ It requires 3 arguments:
 In the `result_folder` of that subject, a file `prepared_filterdata.npz`
 will be stored with the following entries:
 
+As filter, a FIR filter is used with a length half of the triple beat
+interval. The filter is linear phase and the filtered data is shifted as
+to lead to zero phase shift.
+The filter design is stored in the results folder of that subject as
+`FIR_filter.pdf`
+
+- `lowpass`: the used lowpass FIR filter
 - `listen_trials`, a channesl x samples x trials array of EEG data during
-    listening period
+    listening period (butterworth filter 2-40 Hz)
 - `listen_trials_avg`, a channels x samples array of averaged EEG data
-    (across trials) during listening period
+    (across trials) during listening period (same butterworth filter as above)
 - `snareListenData`, a channels x samples x trials array of EEG data
-    after low-frequency band-pass filtering (0.5-2.5 Hz) for the listening
-    period of trials cued with a snare drum (duple beat).
+    after low-pass filtering (3 Hz) and making the trials zero mean for the
+    listening period of trials cued with a snare drum (duple beat).
 - `snareListenData_rec`, a channels x samples x trials array of EEG data
     contaning only the duple and triple beat frequencies.
 - `snareInlier`, a 1d boolean array indication which trials are valid (for

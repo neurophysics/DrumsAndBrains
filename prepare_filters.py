@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.signal
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
@@ -66,8 +67,9 @@ with np.load(eeg_fname) as npzfile:
     EEG = npzfile['clean_data']
     artifact_mask = npzfile['artifact_mask']
 
-# apply a 0.5 Hz high-pass filter
-EEG_hp = meet.iir.butterworth(EEG, fs=(0.4, 30), fp=(0.5, 20), s_rate=s_rate)
+# apply a 0.5 - 20 Hz band-pass filter
+EEG_hp = meet.iir.butterworth(EEG, fs=(0.1, 70), fp=(2, 40),
+        s_rate=s_rate)
 
 # read the channel names
 channames = meet.sphere.getChannelNames(os.path.join(data_folder,
@@ -110,6 +112,50 @@ listen_trials = meet.epochEEG(EEG_hp,
 # calculate the average
 listen_trials_avg = listen_trials.mean(-1)
 
+
+###########################################
+# construct a FIR filter as 3 Hz low-pass #
+###########################################
+# assert, that the number of taps is not longer than 1/2
+# the interval between
+# the woodblock beats (this avoids an influence of a previous erp on the
+# silence bar)
+numtaps = int(s_rate/wdBlkFreq)//2
+# make numtaps odd
+if (numtaps%2) == 0: numtaps -= 1
+h = scipy.signal.firwin(numtaps, 3, width=3, window='sinc', pass_zero=True,
+        fs=1000)
+f, amp = scipy.signal.freqz(h, worN=32000, fs=1000)
+# plot some filter analysis
+impulse = np.zeros(2000)
+impulse[1000] = 1
+fimpulse = scipy.signal.lfilter(h,1, impulse)
+timpulse = np.arange(-1000,1000,1)
+fig = plt.figure()
+ax1 = fig.add_subplot(311)
+ax1.plot(timpulse, impulse, 'b-')
+ax11 = plt.twinx(ax1)
+ax11.plot(timpulse - numtaps//2, fimpulse, 'r-')
+ax2 = fig.add_subplot(312)
+ax2.plot(f, 20*np.log10(np.abs(amp)))
+ax3 = fig.add_subplot(313, sharey=ax2)
+ax3.plot(f, 20*np.log10(np.abs(amp)))
+ax3.set_xlim([0,10])
+ax1.set_title('impulse response (Ntaps: %d)' % numtaps)
+ax2.set_title('frequency response')
+ax3.set_title('frequency response - zoomed')
+ax1.set_xlabel('time (ms)')
+ax1.set_ylabel('amplitude (a.u.)')
+ax11.set_ylabel('amplitude (a.u.)')
+ax2.set_xlabel('frequency (Hz)')
+ax2.set_ylabel('gain (dB)')
+ax3.set_xlabel('frequency (Hz)')
+ax3.set_ylabel('gain (dB)')
+fig.tight_layout()
+fig.savefig(os.path.join(
+    os.path.join(result_folder), 'S%02d' % subject,
+    'FIR_filter.pdf'))
+
 # fit a sloping line + cosine and sine of the snare and woodblock
 # frequencies to the listening bars
 # make up a design matrix having ones (intercept), t (slope), snare_cos, snare_sin, wdBlk_cos, wdBlk_sin as columns
@@ -122,14 +168,16 @@ listen_fit_matrix = np.array([
     np.sin(2*np.pi*wdBlkFreq*t_listen)
     ]).T
 
-# filter the EEG between 0.5 and 2.5 Hz, get the listening trials and fit
-# the sines and cosines
-EEG_lowfreq = meet.iir.butterworth(EEG, fp=(0.5, 2.5), fs=(0.25, 3),
-        s_rate=s_rate, axis=-1)
-snareListenData = meet.epochEEG(EEG_lowfreq, snareListenMarker[snareInlier],
-        listen_win)
-wdBlkListenData = meet.epochEEG(EEG_lowfreq, wdBlkListenMarker[wdBlkInlier],
-        listen_win)
+# filter the EEG (3 Hz lowpass) and compensate for phase shift,
+# get the listening trials and fit the sines and cosines
+EEG_lowfreq = scipy.signal.lfilter(h, 1, EEG, axis=-1)
+snareListenData = meet.epochEEG(EEG_lowfreq, snareListenMarker[snareInlier]
+        + numtaps//2, listen_win)
+wdBlkListenData = meet.epochEEG(EEG_lowfreq, wdBlkListenMarker[wdBlkInlier]
+        + numtaps//2, listen_win)
+# make the trials zero mean
+snareListenData -= snareListenData.mean(axis=1)[:,np.newaxis]
+wdBlkListenData -= wdBlkListenData.mean(axis=1)[:,np.newaxis]
 
 snareFit = np.array([np.linalg.lstsq(listen_fit_matrix, c)[0]
     for c in snareListenData])
@@ -145,9 +193,9 @@ wdBlkListenData_rec = listen_fit_matrix.dot(wdBlkFit).swapaxes(0,1)
 
 # get the silence data
 snareSilenceData = meet.epochEEG(EEG_lowfreq,
-        snareListenMarker[snareInlier], silence_win)
+        snareListenMarker[snareInlier] + numtaps//2, silence_win)
 wdBlkSilenceData = meet.epochEEG(EEG_lowfreq,
-        wdBlkListenMarker[wdBlkInlier], silence_win)
+        wdBlkListenMarker[wdBlkInlier] + numtaps//2, silence_win)
 
 silence_fit_matrix = np.array([
     np.ones_like(t_silence),
@@ -162,6 +210,9 @@ snareFitSilence = np.array([np.linalg.lstsq(silence_fit_matrix, c)[0]
     for c in snareSilenceData])
 wdBlkFitSilence = np.array([np.linalg.lstsq(silence_fit_matrix, c)[0]
     for c in wdBlkSilenceData])
+# make the trials zero mean
+snareSilenceData -= snareSilenceData.mean(axis=1)[:,np.newaxis]
+wdBlkSilenceData -= wdBlkSilenceData.mean(axis=1)[:,np.newaxis]
 # reconstruct the trials using only the cosine and sine information
 # this means setting the constant and slope to 0
 snareFitSilence[:,:2] = 0
@@ -173,6 +224,7 @@ wdBlkSilenceData_rec = listen_fit_matrix.dot(wdBlkFitSilence).swapaxes(
 
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepared_filterdata.npz'),
+    lowpass = h,
     listen_trials = listen_trials,
     listen_trials_avg = listen_trials_avg,
     snareListenData = snareListenData,
@@ -190,5 +242,3 @@ np.savez(os.path.join(save_folder, 'prepared_filterdata.npz'),
     snareFitSilence = snareFitSilence,
     wdBlkFitSilence = wdBlkFitSilence
     )
-
-
