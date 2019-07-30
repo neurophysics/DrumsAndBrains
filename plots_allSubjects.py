@@ -44,7 +44,7 @@ for subject in range(1,subjectnr+1):
 
     # collect real performance data
     with np.load(os.path.join(result_folder, 'S%02d' % subject,
-            'behavioural_results.npz'), 'r') as f:
+            'behavioural_results.npz'), 'r', allow_pickle=True) as f:
         snareDev = np.abs(f['snareCue_DevToClock'])
         wdBlkDev = np.abs(f['wdBlkCue_DevToClock'])
         snareCue_DevToClock[subject-1] = np.concatenate(snareDev)
@@ -110,8 +110,10 @@ wdBlkSilenceBestAmp = np.zeros((subjectnr,75))
 snareSilenceBestPhase = np.zeros((subjectnr,75))
 wdBlkSilenceBestPhase = np.zeros((subjectnr,75))
 for subject in range(1,subjectnr+1):
+    if subject==11:
+        continue #no eeg for subject 11
     with np.load(os.path.join(result_folder, 'S%02d' % subject,
-            'eeg_results.npz'), 'r') as f:
+            'eeg_results.npz'), 'r', allow_pickle=True) as f:
         snareInlier[subject-1] = f['snareInlier']
         snarePos = [x-i for i,x in enumerate(
                 np.where([not s for s in snareInlier[subject-1]])[0])]
