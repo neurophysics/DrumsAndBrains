@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
-import argparse
-import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
 import subprocess
-from collections import defaultdict
 import csv
 import scipy
 import scipy.stats
@@ -18,8 +15,6 @@ result_folder = sys.argv[3]
 save_folder = os.path.join(result_folder, 'all%02dsubjects' % subjectnr)
 if not os.path.exists(save_folder):
     os.mkdir(save_folder)
-
-save_folder = os.path.join(result_folder, 'all%02dsubjects' % subjectnr)
 
 #calculate and read behavioural results into behaviouraldict:
 #{'S01': {'snareCue_times': [46.28689342,...], ...}, 'S02': {...} }
