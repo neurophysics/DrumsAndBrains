@@ -4,74 +4,47 @@ import glob
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+import sys
 import subprocess
 from collections import defaultdict
-from csv import DictReader
+import csv
 import scipy
 import scipy.stats
 
-home_folder = os.path.expanduser('~')
+data_folder = sys.argv[1]
+subjectnr = int(sys.argv[2]) #here: total number of subjects
+result_folder = sys.argv[3]
 
-# make standard folders depending on the current user
-if 'hansmitdampf' in home_folder:
-    data_default = os.path.join(home_folder,
-            'Neuro/Data/2018-Polyrhythm')
-    result_default = os.path.join(home_folder,
-            'Neuro/Python-Reps/Scripts/2018-Polyrhythm/Results')
-    python_exec = 'python2'
-elif 'Carola' in home_folder:
-    data_default = os.path.join(home_folder,
-            'Documents/Arbeit/Charite/DrumsAndBrains/Data')
-    result_default = os.path.join(home_folder,
-            'Documents/Arbeit/Charite/DrumsAndBrains/Results')
-    python_exec = 'python'
-# add more users by inserting elif lines
-else:
-    data_default = home_folder
-    result_default = home_folder
-    python_exec = 'python'
+save_folder = os.path.join(result_folder, 'all%02dsubjects' % subjectnr)
+if not os.path.exists(save_folder):
+    os.mkdir(save_folder)
 
-# parse all the arguments
-parser= argparse.ArgumentParser(
-        description='Package for combined classifier - welcome!')
-parser.add_argument('-p', '--python', default=python_exec,
-        help='python executable')
-parser.add_argument('-d', '--data_folder', default=data_default,
-        help='Path to data folder.')
-parser.add_argument('-r', '--result_folder', default=result_default,
-        help='Path to result folder.')
-parser.add_argument('-n', '--nrofsubjects', default=10, type=int,
-        help='Number of subjects.')
-args=parser.parse_args()
-
-if not os.path.exists(args.result_folder):
-    os.mkdir(args.result_folder)
+save_folder = os.path.join(result_folder, 'all%02dsubjects' % subjectnr)
 
 #calculate and read behavioural results into behaviouraldict:
 #{'S01': {'snareCue_times': [46.28689342,...], ...}, 'S02': {...} }
 behaviouraldict = {}
-for i in range(1,args.nrofsubjects+1):
+for i in range(1,subjectnr+1):
     # load the results into a dictionary
     try:
-        with np.load(os.path.join(args.result_folder,'S%02d' % i,
-            'behavioural_results.npz')) as behave_file:
+        with np.load(os.path.join(result_folder,'S%02d' % i,
+            'behavioural_results.npz'), allow_pickle=True) as behave_file:
             behaviouraldict['S%02d' % i] = dict(behave_file)
     except:
         # run the script to analyze the behavioural data
         subprocess.call("%s read_aif.py %s %d %s" % (
-            args.python, args.data_folder, i, args.result_folder),
+            'python2', data_folder, i, result_folder),
             shell=True)
-        with np.load(os.path.join(args.result_folder,'S%02d' % i,
-            'behavioural_results.npz')) as behave_file:
+        with np.load(os.path.join(result_folder,'S%02d' % i,
+            'behavioural_results.npz'), allow_pickle=True) as behave_file:
             behaviouraldict['S%02d' % i] = dict(behave_file)
 
 ###1. plot performance vs musical background:
 #read subject background (LQ and music qualification)
 #background is a dict {"subjectnr":[LQ, Quali, Level, years]}
-filename = os.path.join(args.data_folder,'additionalSubjectInfo.csv')
 background = {}
-with open(filename) as infile:
-    reader = DictReader(infile, fieldnames=None, delimiter=';')
+with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'rU') as infile:
+    reader = csv.DictReader(infile, fieldnames=None, delimiter=';')
     for row in reader:
         key = row['Subjectnr']
         value = [int(row['LQ']),int(row['MusicQualification']),
@@ -83,10 +56,10 @@ z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
         )/raw_musicscores.std(0)
 musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 
-snare_abs_performance = np.zeros(args.nrofsubjects)
-wb_abs_performance = np.zeros(args.nrofsubjects)
-snare_rel_performance = np.zeros(args.nrofsubjects)
-wb_rel_performance = np.zeros(args.nrofsubjects)
+snare_abs_performance = np.zeros(subjectnr)
+wb_abs_performance = np.zeros(subjectnr)
+snare_rel_performance = np.zeros(subjectnr)
+wb_rel_performance = np.zeros(subjectnr)
 for i,v in enumerate(behaviouraldict.values()):
     snaredev = v['snare_deviation']
     snaredev = snaredev[np.isfinite(snaredev)]
@@ -101,38 +74,38 @@ for i,v in enumerate(behaviouraldict.values()):
         wbdev - scipy.stats.trim_mean(wbdev, 0.125)), 0.25).mean()
 
 snare_abs_expregress = scipy.stats.linregress(
-        musicscore[0:args.nrofsubjects],
+        musicscore[0:subjectnr],
         np.log(snare_abs_performance))
 snare_rel_expregress = scipy.stats.linregress(
-        musicscore[0:args.nrofsubjects],
+        musicscore[0:subjectnr],
         np.log(snare_rel_performance))
 wb_abs_expregress = scipy.stats.linregress(
-        musicscore[0:args.nrofsubjects],
+        musicscore[0:subjectnr],
         np.log(wb_abs_performance))
 wb_rel_expregress = scipy.stats.linregress(
-        musicscore[0:args.nrofsubjects],
+        musicscore[0:subjectnr],
         np.log(wb_rel_performance))
 
 N_permute = 10000
 snare_abs_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:args.nrofsubjects],
+    scipy.stats.linregress(musicscore[0:subjectnr],
         np.log(snare_abs_performance)[
-            np.random.randn(args.nrofsubjects).argsort()
+            np.random.randn(subjectnr).argsort()
             ]).slope for _ in xrange(N_permute)])
 snare_rel_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:args.nrofsubjects],
+    scipy.stats.linregress(musicscore[0:subjectnr],
         np.log(snare_rel_performance)[
-            np.random.randn(args.nrofsubjects).argsort()
+            np.random.randn(subjectnr).argsort()
             ]).slope for _ in xrange(N_permute)])
 wb_abs_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:args.nrofsubjects],
+    scipy.stats.linregress(musicscore[0:subjectnr],
         np.log(wb_abs_performance)[
-            np.random.randn(args.nrofsubjects).argsort()
+            np.random.randn(subjectnr).argsort()
             ]).slope for _ in xrange(N_permute)])
 wb_rel_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:args.nrofsubjects],
+    scipy.stats.linregress(musicscore[0:subjectnr],
         np.log(wb_rel_performance)[
-            np.random.randn(args.nrofsubjects).argsort()
+            np.random.randn(subjectnr).argsort()
             ]).slope for _ in xrange(N_permute)])
 
 snare_abs_slope_p = np.mean(
@@ -149,34 +122,35 @@ x = np.linspace(-2, 2, 100)
 # plot musicscore vs behaviour
 fig = plt.figure()
 ax1 = fig.add_subplot(121)
+fig.subplots_adjust(wspace=.5)
 ax2 = fig.add_subplot(122, sharex=ax1, sharey=ax1)
-ax1.scatter(musicscore[0:args.nrofsubjects], snare_abs_performance,
+ax1.scatter(musicscore[0:subjectnr], snare_abs_performance,
     marker = 'o', label='Snare, p=%.3f' % snare_abs_slope_p,
     color='b')
 ax1.plot(x, np.exp(snare_abs_expregress[1]+snare_abs_expregress[0]*x),
         'b-')
-ax1.scatter(musicscore[0:args.nrofsubjects], wb_abs_performance,
+ax1.scatter(musicscore[0:subjectnr], wb_abs_performance,
     marker = 'o', label='Woodblock, p=%.3f' % wb_abs_slope_p,
     color='r')
 ax1.plot(x, np.exp(wb_abs_expregress[1]+wb_abs_expregress[0]*x),
         'r-')
-ax2.scatter(musicscore[0:args.nrofsubjects], snare_rel_performance,
+ax2.scatter(musicscore[0:subjectnr], snare_rel_performance,
     marker = 'o', label='Snare, p=%.3f' % snare_rel_slope_p,
     color='b')
 ax2.plot(x, np.exp(snare_rel_expregress[1]+snare_rel_expregress[0]*x),
         'b-')
-ax2.scatter(musicscore[0:args.nrofsubjects], wb_rel_performance,
+ax2.scatter(musicscore[0:subjectnr], wb_rel_performance,
     marker = 'o', label='Woodblock, p=%.3f' % wb_rel_slope_p,
     color='r')
 ax2.plot(x, np.exp(wb_rel_expregress[1]+wb_rel_expregress[0]*x), 'r-')
 ax1.legend(prop={'size': 8})
 ax2.legend(prop={'size': 8})
-ax1.set_title('Absolute deviatios')
+ax1.set_title('Absolute deviations')
 ax2.set_title('Relative deviations')
 ax1.set_xlabel('musical experience (z-score)')
 ax2.set_xlabel('musical experience (z-score)')
 ax1.set_ylabel('absolute deviation (ms)')
 ax2.set_ylabel('relative deviation (ms)')
 
-fig.savefig(os.path.join(args.result_folder,
+fig.savefig(os.path.join(save_folder,
     'performance_background_plot.pdf'))
