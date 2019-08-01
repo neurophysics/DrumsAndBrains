@@ -44,7 +44,7 @@ eeg_clocks = [c for c in eeg_clocks if len(c) > 100]
 assert len(eeg_clocks) == 6, '6 sessions expected'
 
 with np.load(os.path.join(save_folder, 'behavioural_results.npz'),
-        'r') as f:
+        'r', allow_pickle=True) as f:
     snareCue_nearestClock = f['snareCue_nearestClock']
     snareCue_DevToClock = f['snareCue_DevToClock']
     wdBlkCue_nearestClock = f['wdBlkCue_nearestClock']
@@ -62,7 +62,7 @@ wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
         wdBlkCue_nearestClock, wdBlkCue_DevToClock)
 
 # read the cleaned EEG and the artifact segment mask
-with np.load(eeg_fname) as npzfile:
+with np.load(eeg_fname, allow_pickle=True) as npzfile:
     EEG = npzfile['clean_data']
     artifact_mask = npzfile['artifact_mask']
 
