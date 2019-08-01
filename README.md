@@ -149,7 +149,8 @@ It requires 2 arguments:
 1. `result_folder` (used to store the results)
 2. `normalize`: `0` or `1` to indicate whether the data should be
     normalized for every individual subject prior to averaging across
-    subjects.
+    subjects (in the end, it turns out, that the results for the
+    strongest sources are very similar).
 
 SSD is calculated by (1) reading `snareListenData`, `snareListenData_rec`,
 `wdBlkListenData`, and `wdBlkListenData_rec` from individual subjects.

@@ -24,6 +24,7 @@ s_rate = 1000 # sampling rate of the EEG
 result_folder = sys.argv[1]
 normalize = bool(int(sys.argv[2]))
 N_subjects = 21
+cov_thresh = 2000
 
 # calculate the SSD from all subjects
 # read the channel names
@@ -35,10 +36,6 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 
 N_channels = len(channames)
 
-listen_cov = np.zeros((N_channels, N_channels), float)
-listen_rec_cov = np.zeros_like(listen_cov)
-
-k = 1
 for i in xrange(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
@@ -47,17 +44,10 @@ for i in xrange(1, N_subjects + 1, 1):
             wdBlkListenData = f['wdBlkListenData']
             snareListenData_rec = f['snareListenData_rec']
             wdBlkListenData_rec = f['wdBlkListenData_rec']
-        org_cov = np.cov(np.dstack([snareListenData, wdBlkListenData]).reshape(
-            N_channels, -1, order='F'))
-        rec_cov = np.cov(np.dstack([snareListenData_rec, wdBlkListenData_rec]
-            ).reshape(N_channels, -1, order='F'))
-        if normalize:
-            # if requested, normalize
-            rec_cov /= np.trace(org_cov)
-            org_cov /= np.trace(org_cov)
-        listen_cov = listen_cov + (org_cov - listen_cov)/k
-        listen_rec_cov = listen_rec_cov + (rec_cov - listen_rec_cov)/k
-        k += 1
+        temp = np.dstack([snareListenData, wdBlkListenData])
+        org_cov.append(np.einsum('ijk, ljk->ilk', temp, temp)/temp.shape[1])
+        temp = np.dstack([snareListenData_rec, wdBlkListenData_rec])
+        rec_cov.append(np.einsum('ijk, ljk->ilk', temp, temp)/temp.shape[1])
     except:
         print('Warning: Subject %02d could not be loaded!' %i)
 
@@ -65,24 +55,58 @@ del snareListenData
 del wdBlkListenData
 del snareListenData_rec
 del wdBlkListenData_rec
+del temp
+
+# threshold for outliers
+inlier = [p[range(N_channels), range(N_channels)].sum(0) < cov_thresh
+        for p in org_cov]
+
+org_cov, rec_cov = zip(*[(p[...,I], q[...,I])
+    for p,q,I in zip(org_cov, rec_cov, inlier)])
+
+if normalize:
+    # if requested, normalize the subjects
+    org_cov, rec_cov = zip(*[(
+        p/np.trace(p.mean(-1)),
+        q/np.trace(p.mean(-1)))
+        for p,q in zip(org_cov, rec_cov)])
+    org_cov, rec_cov = zip(*[(
+        p/np.trace(p.mean(-1)),
+        q/np.trace(p.mean(-1)))
+        for p,q in zip(org_cov, rec_cov)])
 
 # calculate the actual SSD filters enhancing the reconstructed data with only
 # the two oscillations included - this is in the end
 # a sort of SSD (spatial spectral decomposition)
 # enhance the frequencies we're searching for (double/triple beat)
 # and suppress other frequencies
-ssd_eigvals, ssd_filter = scipy.linalg.eigh(listen_rec_cov,
+listen_cov = np.dstack(org_cov).mean(-1)
+listen_rec_cov = np.dstack(rec_cov).mean(-1)
+
+try:
+    ssd_eigvals, ssd_filter = scipy.linalg.eigh(listen_rec_cov,
         listen_cov + listen_rec_cov)
+except scipy.linalg.LinAlgError:
+    # if rank deficient
+    rank = np.linalg.matrix_rank(listen_cov + listen_rec_cov)
+    W_vals, W_vect = scipy.linalg.eigh(listen_cov + listen_rec_cov)
+    W = W_vect[:,-rank:]/np.sqrt(W_vals[-rank:])
+    ssd_eigvals, ssd_filter = scipy.linalg.eigh(
+            W.T.dot(listen_rec_cov).dot(W))
+    ssd_filter = W.dot(ssd_filter)
+
 ssd_filter = ssd_filter[:,::-1]
 ssd_eigvals = ssd_eigvals[::-1]
 
-ssd_pattern = np.linalg.inv(ssd_filter)
+ssd_pattern = scipy.linalg.solve(
+        ssd_filter.T.dot(listen_rec_cov).dot(ssd_filter),
+        ssd_filter.T.dot(listen_rec_cov))
 
 # plot the patterns
 # name the ssd channels
 ssd_channames = ['SSD%02d' % (i+1) for i in xrange(len(ssd_pattern))]
 
-# plot the ICA  components scalp maps
+# plot the SSD components scalp maps
 ssd_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
     projection='stereographic') for ssd_c in ssd_pattern]
 
@@ -111,9 +135,9 @@ plt.colorbar(pc, cax=pc_ax, orientation='horizontal',
 pc_ax.plot([0.5,0.5], [0,1], c='w', zorder=1000,
         transform=pc_ax.transAxes)
 eigvals_ax = fig.add_subplot(gs[-1,:], frame_on=False)
-eigvals_ax.plot(np.arange(1, N_channels + 1, 1), ssd_eigvals, 'ko-',
+eigvals_ax.plot(np.arange(1, len(ssd_eigvals) + 1, 1), ssd_eigvals, 'ko-',
         markersize=5)
-eigvals_ax.set_xlim([0, N_channels + 1])
+eigvals_ax.set_xlim([0, len(ssd_eigvals) + 1])
 eigvals_ax.set_title('SSD eigenvalues')
 fig.suptitle('SSD patterns', size=14)
 gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
