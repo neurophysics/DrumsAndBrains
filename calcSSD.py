@@ -36,6 +36,9 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 
 N_channels = len(channames)
 
+org_cov = []
+rec_cov = []
+
 for i in xrange(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
@@ -64,16 +67,30 @@ inlier = [p[range(N_channels), range(N_channels)].sum(0) < cov_thresh
 org_cov, rec_cov = zip(*[(p[...,I], q[...,I])
     for p,q,I in zip(org_cov, rec_cov, inlier)])
 
+norm_power = [np.trace(p.mean(-1)) for p in org_cov]
+
 if normalize:
     # if requested, normalize the subjects
-    org_cov, rec_cov = zip(*[(
-        p/np.trace(p.mean(-1)),
-        q/np.trace(p.mean(-1)))
-        for p,q in zip(org_cov, rec_cov)])
-    org_cov, rec_cov = zip(*[(
-        p/np.trace(p.mean(-1)),
-        q/np.trace(p.mean(-1)))
-        for p,q in zip(org_cov, rec_cov)])
+    org_cov, rec_cov = zip(*[(p/n, q/n) for p,q,n in zip(org_cov, rec_cov,
+        norm_power)])
+
+k = 0
+psd_preSSD = []
+for i in xrange(1, N_subjects + 1, 1):
+    try:
+        with np.load(os.path.join(result_folder, 'S%02d' % i)
+                + '/prepared_filterdata.npz', 'r') as f:
+            trials = np.dstack([
+                f['snareListenData'],
+                f['wdBlkListenData']])[...,inlier[k]]
+        # calculate the spectrum in every channel
+        f, psd = scipy.signal.welch(
+                trials.reshape(trials.shape[0], -1, order='F'),
+                axis=-1, fs=s_rate, noverlap=0, nperseg=trials.shape[1])
+        psd_preSSD.append(psd)
+        k += 1
+    except:
+        pass
 
 # calculate the actual SSD filters enhancing the reconstructed data with only
 # the two oscillations included - this is in the end
@@ -97,6 +114,25 @@ except scipy.linalg.LinAlgError:
 
 ssd_filter = ssd_filter[:,::-1]
 ssd_eigvals = ssd_eigvals[::-1]
+
+k = 0
+psd_postSSD = []
+for i in xrange(1, N_subjects + 1, 1):
+    try:
+        with np.load(os.path.join(result_folder, 'S%02d' % i)
+                + '/prepared_filterdata.npz', 'r') as f:
+            trials = np.dstack([
+                f['snareListenData'],
+                f['wdBlkListenData']])[...,inlier[k]]
+            trials = np.tensordot(ssd_filter, trials, axes = (0,0))
+        # calculate the spectrum in every channel
+        f, psd = scipy.signal.welch(
+                trials.reshape(trials.shape[0], -1, order='F'),
+                axis=-1, fs=s_rate, noverlap=0, nperseg=trials.shape[1])
+        psd_postSSD.append(psd)
+        k += 1
+    except:
+        pass
 
 ssd_pattern = scipy.linalg.solve(
         ssd_filter.T.dot(listen_rec_cov).dot(ssd_filter),

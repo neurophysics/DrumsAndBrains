@@ -61,12 +61,18 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 N_channels = len(channames)
 
 # load the SSD results
+with np.load(os.path.join(args.result_folder, 'FFTSSD.npz'),
+        'r') as f:
+    ssd_eigvals = f['ssd_eigvals']
+    ssd_filter = f['ssd_filter']
+"""
+# load the SSD results
 with np.load(os.path.join(args.result_folder, 'SSD_norm_%s.npz' % (
     args.normSSD)),
         'r') as f:
     ssd_eigvals = f['ssd_eigvals']
     ssd_filter = f['ssd_filter']
-
+"""
 snareInlier = []
 wdBlkInlier = []
 snareFitSilence = []
@@ -227,18 +233,46 @@ def cSPoC_obj_der(w, target, contrast, a, *args, **kwargs):
                 contrast_corr)*contrast_corr_der
     return corr, corr_der[:-1]
 
-def cSPoC(target, contrast, a, bestof=15, opt='min', log=False):
+def cSPoC(target, contrast, a, num=1, bestof=15, opt='min', log=False):
     if opt == 'max': sign = -1
     elif opt == 'min': sign = 1
     else: raise ValueError('opt must be min or max')
-    w, corr = zip(*[
-        _minimize(func = cSPoC_obj_der, fprime = None,
-            x0 = np.random.randn(target.shape[0]),
-            args = (target, contrast, a, sign, log),
-            m=100, approx_grad=False, iprint=0)[:2]
-        for k in xrange(bestof)])
-    return sign*corr[np.argmin(corr)], w[np.argmin(corr)]
+    # whiten for the real part of the target
+    if num != 1:
+        Wt, st = scipy.linalg.svd(target.real, full_matrices=False)[:2]
+        rt = np.linalg.matrix_rank(target.real)
+        if num is None: num = rt
+        W = Wt[:,:rt]/st[:rt]
+        target = W.T.dot(target)
+        contrast = W.T.dot(contrast)
+    for i in xrange(num):
+        if i>0:
+            # project the previous filters out
+            wx = scipy.linalg.svd(np.array(w), full_matrices=True)[2][i:].T
+        else:
+            wx = np.eye(target.shape[0])
+        w_i, corr_i = zip(*[
+            _minimize(func = cSPoC_obj_der, fprime = None,
+                x0 = np.random.randn(wx.shape[1]),
+                args = (wx.T.dot(target), wx.T.dot(contrast), a, sign, log),
+                m=100, approx_grad=False, iprint=0)[:2]
+            for k in xrange(bestof)])
+        try:
+            corr.append(sign*np.min(corr_i))
+            w.append(wx.dot(w_i[np.argmin(corr_i)]))
+        except NameError:
+            corr = [sign*np.min(corr_i)]
+            w = [wx.dot(w_i[np.argmin(corr_i)])]
+    if num == 1:
+        corr = corr[0]
+        w = w[0]
+    else:
+        corr = np.r_[corr]
+        w = W.dot(np.array(w).T)
+    return corr, w
+
 # load the results
+
 try:
     with np.load(os.path.join(args.result_folder,
         'cSPoC_results_%s.npz' % save_hash), 'rb') as f:
@@ -262,37 +296,41 @@ try:
 except:
     # if loading previous results did not work, calculate new results
     snare_min_corr, snare_min_filt = cSPoC(snarePower_snareCue,
-            wdBlkPower_snareCue, snare_deviation, opt='min')
+            wdBlkPower_snareCue, snare_deviation, opt='min', num=None)
     snare_min_corr_boot = np.array([cSPoC(snarePower_snareCue,
         wdBlkPower_snareCue, np.random.permutation(snare_deviation),
         opt='min')[0]
         for _ in trange(1000)])
-    snare_min_corr_p = ((snare_min_corr_boot<=snare_min_corr).sum() + 1)/(
-            len(snare_min_corr_boot) + 1.)
+    snare_min_corr_p = (
+            (snare_min_corr_boot[np.newaxis]<=snare_min_corr[
+                :,np.newaxis]).sum(-1) + 1)/(len(snare_min_corr_boot) + 1.)
     snare_max_corr, snare_max_filt = cSPoC(snarePower_snareCue,
-            wdBlkPower_snareCue, snare_deviation, opt='max')
+            wdBlkPower_snareCue, snare_deviation, opt='max', num=None)
     snare_max_corr_boot = np.array([cSPoC(snarePower_snareCue,
         wdBlkPower_snareCue, np.random.permutation(snare_deviation),
         opt='max')[0]
         for _ in trange(1000)])
-    snare_max_corr_p = ((snare_max_corr_boot<=snare_max_corr).sum() + 1)/(
-            len(snare_max_corr_boot) + 1.)
+    snare_max_corr_p = (
+            (snare_max_corr_boot[np.newaxis]>=snare_max_corr[
+                :,np.newaxis]).sum(-1) + 1)/(len(snare_max_corr_boot) + 1.)
     wdBlk_min_corr, wdBlk_min_filt = cSPoC(wdBlkPower_wdBlkCue,
-            snarePower_wdBlkCue, wdBlk_deviation, opt='min')
+            snarePower_wdBlkCue, wdBlk_deviation, opt='min', num=None)
     wdBlk_min_corr_boot = np.array([cSPoC(wdBlkPower_wdBlkCue,
         snarePower_wdBlkCue, np.random.permutation(wdBlk_deviation),
         opt='min')[0]
         for _ in trange(1000)])
-    wdBlk_min_corr_p = ((wdBlk_min_corr_boot<=wdBlk_min_corr).sum() + 1)/(
-            len(wdBlk_min_corr_boot) + 1.)
+    wdBlk_min_corr_p = (
+            (wdBlk_min_corr_boot[np.newaxis]<=wdBlk_min_corr[
+                :,np.newaxis]).sum(-1) + 1)/(len(wdBlk_min_corr_boot) + 1.)
     wdBlk_max_corr, wdBlk_max_filt = cSPoC(wdBlkPower_wdBlkCue,
-            snarePower_wdBlkCue, wdBlk_deviation, opt='max')
+            snarePower_wdBlkCue, wdBlk_deviation, opt='max', num=None)
     wdBlk_max_corr_boot = np.array([cSPoC(wdBlkPower_wdBlkCue,
         snarePower_wdBlkCue, np.random.permutation(wdBlk_deviation),
         opt='max')[0]
         for _ in trange(1000)])
-    wdBlk_max_corr_p = ((wdBlk_max_corr_boot<=wdBlk_max_corr).sum() + 1)/(
-            len(wdBlk_max_corr_boot) + 1.)
+    wdBlk_max_corr_p = (
+            (wdBlk_max_corr_boot[np.newaxis]>=wdBlk_max_corr[
+                :,np.newaxis]).sum(-1) + 1)/(len(wdBlk_max_corr_boot) + 1.)
     # save the results
     np.savez(os.path.join(args.result_folder, 'cSPoC_results_%s.npz' % save_hash),
             snare_min_corr = snare_min_corr,
@@ -339,32 +377,44 @@ wdBlk_max_pattern = scipy.linalg.solve(
 
 # name the SPoC channels
 cSPoC_channames = [
-        'snare minCorr', 'snare maxCorr',
-        'wdBlk minCorr', 'wdBlk maxcorr']
+        'snare minCorr 1', 'snare maxCorr 1',
+        'wdBlk minCorr 1', 'wdBlk maxcorr 1',
+        'snare minCorr 2', 'snare maxCorr 2',
+        'wdBlk minCorr 2', 'wdBlk maxcorr 2',
+        ]
 
 all_corr = [
-        snare_min_corr, snare_max_corr,
-        wdBlk_min_corr, wdBlk_max_corr]
+        snare_min_corr[0], snare_max_corr[0],
+        wdBlk_min_corr[0], wdBlk_max_corr[0],
+        snare_min_corr[1], snare_max_corr[1],
+        wdBlk_min_corr[1], wdBlk_max_corr[1],
+        ]
 all_corr_p = [
-        snare_min_corr_p, snare_max_corr_p,
-        wdBlk_min_corr_p, wdBlk_max_corr_p]
+        snare_min_corr_p[0], snare_max_corr_p[0],
+        wdBlk_min_corr_p[0], wdBlk_max_corr_p[0],
+        snare_min_corr_p[1], snare_max_corr_p[1],
+        wdBlk_min_corr_p[1], wdBlk_max_corr_p[1]]
+
 
 # plot the SPoC components scalp maps
 potmaps = [meet.sphere.potMap(chancoords, SPoC_c,
     projection='stereographic') for SPoC_c in
     [
-        snare_min_pattern,
-        snare_max_pattern,
-        wdBlk_min_pattern,
-        wdBlk_max_pattern,
+        snare_min_pattern[0],
+        snare_max_pattern[0],
+        wdBlk_min_pattern[0],
+        wdBlk_max_pattern[0],
+        snare_min_pattern[1],
+        snare_max_pattern[1],
+        wdBlk_min_pattern[1],
+        wdBlk_max_pattern[1],
         ]]
 
-plot_rows = 1
+plot_rows = 2
 
-fig = plt.figure(figsize=(5,2))
-# plot with 8 rows and 4 columns
+fig = plt.figure(figsize=(5,plot_rows*2 + 0.5))
 gs = mpl.gridspec.GridSpec(plot_rows + 1,4,
-        height_ratios = [1,0.1])
+        height_ratios = plot_rows*[1]+[0.1])
 ax = []
 for i, (X,Y,Z) in enumerate(potmaps):
     if i == 0:
@@ -403,18 +453,24 @@ for i, sI, wI in zip(subject_list, snare_inlier, wdBlk_inlier):
     try:
         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
                 + '/prepared_filterdata.npz', 'r') as f:
+            tempListen = np.tensordot(full_snare_max_filt[:,0], f[
+                'snareListenData'],axes=(0,0))[:,sI]
+            tempSilence = np.tensordot(full_snare_max_filt[:,0], f[
+                'snareSilenceData'],axes=(0,0))[:,sI]
             snareData.append(
-                np.vstack([
-                    np.tensordot(full_snare_min_filt, f['snareListenData'],
-                        axes=(0,0))[:,sI],
-                    np.tensordot(full_snare_min_filt, f['snareSilenceData'],
-                        axes=(0,0))[:,sI]]))
+                    np.vstack([
+                        tempListen - tempListen[-1],
+                        tempSilence - tempSilence[0]])
+                        )
+            tempListen = np.tensordot(full_snare_max_filt[:,0], f[
+                'wdBlkListenData'],axes=(0,0))[:,wI]
+            tempSilence = np.tensordot(full_snare_max_filt[:,0], f[
+                'wdBlkSilenceData'],axes=(0,0))[:,wI]
             wdBlkData.append(
-                np.vstack([
-                    np.tensordot(full_snare_min_filt, f['wdBlkListenData'],
-                        axes=(0,0))[:,wI],
-                    np.tensordot(full_snare_min_filt, f['wdBlkSilenceData'],
-                        axes=(0,0))[:,wI]]))
+                    np.vstack([
+                        tempListen - tempListen[-1],
+                        tempSilence - tempSilence[0]])
+                        )
     except:
         print('Warning: Subject %02d could not be loaded!' %i)
 
@@ -470,9 +526,9 @@ tf_t = np.linspace(0, 4*bar_duration, 240)
 fig = plt.figure(figsize=(10,3))
 ax1 = fig.add_subplot(131)
 pc1 = ax1.pcolormesh(tf_t, tf_f, scipy.ndimage.convolve1d(
-    20*np.log10(snare_tf_avg),
+    20*np.log10(tf_avg),
     weights=[-0.25, -0.25, 1, -0.25, -0.25],
-    axis=0, mode='reflect'), cmap=cmap, vmin=0, vmax=1.5)
+    axis=0, mode='reflect'), cmap=cmap, vmin=0, vmax=1.5, rasterized=True)
 ax1.axvline(3*bar_duration, c='w', lw=0.5)
 ax1.axhline(snareFreq, c='w', lw=0.5)
 ax1.axhline(wdBlkFreq, c='w', lw=0.5)
@@ -480,7 +536,7 @@ ax1.set_title('average power')
 plt.colorbar(pc1, ax=ax1, label='power (dB)')
 ax2 = fig.add_subplot(132, sharex=ax1, sharey=ax1)
 pc2 = ax2.pcolormesh(tf_t, tf_f, snare_corr, cmap='coolwarm',
-        vmin=-0.15, vmax=0.15)
+        vmin=-0.15, vmax=0.15, rasterized=True)
 ax2.axvline(3*bar_duration, c='w', lw=0.5)
 ax2.axhline(snareFreq, c='w', lw=0.5)
 ax2.axhline(wdBlkFreq, c='w', lw=0.5)
@@ -488,7 +544,7 @@ ax2.set_title('snare correlation')
 plt.colorbar(pc2, ax=ax2, label='correlation coefficient')
 ax3 = fig.add_subplot(133, sharex=ax1, sharey=ax1)
 pc3 = ax3.pcolormesh(tf_t, tf_f, wdBlk_corr, cmap='coolwarm',
-        vmin=-0.15, vmax=0.15, linewidth=0)
+        vmin=-0.15, vmax=0.15, linewidth=0, rasterized=True)
 ax3.axvline(3*bar_duration, c='w', lw=0.5)
 ax3.axhline(snareFreq, c='w', lw=0.5)
 ax3.axhline(wdBlkFreq, c='w', lw=0.5)
