@@ -158,7 +158,7 @@ f = np.fft.rfftfreq(12*s_rate, d=1./s_rate)
 f_ind = np.r_[np.abs(f - snareFreq).argmin(), np.abs(f - wdBlkFreq).argmin()]
 #f_con = f_ind[:,np.newaxis] + np.array([-4, -3, -2, -1, 1, 2, 3, 4])[
 #        np.newaxis]
-f_con = np.all([f>=2, f<=6], 0)
+f_con = np.all([f>=2, f<=5], 0)
 f_con = [f_con, f_con]
 
 
