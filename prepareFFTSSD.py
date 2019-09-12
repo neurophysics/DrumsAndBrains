@@ -129,8 +129,8 @@ def mtcsd(x, win, ratios, nfft=12*s_rate):
 
 # use slepian windows
 listen_win, listen_ratios = scipy.signal.windows.dpss(
-        min([12*s_rate, len(t_listen)]), NW=2,
-        Kmax=3, sym=False, norm='subsample', return_ratios=True)
+        min([12*s_rate, len(t_listen)]), NW=1.5,
+        Kmax=2, sym=False, norm='subsample', return_ratios=True)
 
 ## use a hanning window
 #listen_win, listen_ratios = [scipy.signal.windows.hann(

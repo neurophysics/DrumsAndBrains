@@ -13,7 +13,7 @@ import hashlib
 import cPickle
 import SPoC
 
-state='listen'
+state='silence'
 
 from scipy.optimize import fmin_l_bfgs_b as _minimize
 
@@ -101,7 +101,7 @@ wdBlk_silence_csd_con = [np.dot(
         wdBlk_filt[:,:wdBlk_N_SSD].T, csd_now.T))
     for csd_now in wdBlk_silence_csd_con]
 
-N_bootstrap=100
+N_bootstrap=1
 from tqdm import trange,tqdm
 
 """
@@ -309,12 +309,30 @@ snare_corr_tf = calc_corr(np.log(snare_tf**2),
 wdBlk_corr_tf = calc_corr(np.log(wdBlk_tf**2),
         wdBlk_deviation_all).reshape(-1, 240)
 
+snare_con_power = np.log(snare_w[:,0].T.dot(snare_w[:,0].T.dot(
+    snare_covs_con_all)))
 snare_pcorr_tf = calc_pcorr(np.log(snare_tf**2),
-        np.log(snare_w[:,0].T.dot(snare_w[:,0].T.dot(snare_covs_con_all))),
-        snare_deviation_all).reshape(-1, 240)
+        snare_con_power, snare_deviation_all).reshape(-1, 240)
+# bootstrap the partial correlation tf-transform
+snare_pcorr_tf_boot = np.array([calc_pcorr(np.log(snare_tf**2),
+        snare_con_power, np.random.choice(
+            snare_deviation_all, size=len(snare_deviation_all),
+            replace=False)) for _ in trange(1000)])
+
+wdBlk_con_power = np.log(wdBlk_w[:,0].T.dot(wdBlk_w[:,0].T.dot(
+    wdBlk_covs_con_all)))
 wdBlk_pcorr_tf = calc_pcorr(np.log(wdBlk_tf**2),
-        np.log(wdBlk_w[:,0].T.dot(wdBlk_w[:,0].T.dot(wdBlk_covs_con_all))),
-        wdBlk_deviation_all).reshape(-1, 240)
+        wdBlk_con_power, wdBlk_deviation_all).reshape(-1, 240)
+# bootstrap the partial correlation tf-transform
+wdBlk_pcorr_tf_boot = np.array([calc_pcorr(np.log(wdBlk_tf**2),
+        wdBlk_con_power, np.random.choice(
+            wdBlk_deviation_all, size=len(wdBlk_deviation_all),
+            replace=False)) for _ in trange(1000)])
+
+import stepdown_p
+snare_pcorr_tf_p =stepdown_p.stepdown_p(-np.ravel(snare_pcorr_tf),
+        -snare_pcorr_tf_boot).reshape(-1,240)
+
 
 snare_X, snare_Y, snare_Z = zip(*[meet.sphere.potMap(chancoords, p)
     for p in snare_pattern])
