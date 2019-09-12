@@ -127,15 +127,14 @@ def mtcsd(x, win, ratios, nfft=12*s_rate):
     csd /= ratios.sum()
     return f, csd
 
-"""
 # use slepian windows
 listen_win, listen_ratios = scipy.signal.windows.dpss(
-        min([12*s_rate, len(t_listen)]), NW=3,
-        Kmax=5, sym=False, norm='subsample', return_ratios=True)
-"""
-# use a hanning window
-listen_win, listen_ratios = [scipy.signal.windows.hann(
-    min([12*s_rate, len(t_listen)]), sym=False)], np.array([1])
+        min([12*s_rate, len(t_listen)]), NW=1.5,
+        Kmax=2, sym=False, norm='subsample', return_ratios=True)
+
+## use a hanning window
+#listen_win, listen_ratios = [scipy.signal.windows.hann(
+#    min([12*s_rate, len(t_listen)]), sym=False)], np.array([1])
 
 f = np.fft.rfftfreq(12*s_rate, d=1./s_rate)
 # calculate the spectrum of all the single trials

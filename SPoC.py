@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.optimize import minimize as _minimize
+from scipy.optimize import shgo as _shgo
 
 ############################################
 # internal funtions and constructors       #
@@ -58,7 +59,8 @@ class _SPoC(object):
                     x0 = x0_now,
                     args = temp + [z],
                     method=self.method,
-                    jac = True, options=dict(disp=self.disp))
+                    jac = True, options=dict(
+                        disp=self.disp))
                 for x0_now in x0]
             w_i = [res_now.x for res_now in res]
             opt_i = [res_now.fun for res_now in res]
@@ -147,7 +149,7 @@ def _partial_corr_2(w, X, Y, z):
     # invert the sign to do maximization
     return -pcorr_2, -pcorr_2_grad
 
-def _partial_corr_avg_2(w, X, Y, z):
+def _partial_corr_avg_2(w, X, Y, z, return_grad=False):
     """
     function and gradient to maximize the squared average partial
     correlation coefficient.
@@ -166,7 +168,7 @@ def _partial_corr_avg_2(w, X, Y, z):
     pcorr_grad = np.mean(pcorr_grad, 0)
     pcorr_2 = pcorr**2
     pcorr_2_grad = 2*pcorr*pcorr_grad
-    # invert the sign to do maximization
+    # force the norm of the filter to be 1
     return -pcorr_2, -pcorr_2_grad
 
 def _corr_grad(w, X, z):
@@ -214,10 +216,11 @@ def _partial_corr_grad(w,X,Y,z):
 def _norm_log_power(w,X):
     # calculate the numerator
     power = w.dot(w.dot(X))
-    log_power = np.log(power)
+    # take the log of power + 1 to avoid nans due to roundoff errors
+    log_power = np.log(power + 1)
     ###
     power_grad = 2*np.dot(w, X)
-    log_power_grad = power_grad/power
+    log_power_grad = power_grad/(power + 1)
     mean_log_power = log_power.mean()
     mean_log_power_grad = np.mean(log_power_grad, -1) 
     log_power_detrend = log_power - mean_log_power

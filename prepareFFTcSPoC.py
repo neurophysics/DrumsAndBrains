@@ -139,53 +139,45 @@ def mtcsd(x, win, ratios, nfft=12*s_rate):
     csd /= ratios.sum()
     return f, csd
 
-"""
+#"""
 # use slepian windows
 listen_win, listen_ratios = scipy.signal.windows.dpss(
-        min([2*s_rate, len(t_listen)]), NW=3,
-        Kmax=5, sym=False, norm='subsample', return_ratios=True)
+        min([12*s_rate, len(t_listen)]), NW=1.5,
+        Kmax=2, sym=False, norm='subsample', return_ratios=True)
 silence_win, silence_ratios = scipy.signal.windows.dpss(
-        min([2*s_rate, len(t_silence)]), NW=3,
-        Kmax=5, sym=False, norm='subsample', return_ratios=True)
+        min([12*s_rate, len(t_silence)]), NW=1.5,
+        Kmax=2, sym=False, norm='subsample', return_ratios=True)
+
 """
 # use a hanning window
 listen_win, listen_ratios = [scipy.signal.windows.hann(
     min([12*s_rate, len(t_listen)]), sym=False)], np.array([1])
 silence_win, silence_ratios = [scipy.signal.windows.hann(
     min([12*s_rate, len(t_silence)]), sym=False)], np.array([1])
+"""
 
 f = np.fft.rfftfreq(12*s_rate, d=1./s_rate)
-f_ind = np.r_[np.abs(f - snareFreq).argmin(), np.abs(f - wdBlkFreq).argmin()]
-#f_con = f_ind[:,np.newaxis] + np.array([-4, -3, -2, -1, 1, 2, 3, 4])[
-#        np.newaxis]
-f_con = np.all([f>=2, f<=6], 0)
-f_con = [f_con, f_con]
+#f_ind = np.r_[np.abs(f - snareFreq).argmin(), np.abs(f - wdBlkFreq).argmin()]
+##f_con = f_ind[:,np.newaxis] + np.array([-4, -3, -2, -1, 1, 2, 3, 4])[
+##        np.newaxis]
+#f_con = np.all([f>=2, f<=5], 0)
+#f_con = [f_con, f_con]
 
+f_keep = np.all([f>=0, f<=10], 0)
+f = f[f_keep]
 
 # calculate the multitaper spectrum of all the single trials
 snare_listen_csd = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
-    ...,f_ind[0]]
+    ...,f_keep]
     for t in snare_listen_trials.T])
 snare_silence_csd = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
-    ...,f_ind[0]]
-    for t in snare_silence_trials.T])
-snare_listen_csd_con = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
-    ...,f_con[0]].mean(-1)
-    for t in snare_listen_trials.T])
-snare_silence_csd_con = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
-    ...,f_con[0]].mean(-1)
+    ...,f_keep]
     for t in snare_silence_trials.T])
 wdBlk_listen_csd = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
-    ...,f_ind[1]]
+    ...,f_keep]
     for t in wdBlk_listen_trials.T])
 wdBlk_silence_csd = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
-    ...,f_ind[1]]
-    for t in wdBlk_silence_trials.T])
-wdBlk_listen_csd_con = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
-    ...,f_con[1]].mean(-1)
-    for t in wdBlk_listen_trials.T])
-wdBlk_silence_csd_con = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
-    ...,f_con[1]].mean(-1)
+    ...,f_keep]
     for t in wdBlk_silence_trials.T])
 
 #save the eeg results
@@ -194,10 +186,6 @@ np.savez(os.path.join(save_folder, 'prepare_FFTcSPoC.npz'),
         snare_silence_csd = snare_silence_csd,
         wdBlk_listen_csd = wdBlk_listen_csd,
         wdBlk_silence_csd = wdBlk_silence_csd,
-        snare_listen_csd_con = snare_listen_csd_con,
-        snare_silence_csd_con = snare_silence_csd_con,
-        wdBlk_listen_csd_con = wdBlk_listen_csd_con,
-        wdBlk_silence_csd_con = wdBlk_silence_csd_con,
         snare_listen_trials = snare_listen_trials,
         snare_silence_trials = snare_silence_trials,
         wdBlk_listen_trials = wdBlk_listen_trials,
