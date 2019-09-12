@@ -29,18 +29,11 @@ for subject in range(1,subjectnr+1):
         for line in f:
             l = line.split(' ')
             if line[0] == 'P':
-                self_perf[subject-1][p] = int(l[1])
+                self_perf[subject-1][p] = float(l[1])
                 p+=1
             if line[0] == 'V':
-                self_vigil[subject-1][v] = int(l[1])
+                self_vigil[subject-1][v] = float(l[1])
                 v+=1
-    # normalize
-    self_perf[subject-1] = [(i-np.mean(self_perf[subject-1])) /
-            np.std(self_perf[subject-1])
-            for i in self_perf[subject-1]]
-    self_vigil[subject-1] = [(i-np.mean(self_vigil[subject-1])) /
-            np.std(self_vigil[subject-1])
-            for i in self_vigil[subject-1]]
 
     # collect real performance data
     with np.load(os.path.join(result_folder, 'S%02d' % subject,
@@ -51,11 +44,13 @@ for subject in range(1,subjectnr+1):
         wdBlkCue_DevToClock[subject-1] = np.concatenate(wdBlkDev)
         for i in range(0,6):
             meandevs_snare[subject-1][i] = [np.mean(s)
-                    for s in np.abs(snareDev)][i]
+                    for s in np.abs(snareDev)][i] #mean dev per session
             meandevs_wdBlk[subject-1][i] = [np.mean(s)
                     for s in np.abs(wdBlkDev)][i]
 
-
+# normalize
+self_perf = (self_perf - np.mean(self_perf,0))/self_perf.std(0)
+self_vigil = (self_vigil - np.mean(self_vigil,0))/self_vigil.std(0)
 #calculate correlation coefficients (see plot title)
 r_snarePerf = np.corrcoef(np.concatenate(meandevs_snare),
         np.concatenate(self_perf))[0][1]
@@ -69,25 +64,35 @@ r_wdBlkVigil = np.corrcoef(np.concatenate(meandevs_wdBlk),
 # plot - one for snare, one for wdBlk
 fig = plt.figure(figsize=(10,10))
 ax1 = fig.add_subplot(211)
-ax1.set_title('self assessment performance/vigilance vs real snare performance (r = %02f / %02f)'% (r_snarePerf, r_snareVigil))
+ax1.set_title('self assessment vs real snare performance (r = %02f / %02f)'
+        % (r_snarePerf, r_snareVigil))
 ax2 = fig.add_subplot(212, sharex=ax1)
-ax2.set_title('self assessment performance/vigilance vs real wdBlk performance (r = %02f / %02f)'% (r_wdBlkPerf, r_wdBlkVigil))
+ax2.set_title('self assessment vs real wdBlk performance (r = %02f / %02f)'
+        % (r_wdBlkPerf, r_wdBlkVigil))
 for subject in range(0,subjectnr):
     #ax1.set_ylim(0.,0.8)
     if subject== 0:
-        ax1.plot(np.sort(self_perf[subject]),meandevs_snare[subject][np.argsort(self_perf[subject])], 'ro-',
+        ax1.plot(self_perf[subject],
+                meandevs_snare[subject], 'ro',
                 label = 'Performance Assessment')
-        ax1.plot(np.sort(self_vigil[subject]),meandevs_snare[subject][np.argsort(self_vigil[subject])], 'bo-',
+        ax1.plot(self_vigil[subject],
+                meandevs_snare[subject], 'bo',
                 label = 'Vigilance Assessment')
-        ax2.plot(np.sort(self_perf[subject]),meandevs_wdBlk[subject][np.argsort(self_perf[subject])], 'ro-',
+        ax2.plot(self_perf[subject],
+                meandevs_wdBlk[subject], 'ro',
                 label = 'Performance Assessment')
-        ax2.plot(np.sort(self_vigil[subject]),meandevs_wdBlk[subject][np.argsort(self_vigil[subject])], 'bo-',
+        ax2.plot(self_vigil[subject],
+                meandevs_wdBlk[subject], 'bo',
                 label = 'Vigilance Assessment')
     else:
-        ax1.plot(np.sort(self_perf[subject]),meandevs_snare[subject][np.argsort(self_perf[subject])], 'ro-')
-        ax1.plot(np.sort(self_vigil[subject]),meandevs_snare[subject][np.argsort(self_vigil[subject])], 'bo-')
-        ax2.plot(np.sort(self_perf[subject]),meandevs_wdBlk[subject][np.argsort(self_perf[subject])], 'ro-')
-        ax2.plot(np.sort(self_vigil[subject]),meandevs_wdBlk[subject][np.argsort(self_vigil[subject])], 'bo-')
+        ax1.plot(self_perf[subject],
+                meandevs_snare[subject], 'ro')
+        ax1.plot(self_vigil[subject],
+                meandevs_snare[subject], 'bo')
+        ax2.plot(self_perf[subject],
+                meandevs_wdBlk[subject], 'ro')
+        ax2.plot(self_vigil[subject],
+                meandevs_wdBlk[subject], 'bo')
 ax1.legend()
 ax2.legend()
 plt.xlabel('self assessment')

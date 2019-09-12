@@ -8,6 +8,8 @@ import csv
 import scipy
 import scipy.stats
 
+import read_aif
+
 data_folder = sys.argv[1]
 subjectnr = int(sys.argv[2]) #here: total number of subjects
 result_folder = sys.argv[3]
@@ -41,12 +43,12 @@ background = {}
 with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'rU') as infile:
     reader = csv.DictReader(infile, fieldnames=None, delimiter=';')
     for row in reader:
-        key = row['Subjectnr']
+        key = "S%02d" % int(row['Subjectnr']) #same format as behaviouraldict
         value = [int(row['LQ']),int(row['MusicQualification']),
             int(row['MusicianshipLevel']),int(row['TrainingYears'])]
         background[key] = value
 
-raw_musicscores = np.array(background.values())
+raw_musicscores = np.array([v for k,v in sorted(background.items())])
 z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
         )/raw_musicscores.std(0)
 musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
@@ -55,7 +57,8 @@ snare_abs_performance = np.zeros(subjectnr)
 wb_abs_performance = np.zeros(subjectnr)
 snare_rel_performance = np.zeros(subjectnr)
 wb_rel_performance = np.zeros(subjectnr)
-for i,v in enumerate(behaviouraldict.values()):
+for k,v in sorted(behaviouraldict.items()):
+    i = int(k[1:])-1 #'S01'=> entry 0
     snaredev = v['snare_deviation']
     snaredev = snaredev[np.isfinite(snaredev)]
     wbdev = v['wdBlk_deviation']
@@ -149,3 +152,49 @@ ax2.set_ylabel('relative deviation (ms)')
 
 fig.savefig(os.path.join(save_folder,
     'performance_background_plot.pdf'))
+fig.savefig(os.path.join(save_folder,
+    'performance_background_plot.png'))
+
+###2. plot performance
+## NeuralEntrl_Ssxxresponse (read_aif.py) for all subjects
+# calculate the latency between cue and response
+#constants from read_aif.py:
+QPM = 140 # quarter notes per minute
+SPQ = 60./QPM # seconds per quarter note
+bar_duration = SPQ*4 # every bar consists of 4 quarter notes
+
+allSnare_latencies = np.zeros((subjectnr,75))
+allWdBlk_latencies = np.zeros((subjectnr,75))
+for k,v in sorted(behaviouraldict.items()):
+    i = int(k[1:]) #'S01' => 1
+    drumIn_fname =  os.path.join(data_folder,
+            'S%02d/NeuralEntrStimLive8_Ss%02d_DrumIn.aif' % (i,i))
+    drum_times = read_aif.get_ClickTime(drumIn_fname)
+    snareCue_times = v['snareCue_times']
+    wdBlkCue_times = v['wdBlkCue_times']
+    snare_latencies = read_aif.get_ResponseLatency(snareCue_times, drum_times,
+        2*bar_duration)
+    wdBlk_latencies = read_aif.get_ResponseLatency(wdBlkCue_times, drum_times,
+        2*bar_duration)
+    allSnare_latencies[i-1] = snare_latencies
+    allWdBlk_latencies[i-1] = wdBlk_latencies
+
+# plot the results
+hist_bins = np.arange(0.5, 1.5 + 0.025, 0.025)
+fig = plt.figure()
+ax1 = fig.add_subplot(111)
+ax1.hist(np.concatenate(allSnare_latencies), bins=hist_bins, color='b', label='duple cue',
+        edgecolor='w', alpha=0.6)
+ax1.axvline(bar_duration/2., color='b', label='correct duple lat.')
+ax1.hist(np.concatenate(allWdBlk_latencies), bins=hist_bins, color='r', label='triple cue',
+        edgecolor='w', alpha=0.6)
+ax1.axvline(2*bar_duration/3., color='r', label='correct triple lat.')
+ax1.set_xlabel('latency to cue (s)')
+ax1.set_ylabel('number of trials')
+ax1.legend(loc='upper left')
+#ax1.set_ylim([0,30])
+fig.tight_layout(pad=0.3)
+fig.savefig(os.path.join(save_folder,
+    'NeuralEntrl_response.png'))
+fig.savefig(os.path.join(save_folder,
+    'NeuralEntrl_response.pdf'))
