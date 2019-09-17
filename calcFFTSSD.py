@@ -144,8 +144,8 @@ wdBlk_pattern = scipy.linalg.solve(
 
 # plot the patterns
 # name the ssd channels
-snare_channames = ['SSD%02d' % (i+1) for i in xrange(len(snare_pattern))]
-wdBlk_channames = ['SSD%02d' % (i+1) for i in xrange(len(wdBlk_pattern))]
+snare_channames = ['SSD-%02d' % (i+1) for i in xrange(len(snare_pattern))]
+wdBlk_channames = ['SSD-%02d' % (i+1) for i in xrange(len(wdBlk_pattern))]
 
 # plot the SSD components scalp maps
 snare_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
@@ -153,48 +153,39 @@ snare_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
 wdBlk_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
     projection='stereographic') for ssd_c in wdBlk_pattern]
 
-fig = plt.figure(figsize=(4.5,10))
+# get the filtered spectra
+filt_csd = [snare_filt.T.dot(snare_filt.T.dot(c)) for c in csd_1]
+filt_csd_avg = np.mean(filt_csd, 0)
+
+SNNR_i = np.array([c[0,0, f_ind[0]].real/c[0,0,f_con[0]].real.mean(-1)
+    for c in filt_csd])
+
+fmask = np.all([f>=1.5, f<=5.5], 0)
+lsd1 = scipy.signal.detrend(np.sqrt(filt_csd_avg[0,0, fmask].real),
+        type='linear')
+lsd2 = scipy.signal.detrend(np.sqrt(filt_csd_avg[-1,-1, fmask].real),
+        type='linear')
+
+fig = plt.figure(figsize=(3.54,3.54))
 # plot with 8 rows and 4 columns
-gs = mpl.gridspec.GridSpec(10,4, height_ratios = 8*[1]+[0.2]+[1])
-ax = []
-for i, (X,Y,Z) in enumerate(snare_potmaps):
-    if i == 0:
-        ax.append(fig.add_subplot(gs[0,0], frame_on = False))
-    else:
-        ax.append(fig.add_subplot(gs[i//4,i%4], sharex=ax[0], sharey=ax[0],
-                frame_on = False))
-    Z /= np.abs(Z).max()
-    ax[-1].tick_params(**blind_ax)
-    meet.sphere.addHead(ax[-1])
-    pc = ax[-1].pcolormesh(X, Y, Z, vmin=-1, vmax=1, rasterized=True,
-            cmap=cmap)
-    ax[-1].contour(X, Y, Z, levels=[0], colors='w')
-    ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
-            alpha=0.5)
-    ax[-1].set_title(snare_channames[i] + ' (%.2f)' % snare_quot[i])
-pc_ax = fig.add_subplot(gs[-2,:])
-plt.colorbar(pc, cax=pc_ax, orientation='horizontal',
-        label='relative amplitude')
-pc_ax.plot([0.5,0.5], [0,1], c='w', zorder=1000,
-        transform=pc_ax.transAxes)
-eigvals_ax = fig.add_subplot(gs[-1,:], frame_on=False)
-eigvals_ax.plot(np.arange(1, len(snare_quot) + 1, 1), snare_quot,
+#gs = mpl.gridspec.GridSpec(10,4, height_ratios = 8*[1]+[0.2]+[1])
+gs = mpl.gridspec.GridSpec(4,4, height_ratios = 2*[1]+[0.1]+[1])
+eigvals_ax = fig.add_subplot(gs[0,:], frame_on=True)
+eigvals_ax.plot(np.arange(1, len(snare_quot) + 1, 1), 10*np.log10(snare_quot),
         'ko-', markersize=5)
 eigvals_ax.set_xlim([0, len(snare_quot) + 1])
 eigvals_ax.set_title('SSD eigenvalues')
-fig.suptitle('SSD patterns', size=14)
-gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
-fig.savefig(os.path.join(result_folder, 'FFTSSD_snare_patterns.pdf'))
-
-fig = plt.figure(figsize=(4.5,10))
-# plot with 8 rows and 4 columns
-gs = mpl.gridspec.GridSpec(10,4, height_ratios = 8*[1]+[0.2]+[1])
+eigvals_ax.axhline(1, ls='-', c='k', lw=0.5)
+eigvals_ax.axvspan(0, 6.5, fc='r', alpha=0.2)
+eigvals_ax.set_ylabel('SNNR at 3.5 Hz (dB)')
+eigvals_ax.set_xlabel('component index')
 ax = []
-for i, (X,Y,Z) in enumerate(wdBlk_potmaps):
+for i, (X,Y,Z) in enumerate(snare_potmaps):
+    if i==4: break
     if i == 0:
-        ax.append(fig.add_subplot(gs[0,0], frame_on = False))
+        ax.append(fig.add_subplot(gs[1,0], frame_on = False))
     else:
-        ax.append(fig.add_subplot(gs[i//4,i%4], sharex=ax[0], sharey=ax[0],
+        ax.append(fig.add_subplot(gs[1 + i//4,i%4], sharex=ax[0], sharey=ax[0],
                 frame_on = False))
     Z /= np.abs(Z).max()
     ax[-1].tick_params(**blind_ax)
@@ -204,24 +195,33 @@ for i, (X,Y,Z) in enumerate(wdBlk_potmaps):
     ax[-1].contour(X, Y, Z, levels=[0], colors='w')
     ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
             alpha=0.5)
-    ax[-1].set_title(wdBlk_channames[i] + ' (%.2f)' % wdBlk_quot[i])
-pc_ax = fig.add_subplot(gs[-2,:])
-plt.colorbar(pc, cax=pc_ax, orientation='horizontal',
-        label='relative amplitude')
+    ax[-1].set_xlabel(r'\textbf{%d},  ($\mathrm{SNNR=%.2f dB}$)' % (i+1,
+        snare_quot[i]))
+ax[0].set_ylim([-1,1.3])
+pc_ax = fig.add_subplot(gs[2,:])
+cbar = plt.colorbar(pc, cax=pc_ax, orientation='horizontal',
+        label='amplitude', ticks=[-1,0,1])
+cbar.ax.set_xticklabels(['-', '0', '+'])
+cbar.ax.set_axvline(0.5, c='w')
 pc_ax.plot([0.5,0.5], [0,1], c='w', zorder=1000,
         transform=pc_ax.transAxes)
-eigvals_ax = fig.add_subplot(gs[-1,:], frame_on=False)
-eigvals_ax.plot(np.arange(1, len(wdBlk_quot) + 1, 1), wdBlk_quot,
-        'ko-', markersize=5)
-eigvals_ax.set_xlim([0, len(wdBlk_quot) + 1])
-eigvals_ax.set_title('SSD eigenvalues')
-fig.suptitle('SSD patterns', size=14)
-gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
-fig.savefig(os.path.join(result_folder, 'FFTSSD_wdBlk_patterns.pdf'))
+
+psd_ax = fig.add_subplot(gs[-1,:], frame_on=True)
+psd_ax.plot(f[fmask], lsd1, c='r', label='SSD-01')
+psd_ax.plot(f[fmask], lsd2, c='b', label='SSD-31')
+psd_ax.set_xlim([1.5,5.5])
+psd_ax.set_xlabel('frequency (Hz)')
+psd_ax.set_ylabel('detrended spectrum')
+psd_ax.legend(loc='upper right', fontsize=7)
+
+gs.tight_layout(fig, pad=0.2)
+fig.savefig(os.path.join(result_folder, 'FFTSSD_patterns.pdf'))
+
 
 # save the results
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         snare_filt = snare_filt,
         snare_quot = snare_quot,
         wdBlk_filt = wdBlk_filt,
-        wdBlk_quot = wdBlk_quot)
+        wdBlk_quot = wdBlk_quot,
+        SNNR_i = SNNR_i)
