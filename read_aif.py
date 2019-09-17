@@ -177,14 +177,14 @@ hist_bins = np.arange(0.5, 1.5 + 0.025, 0.025)
 # plot the results
 fig = plt.figure()
 ax1 = fig.add_subplot(111)
-ax1.hist(snare_latencies, bins=hist_bins, color='r', label='duple cue',
+ax1.hist(snare_latencies, bins=hist_bins, color='b', label='duple cue',
         edgecolor='w', alpha=0.6)
-ax1.axvline(bar_duration/2., color='r', label='correct duple lat.')
-ax1.hist(wdBlk_latencies, bins=hist_bins, color='b', label='triple cue',
+ax1.axvline(bar_duration/2., color='b', label='correct duple lat.')
+ax1.hist(wdBlk_latencies, bins=hist_bins, color='r', label='triple cue',
         edgecolor='w', alpha=0.6)
-ax1.axvline(2*bar_duration/3., color='b', label='correct triple lat.')
+ax1.axvline(2*bar_duration/3., color='r', label='correct triple lat.')
 ax1.set_xlabel('latency to cue (s)')
-ax1.set_ylabel('\# of trials')
+ax1.set_ylabel('number of trials')
 ax1.legend(loc='upper left')
 ax1.set_ylim([0,30])
 fig.tight_layout(pad=0.3)

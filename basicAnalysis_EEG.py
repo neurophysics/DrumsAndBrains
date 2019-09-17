@@ -56,6 +56,8 @@ def plotSpectra(F, psd_pre,title,saveLocation,figsize=(10,10),grid=[8,4]):
 allEEG_listening = np.empty((32,0))
 allEEG_silence = np.empty((32,0))
 for subject in range(1,1+subjectnr):
+    if subject==11:
+        continue #no eeg for subject 11
     current_data_folder = os.path.join(data_folder, 'S%02d' % subject)
     current_save_folder = os.path.join(result_folder, 'S%02d' % subject)
     ###### Load EEG data ######
@@ -65,7 +67,6 @@ for subject in range(1,1+subjectnr):
     with np.load(eeg_fname) as npzfile:
         EEG = npzfile['clean_data']
         artifact_mask = npzfile['artifact_mask']
-
     # read the channel names
     channames = meet.sphere.getChannelNames(os.path.join(current_data_folder,
         '../channels.txt'))
@@ -91,7 +92,7 @@ for subject in range(1,1+subjectnr):
 
     # now, find the sample of each Cue
     if os.path.exists(os.path.join(
-        data_folder, 'S{:02d}_eeg_all_files.vmrk'.format(subject))):
+        current_data_folder, 'S{:02d}_eeg_all_files.vmrk'.format(subject))):
         marker_fname = os.path.join(current_data_folder,
                 'S{:02d}_eeg_all_files.vmrk'.format(subject))
     else:
