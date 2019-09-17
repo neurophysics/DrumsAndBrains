@@ -169,13 +169,13 @@ lsd2 = scipy.signal.detrend(np.sqrt(filt_csd_avg[-1,-1, fmask].real),
 fig = plt.figure(figsize=(3.54,3.54))
 # plot with 8 rows and 4 columns
 #gs = mpl.gridspec.GridSpec(10,4, height_ratios = 8*[1]+[0.2]+[1])
-gs = mpl.gridspec.GridSpec(4,4, height_ratios = 2*[1]+[0.1]+[1])
+gs = mpl.gridspec.GridSpec(4,4, height_ratios = [1]+[0.8]+[0.1]+[1])
 eigvals_ax = fig.add_subplot(gs[0,:], frame_on=True)
 eigvals_ax.plot(np.arange(1, len(snare_quot) + 1, 1), 10*np.log10(snare_quot),
         'ko-', markersize=5)
 eigvals_ax.set_xlim([0, len(snare_quot) + 1])
 eigvals_ax.set_title('SSD eigenvalues')
-eigvals_ax.axhline(1, ls='-', c='k', lw=0.5)
+eigvals_ax.axhline(0, ls='-', c='k', lw=0.5)
 eigvals_ax.axvspan(0, 6.5, fc='r', alpha=0.2)
 eigvals_ax.set_ylabel('SNNR at 3.5 Hz (dB)')
 eigvals_ax.set_xlabel('component index')
@@ -195,14 +195,14 @@ for i, (X,Y,Z) in enumerate(snare_potmaps):
     ax[-1].contour(X, Y, Z, levels=[0], colors='w')
     ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
             alpha=0.5)
-    ax[-1].set_xlabel(r'\textbf{%d},  ($\mathrm{SNNR=%.2f dB}$)' % (i+1,
-        snare_quot[i]))
+    ax[-1].set_xlabel(r'\textbf{%d}' % (i + 1) +'\n'+
+            '($\mathrm{SNNR=%.2f dB}$)' % (snare_quot[i]))
 ax[0].set_ylim([-1,1.3])
 pc_ax = fig.add_subplot(gs[2,:])
 cbar = plt.colorbar(pc, cax=pc_ax, orientation='horizontal',
         label='amplitude', ticks=[-1,0,1])
 cbar.ax.set_xticklabels(['-', '0', '+'])
-cbar.ax.set_axvline(0.5, c='w')
+cbar.ax.axvline(0.5, c='w')
 pc_ax.plot([0.5,0.5], [0,1], c='w', zorder=1000,
         transform=pc_ax.transAxes)
 

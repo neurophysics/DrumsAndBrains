@@ -12,7 +12,7 @@ from tqdm import tqdm, trange
 import SPoC
 
 ########## define the type of analysis here #########
-state= 'silence' # 'silence' or 'listen'
+state= 'listen' # 'silence' or 'listen'
 corrtype = 'all' # 'single' or 'all'
 N_bootstrap = 500
 snare_N_SSD = 6
@@ -425,10 +425,10 @@ tf_f = np.fft.fftfreq(snareData[0].shape[0], d=1./s_rate)[
         np.unique(tf_coords[0]).astype(int)]
 tf_t = np.linspace(0, 4*bar_duration, 240)
 
-fig = plt.figure(figsize=(5.51181,7))
-gs = mpl.gridspec.GridSpec(3,2, height_ratios=[0.5,1.1,2.1])
+fig = plt.figure(figsize=(3.54331,5))
+gs = mpl.gridspec.GridSpec(3,2, height_ratios=[0.6,1.1,1.1])
 
-gs00 = mpl.gridspec.GridSpecFromSubplotSpec(2,2, gs[0,:], height_ratios=[1,0.15],
+gs00 = mpl.gridspec.GridSpecFromSubplotSpec(2,2, gs[0,:], height_ratios=[1,0.12],
         wspace=0.2, hspace=0)
 
 ax00 = fig.add_subplot(gs00[0,0], frameon=False)
@@ -457,7 +457,7 @@ pat_cbar.ax.set_xticklabels(['$-$', '$0$', '$+$'])
 pat_cbar.ax.axvline(0.5, c='w')
 
 gs10 = mpl.gridspec.GridSpecFromSubplotSpec(2,2, gs[1,:],
-        height_ratios=[1,0.1], hspace=0.8, wspace=0.2)
+        height_ratios=[1,0.1], hspace=1.0, wspace=0.2)
 ax11 = fig.add_subplot(gs10[0,0])
 pc11 = ax11.pcolormesh(tf_t, tf_f, scipy.ndimage.convolve1d(
     20*np.log10(snare_tf_avg),
@@ -489,49 +489,31 @@ plt.colorbar(pc11, cax=pc_ax1, label='SNNR (dB)', orientation='horizontal',
         ticks=mpl.ticker.MaxNLocator(5))
 
 
-gs20 = mpl.gridspec.GridSpecFromSubplotSpec(3,2, gs[2,:],
-        height_ratios=[1,1,0.1], hspace=0.7, wspace=0.2)
+gs20 = mpl.gridspec.GridSpecFromSubplotSpec(2,2, gs[2,:],
+        height_ratios=[1,0.1], hspace=1.0, wspace=0.2)
 ax21 = fig.add_subplot(gs20[0,0], sharex=ax11, sharey=ax11)
-pc21 = ax21.pcolormesh(tf_t, tf_f, snare_corr_tf, cmap='coolwarm',
+pc21 = ax21.pcolormesh(tf_t, tf_f, snare_pcorr_tf, cmap='coolwarm',
         vmin=-vmax, vmax=vmax, rasterized=True)
 ax21.axvline(3*bar_duration, c='w', lw=0.5)
 ax21.axhline(snareFreq, c='w', lw=0.5)
 ax21.axhline(wdBlkFreq, c='w', lw=0.5)
-ax21.set_title('corr.: duple beat to deviation')
+ax21.set_title('duple beat vs deviation')
+
 ax21.set_ylabel('freq. (Hz)')
+ax21.set_xlabel('time (s)')
 
 ax22 = fig.add_subplot(gs20[0,1], sharex=ax11, sharey=ax11)
-pc22 = ax22.pcolormesh(tf_t, tf_f, wdBlk_corr_tf, cmap='coolwarm',
+pc22 = ax22.pcolormesh(tf_t, tf_f, wdBlk_pcorr_tf, cmap='coolwarm',
         vmin=-vmax, vmax=vmax, rasterized=True)
 ax22.axvline(3*bar_duration, c='w', lw=0.5)
 ax22.axhline(snareFreq, c='w', lw=0.5)
 ax22.axhline(wdBlkFreq, c='w', lw=0.5)
-ax22.set_title('corr.: triple beat to deviation')
+ax22.set_title('triple beat vs deviation')
 
+ax22.set_xlabel('time (s)')
 
-ax31 = fig.add_subplot(gs20[1,0], sharex=ax11, sharey=ax11)
-pc31 = ax31.pcolormesh(tf_t, tf_f, snare_pcorr_tf, cmap='coolwarm',
-        vmin=-vmax, vmax=vmax, rasterized=True)
-ax31.axvline(3*bar_duration, c='w', lw=0.5)
-ax31.axhline(snareFreq, c='w', lw=0.5)
-ax31.axhline(wdBlkFreq, c='w', lw=0.5)
-ax31.set_title('partial corr.: duple beat to deviation')
-
-ax31.set_xlabel('time (s)')
-ax31.set_ylabel('freq. (Hz)')
-
-ax32 = fig.add_subplot(gs20[1,1], sharex=ax11, sharey=ax11)
-pc32 = ax32.pcolormesh(tf_t, tf_f, wdBlk_pcorr_tf, cmap='coolwarm',
-        vmin=-vmax, vmax=vmax, rasterized=True)
-ax32.axvline(3*bar_duration, c='w', lw=0.5)
-ax32.axhline(snareFreq, c='w', lw=0.5)
-ax32.axhline(wdBlkFreq, c='w', lw=0.5)
-ax32.set_title('partial corr.: triple beat to deviation')
-
-ax32.set_xlabel('time (s)')
-
-pc_ax2 = fig.add_subplot(gs20[2,:])
-plt.colorbar(pc21, cax=pc_ax2, label='(partial) correlation coefficient',
+pc_ax2 = fig.add_subplot(gs20[1,:])
+plt.colorbar(pc21, cax=pc_ax2, label='partial correlation coefficient',
         orientation='horizontal',
         ticks=mpl.ticker.MaxNLocator(5))
 

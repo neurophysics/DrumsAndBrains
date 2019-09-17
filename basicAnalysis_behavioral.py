@@ -114,27 +114,27 @@ wb_rel_slope_p = (np.sum(wb_rel_slope_permute <= wb_rel_expregress.slope) + 1)/f
 x = np.linspace(-2, 2, 100)
 
 # plot musicscore vs behaviour
-fig = plt.figure(figsize=(7.48, 3))
+fig = plt.figure(figsize=(5.51, 3))
 ax1 = fig.add_subplot(121)
 fig.subplots_adjust(wspace=.5)
 ax2 = fig.add_subplot(122, sharex=ax1, sharey=ax1)
 ax1.scatter(musicscore[0:subjectnr], snare_abs_performance,
-    marker = 'o', label='snare, p=%.4f' % snare_abs_slope_p,
+    marker = 'o', label='duple beat, p=%.4f' % snare_abs_slope_p,
     color='b')
 ax1.plot(x, np.exp(snare_abs_expregress[1]+snare_abs_expregress[0]*x),
         'b-')
 ax1.scatter(musicscore[0:subjectnr], wb_abs_performance,
-    marker = 'o', label='woodblock, p=%.4f' % wb_abs_slope_p,
+    marker = 'o', label='triple beat, p=%.4f' % wb_abs_slope_p,
     color='r')
 ax1.plot(x, np.exp(wb_abs_expregress[1]+wb_abs_expregress[0]*x),
         'r-')
 ax2.scatter(musicscore[0:subjectnr], snare_rel_performance,
-    marker = 'o', label='snare, p=%.4f' % snare_rel_slope_p,
+    marker = 'o', label='duple beat, p=%.4f' % snare_rel_slope_p,
     color='b')
 ax2.plot(x, np.exp(snare_rel_expregress[1]+snare_rel_expregress[0]*x),
         'b-')
 ax2.scatter(musicscore[0:subjectnr], wb_rel_performance,
-    marker = 'o', label='woodblock, p=%.4f' % wb_rel_slope_p,
+    marker = 'o', label='triple beat, p=%.4f' % wb_rel_slope_p,
     color='r')
 ax2.plot(x, np.exp(wb_rel_expregress[1]+wb_rel_expregress[0]*x), 'r-')
 ax1.legend(prop={'size': 8})
@@ -179,12 +179,12 @@ for k,v in sorted(behaviouraldict.items()):
 
 # plot the results
 hist_bins = np.arange(0.5, 1.5 + 0.025, 0.025)
-fig = plt.figure(figsize=(7.48, 3))
+fig = plt.figure(figsize=(5.51, 3))
 ax1 = fig.add_subplot(111)
-ax1.hist(np.concatenate(allSnare_latencies), bins=hist_bins, color='b', label='duple cue',
+ax1.hist(np.concatenate(allSnare_latencies), bins=hist_bins, color='b', label='duple beat trials',
         edgecolor='w', alpha=0.6)
 ax1.axvline(bar_duration/2., color='b', label='correct duple lat.')
-ax1.hist(np.concatenate(allWdBlk_latencies), bins=hist_bins, color='r', label='triple cue',
+ax1.hist(np.concatenate(allWdBlk_latencies), bins=hist_bins, color='r', label='triple beat trials',
         edgecolor='w', alpha=0.6)
 ax1.axvline(2*bar_duration/3., color='r', label='correct triple lat.')
 ax1.set_xlabel('latency to cue (s)')
