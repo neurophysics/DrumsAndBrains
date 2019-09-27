@@ -512,7 +512,7 @@ tf_f = np.fft.fftfreq(snareData[0].shape[0], d=1./s_rate)[
 tf_t = np.linspace(0, 4*bar_duration, 240)
 
 #######################
-fig = plt.figure(figsize=(3.54331,1.4))
+fig = plt.figure(figsize=(3.54331,2))
 gs = mpl.gridspec.GridSpec(1,2)
 
 gs00 = mpl.gridspec.GridSpecFromSubplotSpec(2,2, gs[0,:], height_ratios=[1,0.12],
@@ -534,7 +534,7 @@ meet.sphere.addHead(ax01)
 ax01.tick_params(**blind_ax)
 ax01.set_title('triple beat ($p=%.3f$)' % wdBlk_all_corr_p[0])
 
-ax00.set_xlim([-3,3])
+ax00.set_xlim([-1.3,1.3])
 ax00.set_ylim([-1.3,1.5])
 
 pc_ax0 = fig.add_subplot(gs00[1,:])
