@@ -12,7 +12,6 @@ from tqdm import tqdm, trange
 import SPoC
 
 ########## define the type of analysis here #########
-state= 'listen' # 'silence' or 'listen'
 corrtype = 'all' # 'single' or 'all'
 N_bootstrap = 500
 snare_N_SSD = 6
@@ -59,8 +58,11 @@ with np.load(os.path.join(args.result_folder, 'FFTSSD.npz'),
     wdBlk_quot = fl['wdBlk_quot']
     wdBlk_filt = fl['wdBlk_filt']
 
-snare_silence_csd = []
-wdBlk_silence_csd = []
+snare_filt /= np.sqrt(np.sum(snare_filt**2, 0))
+wdBlk_filt /= np.sqrt(np.sum(wdBlk_filt**2, 0))
+
+snare_all_csd = []
+wdBlk_all_csd = []
 snare_deviation = []
 wdBlk_deviation = []
 
@@ -69,22 +71,22 @@ for i in xrange(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
                 + '/prepare_FFTcSPoC.npz', 'r') as fl:
-            snare_silence_csd.append(fl['snare_%s_csd' % state])
-            wdBlk_silence_csd.append(fl['wdBlk_%s_csd' % state])
+            snare_all_csd.append(fl['snare_all_csd'])
+            wdBlk_all_csd.append(fl['wdBlk_all_csd'])
             snare_deviation.append(fl['snare_deviation'])
             wdBlk_deviation.append(fl['wdBlk_deviation'])
     except:
         print('Warning: Subject %02d could not be loaded!' %i)
 
 # apply the SSD filters ############################
-snare_silence_csd = [np.dot(
+snare_all_csd = [np.dot(
     snare_filt[:,:snare_N_SSD].T, np.dot(
         snare_filt[:,:snare_N_SSD].T, csd_now.T))
-    for csd_now in snare_silence_csd]
-wdBlk_silence_csd = [np.dot(
+    for csd_now in snare_all_csd]
+wdBlk_all_csd = [np.dot(
     wdBlk_filt[:,:wdBlk_N_SSD].T, np.dot(
         wdBlk_filt[:,:wdBlk_N_SSD].T, csd_now.T))
-    for csd_now in wdBlk_silence_csd]
+    for csd_now in wdBlk_all_csd]
 ####################################################
 
 f = np.fft.rfftfreq(12*s_rate, d=1./s_rate)
@@ -106,6 +108,197 @@ thetaIdx = np.all([thetaIdx, ~np.in1d(np.arange(len(f)),
     np.r_[snareIdx, wdBlkIdx]) ],0)
 ######################################
 
+"""
+#calculate cSPoC for every individual frequency
+snare_corr_2_f = []
+snare_corr_f = []
+snare_w_f = []
+wdBlk_corr_2_f = []
+wdBlk_corr_f = []
+wdBlk_w_f = []
+
+if corrtype=='single':
+    # calculate the single-trial correlation betweem power and behaviour
+    snare_z = [np.abs(z_now - np.median(z_now)).argsort().argsort()
+            for z_now in snare_deviation]
+    wdBlk_z = [np.abs(z_now - np.median(z_now)).argsort().argsort()
+            for z_now in wdBlk_deviation]
+    SPoCf = SPoC.pSPoCr2_avg(bestof=100)
+elif corrtype == 'all':
+    # calculate the correlation between power and behaviour across all
+    # trials
+    snare_z = np.hstack([np.abs(z_now - np.median(z_now))
+        for z_now in snare_deviation]).argsort().argsort()
+    wdBlk_z = np.hstack([np.abs(z_now - np.median(z_now))
+        for z_now in wdBlk_deviation]).argsort().argsort()
+    SPoCf = SPoC.pSPoCr2(bestof=20)
+
+snare_contrast_covs = [scipy.ndimage.convolve1d(c.real,
+    np.r_[1,1,1,1,0,1,1,1,1]/8., axis=-1)
+    for c in snare_all_csd]
+wdBlk_contrast_covs = [scipy.ndimage.convolve1d(c.real,
+    np.r_[1,1,1,1,0,1,1,1,1]/8., axis=-1)
+    for c in wdBlk_all_csd]
+
+try:
+    with np.load('Results/SPoCt_small.npz', 'rb') as fl:
+        snare_t_corr2 = fl['snare_t_corr2']
+        snare_t_w = fl['snare_t_w']
+        wdBlk_t_corr2 = fl['wdBlk_t_corr2']
+        wdBlk_t_w = fl['wdBlk_t_w']
+        random_t_corr2 = fl['random_t_corr2']
+except:
+    SPoCt2 = SPoC.SPoCt2() 
+    snare_t_corr2 = []
+    snare_t_w = []
+    wdBlk_t_corr2 = []
+    wdBlk_t_w = []
+    ###
+    use_idx = np.arange(4, len(f) - 4, 1)
+    ###
+    for i in tqdm(use_idx, desc='cSPoC per freq'):
+        if corrtype=='all':
+            corr2, w = SPoCt2(
+                    np.concatenate(
+                        [c[:,:,i].real for c in snare_all_csd], -1),
+                    np.concatenate(
+                        [c[:,:,np.arange(i-4, i+5, 1)[
+                            np.arange(i-4, i+5,1)!=i]].real
+                            for c in snare_all_csd], -1).swapaxes(0,2),
+                snare_z, num = 1)
+            snare_t_corr2.append(corr2)
+            snare_t_w.append(w)
+            corr2, w = SPoCt2(
+                    np.concatenate(
+                        [c[:,:,i].real for c in wdBlk_all_csd], -1),
+                    np.concatenate(
+                        [c[:,:,np.arange(i-4, i+5, 1)[
+                            np.arange(i-4, i+5,1)!=i]].real
+                            for c in wdBlk_all_csd], -1).swapaxes(0,2),
+                wdBlk_z, num = 1)
+            wdBlk_t_corr2.append(corr2)
+            wdBlk_t_w.append(w)
+    # get a random result to calculate the mean and standard deviation unde
+    # random conditions
+    random_t_corr2 = []
+    for _ in trange(100, desc='bootstrapping std'): # calculate 100 iterations
+        i = int(np.random.choice(use_idx, size=1))
+        corr2, w = SPoCt2(
+                np.concatenate(
+                    [c[:,:,i].real for c in snare_all_csd], -1),
+                np.concatenate(
+                    [c[:,:,np.arange(i-4, i+5, 1)[
+                        np.arange(i-4, i+5,1)!=i]].real
+                        for c in snare_all_csd], -1).swapaxes(0,2),
+            np.random.choice(snare_z, size=len(snare_z), replace=False), num = 1)
+        random_t_corr2.append(corr2)
+    # save the results
+    np.savez('Results/SPoCt_small.npz',
+            snare_t_corr2 = snare_t_corr2,
+            snare_t_w = snare_t_w,
+            wdBlk_t_corr2 = wdBlk_t_corr2,
+            wdBlk_t_w = wdBlk_t_w,
+            random_t_corr2 = random_t_corr2)
+
+#tcorr2_mean = np.mean([snare_t_corr2, wdBlk_t_corr2])
+#tcorr2_std = np.std([snare_t_corr2, wdBlk_t_corr2])
+tcorr2_mean = np.mean(random_t_corr2)
+tcorr2_std = np.std(random_t_corr2)
+
+# plot the results
+snare_z = (np.array(snare_t_corr2) - tcorr2_mean)/tcorr2_std
+wdBlk_z = (np.array(wdBlk_t_corr2) - tcorr2_mean)/tcorr2_std
+
+fig = plt.figure(figsize=(5.51181, 3))
+ax1 = fig.add_subplot(121)
+ax1.plot(f[use_idx], snare_z, 'b-')
+ax2 = fig.add_subplot(122, sharex=ax1, sharey=ax1)
+ax2.plot(f[use_idx], wdBlk_z, 'r-')
+ax1.set_xlabel('frequency (Hz)')
+ax2.set_xlabel('frequency (Hz)')
+ax1.set_ylabel('z score')
+
+z_thresh = -scipy.stats.norm.ppf(0.025/(2*len(use_idx)))
+ax1.axhline(z_thresh, ls='--', lw=0.5, c='k')
+ax2.axhline(z_thresh, ls='--', lw=0.5, c='k')
+
+ax1.set_title('duple cue trials')
+ax2.set_title('triple cue trials')
+
+fig.tight_layout(pad=0.3)
+
+# calculate through all frequencies
+for i in trange(len(f), desc='cSPoC per freq'):
+    if corrtype=='all':
+        corr2, w = SPoCf(
+                np.concatenate(
+                    [c[:,:,i].real for c in snare_all_csd], -1),
+                np.concatenate(
+                    [c[:,:,i].real for c in snare_contrast_covs], -1),
+            snare_z,
+            num = 1)
+        corr = SPoC._partial_corr_grad(w,
+                np.concatenate([c[:,:,i].real for c in snare_all_csd], -1),
+                np.concatenate([c[:,:,i].real for c in snare_contrast_covs], -1),
+                snare_z)[0]
+        snare_corr_2_f.append(corr2)
+        snare_corr_f.append(corr)
+        snare_w_f.append(w)
+        corr2, w = SPoCf(
+                np.concatenate(
+                    [c[:,:,i].real for c in wdBlk_all_csd], -1),
+                np.concatenate(
+                    [c[:,:,i].real for c in wdBlk_contrast_covs], -1),
+            wdBlk_z,
+            num = 1)
+        corr = SPoC._partial_corr_grad(w,
+                np.concatenate([c[:,:,i].real for c in wdBlk_all_csd], -1),
+                np.concatenate([c[:,:,i].real for c in wdBlk_contrast_covs], -1),
+                wdBlk_z)[0]
+        wdBlk_corr_2_f.append(corr2)
+        wdBlk_corr_f.append(corr)
+        wdBlk_w_f.append(w)
+    elif corrtype=='single':
+        corr2, w = SPoCf([c[:,:,i].real for c in snare_all_csd],
+            snare_z,
+            num = 1)
+        corr = np.mean([SPoC._corr_grad(w, c[:,:,i].real, z)[0]
+            for c,z in zip(snare_all_csd, snare_z)])
+        snare_corr_2_f.append(corr2)
+        snare_corr_f.append(corr)
+        snare_w_f.append(w)
+        corr2, w = SPoCf([c[:,:,i].real for c in wdBlk_all_csd],
+            wdBlk_z,
+            num = 1)
+        corr = np.mean([SPoC._corr_grad(w, c[:,:,i].real, z)[0]
+            for c,z in zip(wdBlk_all_csd, wdBlk_z)])
+        wdBlk_corr_2_f.append(corr2)
+        wdBlk_corr_f.append(corr)
+        wdBlk_w_f.append(w)
+
+# plot the correlation to behaviour <-> frequency relation
+fig = plt.figure(figsize=(5.51, 3))
+ax1 = fig.add_subplot(121)
+ax1.plot(f, snare_corr_f, c='k')
+ax1.axhline(0, lw=0.5)
+ax1.axvline(snareFreq, c='b')
+ax1.set_title('duple beat')
+###
+ax2 = fig.add_subplot(122, sharex=ax1, sharey=ax1)
+ax2.plot(f, wdBlk_corr_f, c='k')
+ax2.axhline(0, lw=0.5)
+ax2.axvline(wdBlkFreq, c='r')
+ax2.set_title('triple beat')
+###
+ax1.set_xlabel('frequency (Hz)')
+ax1.set_xlabel('frequency (Hz)')
+ax1.set_ylabel('correlation to deviation')
+###
+fig.tight_layout(pad=0.3)
+
+
+1/0
+"""
 try:
     with np.load(os.path.join(args.result_folder,
         'FFTcSPoC_%s_%s.npz' % (state, corrtype)), 'rb') as fl:

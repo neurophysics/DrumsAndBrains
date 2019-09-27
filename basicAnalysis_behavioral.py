@@ -111,7 +111,7 @@ snare_rel_slope_p = (np.sum(snare_rel_slope_permute <= snare_rel_expregress.slop
 wb_abs_slope_p = (np.sum(wb_abs_slope_permute <= wb_abs_expregress.slope) + 1)/float(N_permute + 1)
 wb_rel_slope_p = (np.sum(wb_rel_slope_permute <= wb_rel_expregress.slope) + 1)/float(N_permute + 1)
 
-x = np.linspace(-2, 2, 100)
+x = np.linspace(-1.5, 3, 100)
 
 # plot musicscore vs behaviour
 fig = plt.figure(figsize=(5.51, 3))

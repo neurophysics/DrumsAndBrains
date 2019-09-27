@@ -147,7 +147,9 @@ listen_win, listen_ratios = scipy.signal.windows.dpss(
 silence_win, silence_ratios = scipy.signal.windows.dpss(
         min([12*s_rate, len(t_silence)]), NW=1.5,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
-
+all_win, all_ratios = scipy.signal.windows.dpss(
+        min([12*s_rate, len(t_all)]), NW=1.5,
+        Kmax=2, sym=False, norm='subsample', return_ratios=True)
 """
 # use a hanning window
 listen_win, listen_ratios = [scipy.signal.windows.hann(
@@ -173,19 +175,27 @@ snare_listen_csd = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
 snare_silence_csd = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
     ...,f_keep]
     for t in snare_silence_trials.T])
+snare_all_csd = np.array([mtcsd(np.hstack([t.T, u.T]), all_win, all_ratios)[1][
+    ...,f_keep]
+    for t,u in zip(snare_listen_trials.T, snare_silence_trials.T)])
 wdBlk_listen_csd = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
     ...,f_keep]
     for t in wdBlk_listen_trials.T])
 wdBlk_silence_csd = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
     ...,f_keep]
     for t in wdBlk_silence_trials.T])
+wdBlk_all_csd = np.array([mtcsd(np.hstack([t.T, u.T]), all_win, all_ratios)[1][
+    ...,f_keep]
+    for t,u in zip(wdBlk_listen_trials.T, wdBlk_silence_trials.T)])
 
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepare_FFTcSPoC.npz'),
         snare_listen_csd = snare_listen_csd,
         snare_silence_csd = snare_silence_csd,
+        snare_all_csd = snare_all_csd,
         wdBlk_listen_csd = wdBlk_listen_csd,
         wdBlk_silence_csd = wdBlk_silence_csd,
+        wdBlk_all_csd = wdBlk_all_csd,
         snare_listen_trials = snare_listen_trials,
         snare_silence_trials = snare_silence_trials,
         wdBlk_listen_trials = wdBlk_listen_trials,

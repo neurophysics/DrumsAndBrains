@@ -59,11 +59,11 @@ x= np.arange(-1.5,3,1)
 # plot the result
 fig = plt.figure(figsize=(3.54, 2.5))
 ax = fig.add_subplot(111)
-ax.scatter(musicscore, SNNR_i, c='k')
+ax.scatter(musicscore, SNNR_i, c='k', s=20)
 ax.plot(x, slope*x + intercept, 'k-')
 ax.set_xlabel('musical experience (z-score)')
 ax.set_ylabel('SNNR at 3.5 Hz (dB)')
-ax.text(0.95, 0.05, r'$\rho=%.2f$ ' % corr + r'($p=%.3f$)' % corr_p,
+ax.text(0.95, 0.05, r'$r=%.2f$ ' % corr + r'($p=%.3f$)' % corr_p,
         ha='right', va='bottom', ma='left', transform=ax.transAxes)
 fig.tight_layout(pad=0.3)
 fig.savefig(os.path.join(result_folder, 'SNNR_exp.pdf'))

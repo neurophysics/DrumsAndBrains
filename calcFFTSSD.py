@@ -7,6 +7,7 @@ import sys
 import os.path
 import helper_functions
 import meet
+from tqdm import tqdm
 
 mpl.rcParams['axes.labelsize'] = 7
 mpl.rcParams['axes.titlesize'] = 10
@@ -51,10 +52,6 @@ for i in xrange(1, N_subjects + 1, 1):
 
 if np.all([np.all(f_now == f[0]) for f_now in f]):
     f = f[0]
-
-f_ind = np.r_[np.abs(f - 3*snareFreq).argmin(), np.abs(f - 2*wdBlkFreq).argmin()]
-#f_con = np.arange(len(f))[np.all([f>=2, f<=5], axis=0)]
-f_con = [fi + np.array([-4, -3, -2, -1, 1, 2, 3, 4]) for fi in f_ind]
 
 def FFTSSD(target_covs, contrast_covs, num=None, bestof=15):
     if num != 1:
@@ -125,22 +122,66 @@ def avg_power_quot_grad(w, target_covs, contrast_covs):
         for t,c in zip(target_covs, contrast_covs)])
     return np.mean(quot), np.mean(quot_grad, 0)
 
-snare_target_covs = [c[...,f_ind[0]].real for c in csd_1]
-snare_contrast_covs = [c[...,f_con[0]].mean(-1).real for c in csd_1]
-wdBlk_target_covs = [c[...,f_ind[1]].real for c in csd_1]
-wdBlk_contrast_covs = [c[...,f_con[1]].mean(-1).real for c in csd_1]
+target_covs = [scipy.ndimage.convolve1d(c.real,
+    np.r_[1]/1., axis=-1)
+    for c in csd_1]
+contrast_covs = [scipy.ndimage.convolve1d(c.real,
+    np.r_[1,1,1,1,0,1,1,1,1]/8., axis=-1)
+    for c in csd_1]
 
-snare_quot, snare_filt = FFTSSD(snare_target_covs, snare_contrast_covs,
-        num=None)
-wdBlk_quot, wdBlk_filt = FFTSSD(wdBlk_target_covs, wdBlk_contrast_covs,
-        num=None)
+use_idx = np.arange(len(f))[np.all([f>=1, f<=20], 0)]
+
+quot = []
+filt = []
+
+for i in tqdm(use_idx, desc='prelim SSD'):
+    temp_quot, temp_filt = FFTSSD(
+            [c[...,i].real for c in target_covs],
+            [c[...,i].real for c in contrast_covs],
+            num = None, bestof=100)
+    quot.append(temp_quot)
+    filt.append(temp_filt)
+
+#target_covs = [scipy.ndimage.convolve1d(c.real,
+#    np.r_[1,1,1,1,1]/5., axis=-1)
+#    for c in csd_1]
+#contrast_covs = [scipy.ndimage.convolve1d(c.real,
+#    np.r_[1,1,1,1,1,0,0,0,0,0,1,1,1,1,1]/10., axis=-1)
+#    for c in csd_1]
+#
+#quot_final = []
+#filt_final = []
+#
+#for i in tqdm(use_idx, desc='final SSD'):
+#    temp_quot, temp_filt = FFTSSD(
+#            [c[...,i].real for c in target_covs],
+#            [c[...,i].real for c in contrast_covs],
+#            num = None)
+#    quot_final.append(temp_quot)
+#    filt_final.append(temp_filt)
+
+#chosen_SSD = np.argmax([q[0] for q in quot])
+chosen_SSD = np.argmin((f[use_idx]-3.5)**2)
+
+snare_quot = quot[chosen_SSD]
+snare_filt = filt[chosen_SSD]
+wdBlk_quot = quot[chosen_SSD]
+wdBlk_filt = filt[chosen_SSD]
 
 snare_pattern = scipy.linalg.solve(
-        snare_filt.T.dot(np.mean(snare_target_covs, 0)).dot(snare_filt),
-        snare_filt.T.dot(np.mean(snare_target_covs, 0)))
+        snare_filt.T.dot(np.mean([
+            c[...,use_idx[chosen_SSD]] for c in target_covs],
+            0)).dot(snare_filt),
+        snare_filt.T.dot(np.mean([
+            c[...,use_idx[chosen_SSD]] for c in target_covs],
+                0)))
 wdBlk_pattern = scipy.linalg.solve(
-        wdBlk_filt.T.dot(np.mean(wdBlk_target_covs, 0)).dot(wdBlk_filt),
-        wdBlk_filt.T.dot(np.mean(wdBlk_target_covs, 0)))
+        wdBlk_filt.T.dot(np.mean([
+            c[...,use_idx[chosen_SSD]] for c in target_covs],
+            0)).dot(wdBlk_filt),
+        wdBlk_filt.T.dot(np.mean([
+            c[...,use_idx[chosen_SSD]] for c in target_covs],
+                0)))
 
 # plot the patterns
 # name the ssd channels
@@ -153,40 +194,52 @@ snare_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
 wdBlk_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
     projection='stereographic') for ssd_c in wdBlk_pattern]
 
-# get the filtered spectra
-filt_csd = [snare_filt.T.dot(snare_filt.T.dot(c)) for c in csd_1]
-filt_csd_avg = np.mean(filt_csd, 0)
-
-SNNR_i = np.array([c[0,0, f_ind[0]].real/c[0,0,f_con[0]].real.mean(-1)
-    for c in filt_csd])
-
-fmask = np.all([f>=1.5, f<=5.5], 0)
-lsd1 = scipy.signal.detrend(np.sqrt(filt_csd_avg[0,0, fmask].real),
-        type='linear')
-lsd2 = scipy.signal.detrend(np.sqrt(filt_csd_avg[-1,-1, fmask].real),
-        type='linear')
-
 fig = plt.figure(figsize=(3.54,3.54))
 # plot with 8 rows and 4 columns
 #gs = mpl.gridspec.GridSpec(10,4, height_ratios = 8*[1]+[0.2]+[1])
-gs = mpl.gridspec.GridSpec(4,4, height_ratios = [1]+[0.8]+[0.1]+[1])
-eigvals_ax = fig.add_subplot(gs[0,:], frame_on=True)
+gs = mpl.gridspec.GridSpec(4,4, height_ratios = [1]+[1]+[0.7]+[0.1])
+
+SNNR_ax = fig.add_subplot(gs[0,:], frame_on=True)
+SNNR_ax.plot(f[use_idx], [10*np.log10(q[0]) for q in quot], 'k-')
+SNNR_ax.set_xlabel('frequency (Hz)')
+SNNR_ax.set_ylabel('SNNR (dB)')
+SNNR_ax.set_ylim(bottom=0, top=1.0)
+
+SNNR_ax.set_xlim(1,15)
+trans = mpl.transforms.blended_transform_factory(
+        SNNR_ax.transData, SNNR_ax.transAxes)
+
+SNNR_ax.text(snareFreq, 0.96, r'\textbf{*}', ha='center', va='top',
+        transform=trans, color='b', fontsize=12)
+SNNR_ax.text(wdBlkFreq, 0.96, r'\textbf{*}', ha='center', va='top',
+        transform=trans, color='r', fontsize=12)
+SNNR_ax.text(3.5, 0.96, r'\textbf{*}', ha='center', va='top',
+        transform=trans, color='k', fontsize=12)
+SNNR_ax.text(7, 0.96, r'\textbf{*}', ha='center', va='top',
+        transform=trans, color='k', fontsize=12)
+
+#mark_start = 0.5*(f[use_idx[chosen_SSD] - 3] + f[use_idx[chosen_SSD] - 2])
+#mark_stop = 0.5*(f[use_idx[chosen_SSD] + 3] + f[use_idx[chosen_SSD] + 2])
+#SNNR_ax.axvspan(mark_start, mark_stop, fc='r', alpha=0.2)
+
+SNNR_ax.plot([3.5, 3.5], [10*np.log10(snare_quot[0]),0], 'k-', lw=0.5)
+
+eigvals_ax = fig.add_subplot(gs[1,:], frame_on=True)
 eigvals_ax.plot(np.arange(1, len(snare_quot) + 1, 1), 10*np.log10(snare_quot),
-        'ko-', markersize=5)
+        'ko-', markersize=np.sqrt(20))
 eigvals_ax.set_xlim([0, len(snare_quot) + 1])
-eigvals_ax.set_title('SSD eigenvalues')
 eigvals_ax.axhline(0, ls='-', c='k', lw=0.5)
 eigvals_ax.axvspan(0, 6.5, fc='r', alpha=0.2)
-eigvals_ax.set_ylabel('SNNR at 3.5 Hz (dB)')
+eigvals_ax.set_ylabel('SNNR (dB)')
 eigvals_ax.set_xlabel('component index')
 ax = []
 for i, (X,Y,Z) in enumerate(snare_potmaps):
     if i==4: break
     if i == 0:
-        ax.append(fig.add_subplot(gs[1,0], frame_on = False))
+        ax.append(fig.add_subplot(gs[2,0], frame_on = False))
     else:
-        ax.append(fig.add_subplot(gs[1 + i//4,i%4], sharex=ax[0], sharey=ax[0],
-                frame_on = False))
+        ax.append(fig.add_subplot(gs[2 + i//4,i%4], sharex=ax[0],
+            sharey=ax[0], frame_on = False))
     Z /= np.abs(Z).max()
     ax[-1].tick_params(**blind_ax)
     meet.sphere.addHead(ax[-1])
@@ -196,9 +249,10 @@ for i, (X,Y,Z) in enumerate(snare_potmaps):
     ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
             alpha=0.5)
     ax[-1].set_xlabel(r'\textbf{%d}' % (i + 1) +'\n'+
-            '($\mathrm{SNNR=%.2f dB}$)' % (snare_quot[i]))
-ax[0].set_ylim([-1,1.3])
-pc_ax = fig.add_subplot(gs[2,:])
+            '($\mathrm{SNNR=%.2f\ dB}$)' % (10*np.log10(snare_quot[i])))
+ax[0].set_ylim([-1.1,1.3])
+
+pc_ax = fig.add_subplot(gs[3,:])
 cbar = plt.colorbar(pc, cax=pc_ax, orientation='horizontal',
         label='amplitude', ticks=[-1,0,1])
 cbar.ax.set_xticklabels(['-', '0', '+'])
@@ -206,22 +260,28 @@ cbar.ax.axvline(0.5, c='w')
 pc_ax.plot([0.5,0.5], [0,1], c='w', zorder=1000,
         transform=pc_ax.transAxes)
 
-psd_ax = fig.add_subplot(gs[-1,:], frame_on=True)
-psd_ax.plot(f[fmask], lsd1, c='r', label='SSD-01')
-psd_ax.plot(f[fmask], lsd2, c='b', label='SSD-31')
-psd_ax.set_xlim([1.5,5.5])
-psd_ax.set_xlabel('frequency (Hz)')
-psd_ax.set_ylabel('detrended spectrum')
-psd_ax.legend(loc='upper right', fontsize=7)
-
 gs.tight_layout(fig, pad=0.2)
-fig.savefig(os.path.join(result_folder, 'FFTSSD_patterns.pdf'))
 
+fig.canvas.draw()
+SNNR_ax.plot(
+        [3.5, 1],
+            [0,
+                SNNR_ax.transData.inverted().transform(
+                    eigvals_ax.transAxes.transform([0,1]))[1]],
+                'k-', clip_on=False, alpha=0.5, lw=0.5)
+SNNR_ax.plot(
+        [3.5, 15],
+            [0,
+                SNNR_ax.transData.inverted().transform(
+                    eigvals_ax.transAxes.transform([1,1]))[1]],
+                'k-', clip_on=False, alpha=0.5, lw=0.5)
+
+fig.align_ylabels([SNNR_ax, eigvals_ax])
+fig.savefig(os.path.join(result_folder, 'FFTSSD_patterns.pdf'))
 
 # save the results
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         snare_filt = snare_filt,
         snare_quot = snare_quot,
         wdBlk_filt = wdBlk_filt,
-        wdBlk_quot = wdBlk_quot,
-        SNNR_i = SNNR_i)
+        wdBlk_quot = wdBlk_quot)

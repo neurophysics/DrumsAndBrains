@@ -80,7 +80,7 @@ class _SPoC(object):
         return opt, w
 
 def _white_covs(X):
-    mean_cov =  X.mean(-1)
+    mean_cov =  np.mean(X, -1)
     rank = np.linalg.matrix_rank(mean_cov)
     bval, bvec = np.linalg.eigh(mean_cov)
     W = bvec[:,-rank:]/np.sqrt(bval[-rank:])
@@ -98,6 +98,14 @@ def _filter_covs(W, X):
 
 def _filter_covs_avg(W, X):
     return [_filter_covs(W, X1) for X1 in X]
+
+def _filter_covs_t(W, X):
+    if np.array(X).ndim == 3:
+        return W.T.dot(W.T.dot(X))
+    elif np.array(X).ndim == 4:
+        return [_filter_covs(W, X1) for X1 in X]
+    else:
+        raise ValueError
 
 def _corr_2(w, X, z):
     """
@@ -239,6 +247,37 @@ def _norm_log_power(w,X):
             log_power_var)
     return log_power_norm, log_power_norm_grad
 
+def _corr_t_grad_2(w, X, C, z):
+    """
+    calculate the squared t-score of the correlation between X and z
+    vs all the correlations between C and z
+    """
+    corr, corr_grad = _corr_grad(w, X, z)
+    corr_base, corr_base_grad = zip(*[_corr_grad(w, c, z) for c in C])
+    # calculate fisher transform
+    corr_z = np.arctanh(corr)
+    corr_z_grad = corr_grad/(1 - corr**2)
+    corr_base_z = [np.arctanh(c) for c in corr_base]
+    corr_base_z_grad = [c_grad/(1 - c**2)
+            for c_grad, c in zip(corr_base_grad, corr_base)]
+    # calculate the mean of the bease
+    mean_z = np.mean(corr_base_z)
+    var_z = np.var(corr_base_z)
+    std_z = np.sqrt(var_z)
+    mean_z_grad = np.mean(corr_base_z_grad, 0)
+    #var_z_grad = np.mean(2*(corr_base_z - mean_z)[:,np.newaxis]*
+    #        (corr_base_z_grad - mean_z_grad), 0)
+    #std_z_grad = 0.5*var_z_grad/std_z
+    # calculate the t score
+    #t = (corr_z - mean_z)/std_z
+    #t_grad = ((corr_z_grad - mean_z_grad)*std_z -
+    #        (corr_z - mean_z)*std_z_grad)/std_z**2
+    t = corr_z - mean_z
+    t_grad = corr_z_grad - mean_z_grad
+    t2 = t**2
+    t2_grad = 2*t*t_grad
+    return -t2, -t2_grad
+
 ##############################################################
 # define two classes for the optimization of single subjects #
 # or the average across multiple subjects                    #
@@ -276,3 +315,9 @@ class pSPoCr2(_SPoC_single):
 class pSPoCr2_avg(_SPoC_avg):
     def fun(self, w, args):
         return _partial_corr_avg_2(w, *args)
+
+class SPoCt2(_SPoC_single):
+    def fun(self, w, args):
+        return _corr_t_grad_2(w, *args)
+    def _filter(self, *args):
+        return _filter_covs_t(*args)
