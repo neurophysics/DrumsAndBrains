@@ -214,17 +214,18 @@ snare_wb_slope_p = (np.sum((snare_wb_slope_permute >= snare_wb_regress[0])) + 1
 
 fig = plt.figure(figsize=(3.54, 3.1))
 ax1 = fig.add_subplot(111, aspect='equal')
-ax1.scatter(snare_mean_performance, wb_mean_performance, c='k')
-[ax1.plot([s,s], [w-ws, w+ws], 'r-')
+ax1.scatter(snare_mean_performance, wb_mean_performance, c='k',
+        zorder=1000)
+[ax1.plot([s,s], [w-ws, w+ws], 'r-', zorder=1)
         for s, w, ws in zip(snare_mean_performance, wb_mean_performance,
             wb_se_performance)]
-[ax1.plot([s-ss,s+ss], [w, w], 'b-')
+[ax1.plot([s-ss,s+ss], [w, w], 'b-', zorder=1)
         for s, ss, w in zip(snare_mean_performance, snare_se_performance,
             wb_mean_performance)]
 ax1.axhline(0, c='k', lw=0.5)
 ax1.axvline(0, c='k', lw=0.5)
-ax1.set_xlabel('mean error in duple trials')
-ax1.set_ylabel('mean error in triple trials')
+ax1.set_xlabel('mean error in duple trials (s)')
+ax1.set_ylabel('mean error in triple trials (s)')
 ax1.text(0.975, 0.975, r'$R^2=%.2f$ ($p=%.4f$)' % (snare_wb_r2, snare_wb_slope_p),
         ha='right', va='top', fontsize=10, transform=ax1.transAxes)
 ax1.set_xlim([-0.1,0.45])
