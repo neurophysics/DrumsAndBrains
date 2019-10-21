@@ -183,8 +183,8 @@ ax1.set_title('mean absolute error')
 ax2.set_title('standard deviation of error')
 ax1.set_xlabel('musical experience (z-score)')
 ax2.set_xlabel('musical experience (z-score)')
-ax1.set_ylabel('absolute deviation (ms)')
-ax2.set_ylabel('standard deviation (ms)')
+ax1.set_ylabel('absolute error (ms)')
+ax2.set_ylabel('standard deviation of error (ms)')
 
 fig.tight_layout(pad=0.3)
 
