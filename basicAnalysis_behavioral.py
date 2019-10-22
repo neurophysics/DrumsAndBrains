@@ -224,8 +224,8 @@ ax1.scatter(snare_mean_performance, wb_mean_performance, c='k',
             wb_mean_performance)]
 ax1.axhline(0, c='k', lw=0.5)
 ax1.axvline(0, c='k', lw=0.5)
-ax1.set_xlabel('mean error in duple trials (s)')
-ax1.set_ylabel('mean error in triple trials (s)')
+ax1.set_xlabel('mean error in duple rhythm condition (s)')
+ax1.set_ylabel('mean error in triple rhythm condition (s)')
 ax1.text(0.975, 0.975, r'$R^2=%.2f$ ($p=%.4f$)' % (snare_wb_r2, snare_wb_slope_p),
         ha='right', va='top', fontsize=10, transform=ax1.transAxes)
 ax1.set_xlim([-0.1,0.45])
