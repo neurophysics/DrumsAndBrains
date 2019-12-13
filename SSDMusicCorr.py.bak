@@ -24,7 +24,7 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelbottom=False)
 
 with np.load(os.path.join(result_folder, 'FFTSSD.npz'), 'rb') as fl:
-    SNNR_i = fl['SNNR_i']
+    SNNR_i = fl['snare_quot']
 
 SNNR_i = 10*np.log10(SNNR_i)
 
@@ -38,29 +38,29 @@ with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'rU') as infile:
         background[key] = value
 
 raw_musicscores = np.array([background['%s' % i]
-    for i in list(range(1,11,1)) + list(range(12, 22, 1))])
+    for i in range(1,11,1) + range(12, 22, 1)])
 z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
         )/raw_musicscores.std(0)
 musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 
 N_bootstrap = 10000
 
-corr = np.corrcoef(musicscore, SNNR_i)[0,1]
+corr = np.corrcoef(musicscore, np.log(SNNR_i))[0,1]
 corr_boot = np.array([
     np.corrcoef(musicscore,
         np.random.choice(SNNR_i, size=len(SNNR_i), replace=False))[0,1]
-    for _ in range(N_bootstrap)])
-corr_p = (np.sum(corr_boot**2>=corr**2) + 1)/10001.
+    for _ in xrange(N_bootstrap)])
+corr_p = (np.sum(corr_boot**2>=corr**2) + 1)/1001.
 
 # calculate a regression line
-slope, intercept = scipy.stats.linregress(musicscore, SNNR_i)[:2]
+slope, intercept = scipy.stats.linregress(musicscore, np.log(SNNR_i))[:2]
 x= np.arange(-1.5,3,1)
 
 # plot the result
 fig = plt.figure(figsize=(3.54, 2.5))
 ax = fig.add_subplot(111)
 ax.scatter(musicscore, SNNR_i, c='k', s=20)
-ax.plot(x, slope*x + intercept, 'k-')
+ax.plot(x, np.exp(slope*x + intercept), 'k-')
 ax.set_xlabel('musical experience (z-score)')
 ax.set_ylabel('SNNR at 3.5 Hz (dB)')
 ax.text(0.95, 0.05, r'$R^2=%.2f$ ' % corr**2 + r'($p=%.3f$)' % corr_p,
