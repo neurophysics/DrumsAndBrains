@@ -8,7 +8,7 @@ import meet
 import helper_functions
 
 
-s_rate = 1000 # sampling rate of the EEG
+s_rate = 1000 # sampling rate of the EEG (1000 samples per sec)
 data_folder = sys.argv[1]
 N_subjects = int(sys.argv[2]) #here: total number of subjects
 result_folder = sys.argv[3]
@@ -73,13 +73,14 @@ raw.info
 # syncMusicToEeg gibt uns drum schläge in eeg daten [in sample nummer]
 #--> brauchen read_aif, helper funtions
 
-#a) only Cues
+#a) events are only Cues in bar 4
 with np.load(os.path.join(result_folder, 'S%02d' % subject,
     'behavioural_results.npz'), 'r', allow_pickle=True, encoding='latin1') as f:
     snareCue_nearestClock = f['snareCue_nearestClock']
     snareCue_DevToClock = f['snareCue_DevToClock']
     wdBlkCue_nearestClock = f['wdBlkCue_nearestClock']
     wdBlkCue_DevToClock = f['wdBlkCue_DevToClock']
+    bar_duration = f['bar_duration']
 
 snareCue_events = helper_functions.SyncMusicToEEG(eeg_clocks,
         snareCue_nearestClock,
@@ -97,8 +98,8 @@ allCues_events = np.concatenate((
 #mne.viz.plot_events(allCues_events, raw.info['sfreq'], raw.first_samp);
 
 event_id = {"snare": 0, "wdBlk": 1}
-tmin = -0.0  # start of each epoch (a) takt 4 und b) takt 1-3
-tmax = 1.72  # end of each epoch a) one bar takes around 1.71 s
+tmin = -0.0  # start of each epoch (a) takt 4
+tmax = bar_duration  # end of each epoch a) one bar takes around 1.71 s
 epochs = mne.Epochs(raw, allCues_events, event_id, tmin, tmax,
         baseline=None, proj=True)
 
@@ -112,8 +113,34 @@ evoked.plot_topomap(times=np.linspace(0., 0.3, 6));
 #both together
 evoked.plot_joint(times=[0.105, 0.130, 0.180]); #TODO give times of all beats
 
-#where does it come from in teh brain?
+#where does it come from in the brain?
 evoked_faces = epochs['snare'].average()
 evoked_faces.plot_topomap(times=[0.095], size=2)
 evoked_faces = epochs['wdBlk'].average()
 evoked_faces.plot_topomap(times=[0.095], size=2)
+
+
+
+#b) track listening (bars 1-3): event is first beat of each trial
+
+# get events. differentietae between snare and wdblk?
+# first beat of trial is cue - 3 bars (in sample time)
+bar_samples = int(s_rate * bar_duration) # number of samples per bar
+allStarts_events = allCues_events
+allStarts_events[:,0] = np.array([allCues_events[:,0]- 3*bar_samples])
+
+tmin_b = -0.1  # start of each epoch (0.1 seconds before trial)
+tmax_b = bar_duration*3  # listening period
+epochs_b = mne.Epochs(raw, allStarts_events, event_id, tmin_b, tmax_b,
+        baseline=None, proj=True)
+
+data = epochs_b.get_data() #26 bad epochs still
+
+# volt of different electrodes over time and their location on sculp
+evoked_b = epochs_b.average()
+evoked_b.plot(spatial_colors=True);
+# plot scalp polarities over times -.-
+plt.figure()
+plt.subplots(3,6,sharex=True, sharey=True)
+for i in range(3):
+    evoked_b.plot_topomap(times=np.linspace(i*bar_duration, (i+1)*bar_duration, 6))
