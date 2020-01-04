@@ -93,7 +93,9 @@ wdBlkCue_events = helper_functions.SyncMusicToEEG(eeg_clocks,
 wdBlkCue_events = [np.array([e, 0, 1]) for e in wdBlkCue_events]
 
 allCues_events = np.concatenate((
-        wdBlkCue_events,snareCue_events)) #ich krieg es nicht sortiert :(
+        wdBlkCue_events,snareCue_events))
+allCues_events = allCues_events[np.argsort(allCues_events[:,0])]
+
 # shows when which event occured over time
 #mne.viz.plot_events(allCues_events, raw.info['sfreq'], raw.first_samp);
 
@@ -140,7 +142,9 @@ data = epochs_b.get_data() #26 bad epochs still
 evoked_b = epochs_b.average()
 evoked_b.plot(spatial_colors=True);
 # plot scalp polarities over times -.-
-plt.figure()
-plt.subplots(3,6,sharex=True, sharey=True)
-for i in range(3):
-    evoked_b.plot_topomap(times=np.linspace(i*bar_duration, (i+1)*bar_duration, 6))
+fig, axes = plt.subplots(ncols=6, nrows=3)
+for ax,i in zip(axes,range(3)):
+    evoked_b.plot_topomap(axes=ax,show=False, colorbar=False,
+                times=np.linspace(i*bar_duration, (i+1)*bar_duration, 6))
+    fig.suptitle('Bars 1-3 (Listening)')
+plt.show()
