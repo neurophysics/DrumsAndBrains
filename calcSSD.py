@@ -39,7 +39,7 @@ N_channels = len(channames)
 org_cov = []
 rec_cov = []
 
-for i in xrange(1, N_subjects + 1, 1):
+for i in range(1, N_subjects + 1, 1): #python3 range is python2 xrange
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_filterdata.npz', 'r') as f:
