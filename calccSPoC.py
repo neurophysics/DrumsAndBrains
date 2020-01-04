@@ -10,8 +10,10 @@ import helper_functions
 import meet
 from tqdm import trange
 import hashlib
-import cPickle
-
+try:
+   import cPickle as pickle #in 3.x, it's easier just to use pickle, alternative: import _pickle as cPickle
+except:
+   import pickle
 from scipy.optimize import fmin_l_bfgs_b as _minimize
 
 parser = argparse.ArgumentParser(description='Calculate PCO')
@@ -206,7 +208,7 @@ snareSilence_rec_covs = np.dstack(snareSilence_rec_covs)
 wdBlkSilence_rec_covs = np.dstack(wdBlkSilence_rec_covs)
 
 # calculate the hash
-save_hash = hashlib.sha256(cPickle.dumps([
+save_hash = hashlib.sha256(pickle.dumps([
     snarePower_snareCue,
     wdBlkPower_snareCue,
     snarePower_wdBlkCue,
@@ -514,7 +516,7 @@ snare_tf = np.abs(snare_tf)
 wdBlk_tf = np.abs(wdBlk_tf)
 tf_avg = np.mean(np.vstack([snare_tf, wdBlk_tf]), 0).reshape(-1, 240)
 
-from tqdm import tqdm 
+from tqdm import tqdm
 snare_corr = np.array([np.corrcoef(tf_now, snare_deviation)[0,1]
     for tf_now in tqdm(snare_tf.T)]).reshape(-1, 240)
 wdBlk_corr = np.array([np.corrcoef(tf_now, wdBlk_deviation)[0,1]
