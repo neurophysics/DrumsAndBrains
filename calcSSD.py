@@ -76,7 +76,7 @@ if normalize:
 
 k = 0
 psd_preSSD = []
-for i in xrange(1, N_subjects + 1, 1):
+for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_filterdata.npz', 'r') as f:
@@ -117,7 +117,7 @@ ssd_eigvals = ssd_eigvals[::-1]
 
 k = 0
 psd_postSSD = []
-for i in xrange(1, N_subjects + 1, 1):
+for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_filterdata.npz', 'r') as f:
@@ -140,7 +140,7 @@ ssd_pattern = scipy.linalg.solve(
 
 # plot the patterns
 # name the ssd channels
-ssd_channames = ['SSD%02d' % (i+1) for i in xrange(len(ssd_pattern))]
+ssd_channames = ['SSD%02d' % (i+1) for i in range(len(ssd_pattern))]
 
 # plot the SSD components scalp maps
 ssd_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
