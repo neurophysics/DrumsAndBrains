@@ -70,7 +70,7 @@ snare_deviation = []
 wdBlk_deviation = []
 
 # read the oscillatory data from the silence period
-for i in xrange(1, N_subjects + 1, 1):
+for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
                 + '/prepare_FFTcSPoC.npz', 'r') as fl:
@@ -356,7 +356,7 @@ snare_all_csd = []
 wdBlk_all_csd = []
 
 # read the oscillatory data from the silence period
-for i in xrange(1, N_subjects + 1, 1):
+for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
                 + '/prepare_FFTcSPoC.npz', 'r') as fl:
@@ -391,7 +391,7 @@ best_wdBlk_listen_trials = []
 best_wdBlk_silence_trials = []
 
 # read the oscillatory data from the silence period
-for i in xrange(1, N_subjects + 1, 1):
+for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
                 + '/prepare_FFTcSPoC.npz', 'r') as fl:
