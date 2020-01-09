@@ -19,13 +19,13 @@ if not os.path.exists(save_folder):
 
 #for subject in range(1, N_subjects + 1, 1):
 #for now only for first subject
-subject = 1
+subject = N_subjects
 try:
     with np.load(os.path.join(data_folder, 'S%02d' % subject,
             'clean_data.npz'), 'r') as f:
         artifact_mask = f['artifact_mask']
-        clean = f['clean_data']
-        clean_data = f['clean_data'][:, artifact_mask] #exclude artifacts
+        clean_data = f['clean_data']
+        #clean_data = f['clean_data'][:, artifact_mask] #DONT exclude artifacts, otherwise sample numbers wont match later on
 except:
     print('Warning: Subject %02d could not be loaded!' %i)
 
@@ -95,7 +95,7 @@ wdBlkCue_events = [np.array([e, 0, 1]) for e in wdBlkCue_events]
 allCues_events = np.concatenate((
         wdBlkCue_events,snareCue_events))
 allCues_events = allCues_events[np.argsort(allCues_events[:,0])]
-
+allCues_events[:, 0] = allCues_events[:, 0]-allCues_events[0,0]
 # shows when which event occured over time
 #mne.viz.plot_events(allCues_events, raw.info['sfreq'], raw.first_samp);
 
@@ -105,22 +105,21 @@ tmax = bar_duration  # end of each epoch a) one bar takes around 1.71 s
 epochs = mne.Epochs(raw, allCues_events, event_id, tmin, tmax,
         baseline=None, proj=True)
 
-data = epochs.get_data() #26 bad epochs ???
+data = epochs.get_data()
 
 # volt of different electrodes over time and their location on sculp
 evoked = epochs.average()
-evoked.plot(spatial_colors=True);
+evoked.plot(show=False,spatial_colors=True);
 # plot scalp polarities over times
-evoked.plot_topomap(times=np.linspace(0., 0.3, 6));
+evoked.plot_topomap(show=False,times=np.linspace(0., 0.3, 6));
 #both together
-evoked.plot_joint(times=[0.105, 0.130, 0.180]); #TODO give times of all beats
+evoked.plot_joint(show=False,times=[0.105, 0.130, 0.180]); #TODO give times of all beats
 
 #where does it come from in the brain?
 evoked_faces = epochs['snare'].average()
-evoked_faces.plot_topomap(times=[0.095], size=2)
+evoked_faces.plot_topomap(show=False,times=[0.095], size=2)
 evoked_faces = epochs['wdBlk'].average()
-evoked_faces.plot_topomap(times=[0.095], size=2)
-
+evoked_faces.plot_topomap(show=False,times=[0.095], size=2)
 
 
 #b) track listening (bars 1-3): event is first beat of each trial
@@ -136,11 +135,11 @@ tmax_b = bar_duration*3  # listening period
 epochs_b = mne.Epochs(raw, allStarts_events, event_id, tmin_b, tmax_b,
         baseline=None, proj=True)
 
-data = epochs_b.get_data() #26 bad epochs still
+data = epochs_b.get_data()
 
 # volt of different electrodes over time and their location on sculp
 evoked_b = epochs_b.average()
-evoked_b.plot(spatial_colors=True);
+evoked_b.plot(show=False,spatial_colors=True);
 # plot scalp polarities over times -.-
 fig, axes = plt.subplots(ncols=6, nrows=3)
 for ax,i in zip(axes,range(3)):
