@@ -40,7 +40,7 @@ class _SPoC(object):
             if num is None: num = rank
             else: num = min([num, rank])
             covs = [self._filter(W,C) for C in covs]
-        for i in xrange(num):
+        for i in range(num):
             if i>0:
                 # project the previous filters out
                 wx = np.linalg.svd(np.array(w), full_matrices=True
@@ -230,7 +230,7 @@ def _norm_log_power(w,X):
     power_grad = 2*np.dot(w, X)
     log_power_grad = power_grad/(power + 1)
     mean_log_power = log_power.mean()
-    mean_log_power_grad = np.mean(log_power_grad, -1) 
+    mean_log_power_grad = np.mean(log_power_grad, -1)
     log_power_detrend = log_power - mean_log_power
     log_power_detrend_grad = (log_power_grad -
             mean_log_power_grad[:,np.newaxis])
