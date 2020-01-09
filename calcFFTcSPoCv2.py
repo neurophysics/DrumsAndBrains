@@ -384,6 +384,12 @@ wdBlk_pattern = scipy.linalg.lstsq(
             0).real))[0]
 wdBlk_pattern /= np.abs(wdBlk_pattern).max(-1)[:,np.newaxis]
 
+#save spatial patterns (for source reconstruction)
+np.savez(os.path.join(args.result_folder,'calcFFTcSpoCv2_spatial_pattern.npz'),
+        wdBlk_pattern = wdBlk_pattern,
+        snare_pattern = snare_pattern
+        )
+
 # get the trial data
 best_snare_listen_trials = []
 best_snare_silence_trials = []
