@@ -29,7 +29,7 @@ try:
 except:
     print('Warning: Could not load cSpoC pattern')
 
-# read channel names
+# read channel names and positions
 channames = meet.sphere.getChannelNames('channels.txt')
 chancoords = meet.sphere.getStandardCoordinates(channames)
 chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
@@ -42,9 +42,9 @@ montage = mne.channels.make_dig_montage(ch_pos=dict(zip(channames, chancoords)),
 info = mne.create_info(ch_names=channames, montage=montage,
         sfreq=s_rate, ch_types=np.repeat('eeg',n_channels))
 
-
+# both have the same epochs: one value per session
 tmin = -0.0  # start of each epoch
-tmax = 0.0009  # end of each epoch one sample is 0.001s (s_rate)
+tmax = 0.001  # end of each epoch one sample is 0.001s (s_rate)
 
 ####### snare #######
 events_snare = np.zeros((6,3),dtype=int) #every point is important
@@ -55,11 +55,7 @@ event_id = {"snare": 0}
 epochs_snare = mne.Epochs(raw_snare, events_snare, event_id, tmin, tmax,
         baseline=None, proj=True)
 
-## from here it goes wrong...
-data = epochs_snare.get_data()
-# volt of different electrodes over time and their location on sculp
 evoked_snare = epochs_snare.average()
-# convert our data to raw format (io: https://mne.tools/stable/auto_examples/io/plot_objects_from_arrays.html#sphx-glr-auto-examples-io-plot-objects-from-arrays-py)
 fig = evoked_snare.plot_topomap(show=False,
                 times=np.linspace(0, 0.001, 1))
 fig.suptitle('Bars 1-3 (Listening), snare trials\n')
@@ -75,11 +71,7 @@ event_id = {"wdBlk": 1}
 epochs_wdBlk = mne.Epochs(raw_wdBlk, events_wdBlk, event_id, tmin, tmax,
         baseline=None, proj=True)
 
-## from here it goes wrong...
-data = epochs_wdBlk.get_data()
-# volt of different electrodes over time and their location on sculp
 evoked_wdBlk = epochs_wdBlk.average()
-# convert our data to raw format (io: https://mne.tools/stable/auto_examples/io/plot_objects_from_arrays.html#sphx-glr-auto-examples-io-plot-objects-from-arrays-py)
 fig = evoked_wdBlk.plot_topomap(show=False,
                 times=np.linspace(0, 0.001, 1))
 fig.suptitle('Bars 1-3 (Listening), wdBlk trials\n')

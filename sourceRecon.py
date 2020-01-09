@@ -105,8 +105,6 @@ tmax = bar_duration  # end of each epoch a) one bar takes around 1.71 s
 epochs = mne.Epochs(raw, allCues_events, event_id, tmin, tmax,
         baseline=None, proj=True)
 
-data = epochs.get_data()
-
 # volt of different electrodes over time and their location on sculp
 evoked = epochs.average()
 evoked.plot(show=False,spatial_colors=True);
@@ -134,8 +132,6 @@ tmin_b = -0.1  # start of each epoch (0.1 seconds before trial)
 tmax_b = bar_duration*3  # listening period
 epochs_b = mne.Epochs(raw, allStarts_events, event_id, tmin_b, tmax_b,
         baseline=None, proj=True)
-
-data = epochs_b.get_data()
 
 # volt of different electrodes over time and their location on sculp
 evoked_b = epochs_b.average()
