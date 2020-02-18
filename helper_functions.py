@@ -51,3 +51,41 @@ def SyncMusicToEEG(eeg_session_clocks, nearest_session_clocks,
         zip(eeg_session_clocks, nearest_session_clocks, session_devs)])
     return cue_pos
 
+def mtcsd(x, windows, weights, nfft):
+    """Multitaper Cross-Spectral density estimation
+
+    While the most frequent method (Welch's average periodogram) to
+    estimate the spectra of a signal is to calculate the Fourier transform
+    of data segments (after windowing/tapering) and to average across the
+    power spectra of the segments afterwards, the multitaper spectral
+    estimation calculates the spectrum from a single segment after
+    application of different window functions (tapers) and averages across
+    the result. Typically, 'slepian sequences' used.
+
+    Args:
+        x - data (the fourier transform is calculated along the last axis)
+        win - list of window functions
+        weight - the weight every window gets when averaging across windows
+        nfft - the number of Fourier terms to output. If nfft>x.shape[-1],
+            only the last nfft elements of x are used. If nfft>x.shape[-1],
+            x will be zero-padded prior to Fourier transformation
+
+    Output:
+        csd - cross spectral density matrix
+
+    Note:
+        The frequencies relating to the Fourier coefficients can be
+        obtained from np.fft.rfftfreq
+    """
+    #make zero mean
+    if x.shape[-1] > nfft:
+        x = x[...,-nfft:]
+    x = x - x.mean(-1)[...,np.newaxis]
+    csd = np.zeros([x.shape[0], x.shape[0], nfft//2 + 1], np.complex)
+    n = x.shape[-1]
+    for win,w in zip(windows, weights):
+        temp = np.fft.rfft(win*x, n=nfft)
+        csd += w*np.einsum('ik,jk->ijk', np.conj(temp), temp)
+    csd /= weights.sum()
+    return csd
+
