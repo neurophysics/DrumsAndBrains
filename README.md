@@ -60,37 +60,24 @@ Additionally some plots are saved in the Results folder of that subject.
 ## Calculation of Spatial filters
 We are using spatial filters to obtain the best signal-to-noise ratio available.
 
-Four different types of spatial filters are to be used:
+Two different types of spatial filters are to be used:
 
-1. Canonical correlation analysis (CCA): Filters are trained from the
-listening period to maximize the auditory evoked potentials.
-Algorithmically, this works by maximizing the correlation between the
-single trials and the average across single trials.
-
-2. Spatio-spectral decomposition (SSD): Filters are trained from the
+1. Spatio-spectral decomposition (SSD): Filters are trained from the
 listening period to maximize the power of oscillations at the frequencies
 of the polyrhythm the subjects were listening to.
-Algorithmically, this works by (1) low-pass filtering at 3 Hz (lf-data),
-(2) extracting the requested frequencies from the data by fitting sines and
-cosines at those frequencies (= explicite Fourier transform) and
-reconstructing with only those frequencies included (entrained-data),
-(3) common spatial pattern (CSP) of lf-data vs. entrained data.
+Algorithmically, this works by (1) Fourier transformation of the data
+(this is done in `prepareFFTSSD.py`)
+(3) generalized eigenvalue decomposition between the covarience of the
+requested frequency and its flanks (in `calcFFTSSD.py`)
 
-3. Phase coupling optimization (PCO): Filters are trained from the silence
-period to maximize the dependence between the phases of neuronal
-oscillations and performance. Algorithmically, this works by maximizing the
-mean vector length. Typically, a smaller number of SSD filters are used as
-pre-processing to safe-guard against overfitting.
-
-4. Source power comodulation (SPoC) optimization. Filters are trained from
+2. partial Source power comodulation (pSPoC) optimization. Filters are trained from
 the silence period to maximize the dependence between the power of neuronal
 oscillations and performance. Typically, a smaller number of SSD filters are
 used as pre-processing to safe-guard against overfitting.
 
-Note, that there is an important difference between methods 1+2 and 3+4.
-Methods 3+4 directly maximize the relation between oscillations and
-behaviour and thus might be prone to overfitting (towards that specific
-relation).
+Note, that there is an important difference between methods 1+2.
+Methods 2 directly maximize the relation between oscillations and
+behaviour and thus might be prone to overfitting.
 
 ### Analysis *across subjects*
 Here, we chose an approach to train the spatial filters across subjects,
