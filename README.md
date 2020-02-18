@@ -98,76 +98,20 @@ which (1) increases the amount of data and hereby decreases the risk of
 overfitting and (2) should lead to a generalized result - approximately
 valid for an 'average' subject.
 
-### Prepare Filters
-The script `prepare_filters.py` needs to be run for every subject.
+### Prepare SSD calculation
+The script `prepareFFTSSD.py` needs to be run for every subject.
 It requires 3 arguments:
 
 1. `data_folder`
 2. subject number
 3. `result_folder` (used to store the results)
 
-In the `result_folder` of that subject, a file `prepared_filterdata.npz`
-will be stored with the following entries:
+In the `result_folder` of that subject, a file `prepared_FFTSSD.npz`
+will be stored containing as fields:
 
-As filter, a FIR filter is used with a length half of the triple beat
-interval. The filter is linear phase and the filtered data is shifted as
-to lead to zero phase shift.
-The filter design is stored in the results folder of that subject as
-`FIR_filter.pdf`
+1. `csd`: the average cross-spectral density matrix of all single trials
+    of that subject
+2. `f`: an array of frequencies (in Hz) corresponding to `csd`
 
-- `lowpass`: the used lowpass FIR filter
-- `listen_trials`, a channesl x samples x trials array of EEG data during
-    listening period (butterworth filter 2-40 Hz)
-- `listen_trials_avg`, a channels x samples array of averaged EEG data
-    (across trials) during listening period (same butterworth filter as above)
-- `snareListenData`, a channels x samples x trials array of EEG data
-    after low-pass filtering (3 Hz) and making the trials zero mean for the
-    listening period of trials cued with a snare drum (duple beat).
-- `snareListenData_rec`, a channels x samples x trials array of EEG data
-    contaning only the duple and triple beat frequencies.
-- `snareInlier`, a 1d boolean array indication which trials are valid (for
-    trials cued with a snare drum)
-- 'snareFitListen', a trials x 6 matrix, fitted by the explicit Fourier
-    transform with the following entries:
-    - `snareFitListen[:,0]`: the mean values of every trial
-    - `snareFitListen[:,1]`: the slope values of every trial
-    - `snareFitListen[:,2]`: the scale of cosine at the snare (duple)
-        frequency (= real part)
-    - `snareFitListen[:,3]`: the scale of sine at the snare (duple)
-        frequency (= imaginary part)
-    - `snareFitListen[:,4]`: the scale of cosine at the wdBlk (triple)
-        frequency (= real part)
-    - `snareFitListen[:,5]`: the scale of sine at the wdBlk (triple)
-        frequency (= imaginary part)
-- all `Listen` and `snare` fields also exist as `Silence` and `wdBlk`
-    fields.
-
+ 
 ### Calculate SSD
-`calcSSD.py` calculates the SSD across all subjects.
-It requires 2 arguments:
-
-1. `result_folder` (used to store the results)
-2. `normalize`: `0` or `1` to indicate whether the data should be
-    normalized for every individual subject prior to averaging across
-    subjects (in the end, it turns out, that the results for the
-    strongest sources are very similar).
-
-SSD is calculated by (1) reading `snareListenData`, `snareListenData_rec`,
-`wdBlkListenData`, and `wdBlkListenData_rec` from individual subjects.
-(2) concatenating the snare and woodblock triakls (during the listening
-period, these are equal) and calculating the covariance matrix for 
-the `Data` and `Data_rec` arrays. (3) If normalization is requested, the
-covariance matrices are divided by the trace of the covariance matrix of
-the`Data` array. (4) Averaging across subjects, (5) generalized eigenvalue
-decomposition of `Data_rec_cov` vs. `(Data_rec_cov + Data_cov)`
-
-The script stores the results as an image (`SSD_patterns_norm_True.pdf` or
-`SSD_patterns_norm_Fals.pdf`, depending on wheter normalization had been
-requested) and as a file (`SSD_norm_True.npz` or `SSD_norm_False.npz`)
-containing:
-
-1. `ssd_eigvals`: the eigenvalues (bound between 0 and 1) signal the ratio
-    of variances between the extracted frequencies and the low-frequency
-    band-pass for the respective component.
-2. `ssd_filter`: the spatial filters of the respective components (in the
-    columns of that array).
