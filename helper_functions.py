@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.linalg
 
 def getSessionClocks(fname):
     """Read the timestamps of the clock as EEG sample numbers
@@ -80,12 +81,57 @@ def mtcsd(x, windows, weights, nfft):
     #make zero mean
     if x.shape[-1] > nfft:
         x = x[...,-nfft:]
-    x = x - x.mean(-1)[...,np.newaxis]
     csd = np.zeros([x.shape[0], x.shape[0], nfft//2 + 1], np.complex)
     n = x.shape[-1]
     for win,w in zip(windows, weights):
-        temp = np.fft.rfft(win*x, n=nfft)
+        x_taper = win*x
+        x_taper -= x_taper.mean(-1)[...,np.newaxis]
+        temp = np.fft.rfft(x_taper, n=nfft, axis=-1)
         csd += w*np.einsum('ik,jk->ijk', np.conj(temp), temp)
     csd /= weights.sum()
     return csd
+
+def eigh_rank(a, b):
+    '''Calculate the generalizid eigenvalue problem for hermitian matrices
+    if b is rank deficient
+
+    Args:
+        a: square matrix a
+        b: square matrix b
+
+    Output:
+        w - the eigenvalues in descending order
+        v - the eigenvectors corresponding to the eigenvalues
+
+    Notes:
+        if b is rank deficient, the components with zero variance are
+        discarded
+
+        The eigenvector corresponding to the eigenvalue w[i] is the column
+        v[:,i].
+    '''
+    rank = np.linalg.matrix_rank(b)
+    w, v = scipy.linalg.eigh(b)
+    # get the whitening matrix
+    v = v[:,-rank:]/np.sqrt(w[-rank:])
+    eigval, temp = scipy.linalg.eigh(v.T.dot(a).dot(v))
+    filt = v.dot(temp)
+    return np.sort(eigval)[::-1], filt[:,np.argsort(eigval)[::-1]]
+
+def power_quot_grad(w, target_cov, contrast_cov):
+    target_power = w.dot(w.dot(target_cov))
+    target_power_grad = 2*np.dot(w, target_cov)
+    ###
+    contrast_power = w.dot(w.dot(contrast_cov))
+    contrast_power_grad = 2*np.dot(w, contrast_cov)
+    ###
+    quot = target_power/contrast_power
+    quot_grad = (target_power_grad*contrast_power -
+            target_power*contrast_power_grad)/contrast_power**2
+    return -quot, -quot_grad
+
+def avg_power_quot_grad(w, target_covs, contrast_covs):
+    quot, quot_grad = list(zip(*[power_quot_grad(w, t, c)
+        for t,c in zip(target_covs, contrast_covs)]))
+    return np.mean(quot), np.mean(quot_grad, 0)
 

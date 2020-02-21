@@ -12,8 +12,8 @@ from tqdm import tqdm, trange
 import SPoC
 
 ########## define the type of analysis here #########
-N_bootstrap = 1000
-snare_N_SSD = 6
+N_bootstrap = 100
+snare_N_SSD = 2
 wdBlk_N_SSD = snare_N_SSD
 #####################################################
 
@@ -50,7 +50,7 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 N_channels = len(channames)
 
 # load the SSD results
-with np.load(os.path.join(args.result_folder, 'FFTSSD.npz'),
+with np.load(os.path.join(args.result_folder, 'FFTCSP.npz'),
         'r') as fl:
     snare_quot = fl['snare_quot']
     snare_filt = fl['snare_filt']
@@ -351,6 +351,8 @@ wdBlk_listen_corr_p = ((wdBlk_listen_corr_boot<wdBlk_listen_corr[
     :,np.newaxis]).sum(-1) + 1)/float(N_bootstrap + 1)
 wdBlk_silence_corr_p = ((wdBlk_silence_corr_boot<=wdBlk_silence_corr[
     :,np.newaxis]).sum(-1) + 1)/float(N_bootstrap + 1)
+
+1/0
 
 snare_all_csd = []
 wdBlk_all_csd = []

@@ -1,3 +1,11 @@
+"""
+This script imports the single-trial cross-spectral densities - prepared
+by prepareFFTCSP.py and calculates the CSP (prestim vs poststim) across a
+wide range of frequencies.
+
+As input it requests the result folder
+"""
+
 import numpy as np
 import scipy
 import scipy.linalg
@@ -7,7 +15,7 @@ import sys
 import os.path
 import helper_functions
 import meet
-from tqdm import tqdm
+from tqdm import trange, tqdm # for a progress bar
 
 mpl.rcParams['axes.labelsize'] = 7
 mpl.rcParams['axes.titlesize'] = 10
@@ -28,7 +36,6 @@ N_subjects = 21
 snareFreq = 7./6
 wdBlkFreq = 7./4
 
-# calculate the SSD from all subjects
 # read the channel names
 channames = meet.sphere.getChannelNames('channels.txt')
 chancoords = meet.sphere.getStandardCoordinates(channames)
@@ -38,150 +45,132 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 
 N_channels = len(channames)
 
-csd_1 = []
+listen_csd = []
+prestim_csd = []
 f = []
 
 for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_FFTSSD.npz', 'r') as fi:
-            csd_1.append(fi['csd'])
+            listen_csd.append(fi['poststim_csd'])
             f.append(fi['f'])
     except:
         print(('Warning: Subject %02d could not be loaded!' %i))
 
 if np.all([np.all(f_now == f[0]) for f_now in f]):
     f = f[0]
+#####################################################
+# calculate the SSD for all subjects simultaneously #
+#####################################################
+# get both frequencies and their harmonics
+harmonics = np.sort(np.unique(
+    np.r_[np.arange(1,4)*snareFreq, np.arange(1,3)*wdBlkFreq]))
+harmonics_idx = np.array([np.argmin((f-h)**2) for h in harmonics])
+harmonics_csd = [c[...,harmonics_idx] for c in listen_csd]
 
-def FFTSSD(target_covs, contrast_covs, num=None, bestof=15):
-    if num != 1:
-        mean_cov = np.mean(target_covs,0)
-        # get whitening transform
-        rank = np.linalg.matrix_rank(mean_cov)
-        if num is None: num = rank
-        else:
-            num = min([num, rank])
-        bval, bvec = np.linalg.eigh(mean_cov)
-        W = bvec[:,-rank:]/np.sqrt(bval[-rank:])
-        # whiten the covariance matrices
-        target_covs = [np.dot(W.T, covs_now).dot(W)
-                for covs_now in target_covs]
-        contrast_covs = [np.dot(W.T, covs_now).dot(W)
-                for covs_now in contrast_covs]
-    for i in range(num):
-        if i>0:
-            # project the previous filters out
-            wx = scipy.linalg.svd(np.array(w), full_matrices=True
-                    )[2][i:].T
-        else:
-            wx = np.eye(target_covs[0].shape[0])
-        temp1 = [wx.T.dot(covs_now).dot(wx)
-                for covs_now in target_covs]
-        temp2 = [wx.T.dot(covs_now).dot(wx)
-                for covs_now in contrast_covs]
-        x0 = np.random.randn(bestof, wx.shape[1])
-        res = [
-            scipy.optimize.minimize(
-                fun = avg_power_quot_grad,
-                x0 = x0_now,
-                args = (temp1, temp2),
-                method='L-BFGS-B',
-                jac = True, options=dict(disp=False))
-            for x0_now in x0]
-        w_i = [res_now.x for res_now in res]
-        corr_i = [res_now.fun for res_now in res]
-        try:
-            corr.append(-np.nanmin(corr_i))
-            w.append(wx.dot(w_i[np.nanargmin(corr_i)]))
-        except NameError:
-            corr = [-np.nanmin(corr_i)]
-            w = [wx.dot(w_i[np.nanargmin(corr_i)])]
-    if num == 1:
-        corr = corr[0]
-        w = w[0]
-    else:
-        corr = np.r_[corr]
-        w = W.dot(np.array(w).T)[:,np.argsort(corr)[::-1]]
-        corr = np.sort(corr)[::-1]
-    return corr, w
+# contrast against the frequency range between 0.5 and 4 Hz
+contrast_idx = np.flatnonzero(np.all([f>=0.5, f<5],0))
+contrast_idx = contrast_idx[~np.isin(contrast_idx, harmonics_idx)]
+contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in listen_csd]
 
-def power_quot_grad(w, target_cov, contrast_cov):
-    target_power = w.dot(w.dot(target_cov))
-    target_power_grad = 2*np.dot(w, target_cov)
-    ###
-    contrast_power = w.dot(w.dot(contrast_cov))
-    contrast_power_grad = 2*np.dot(w, contrast_cov)
-    ###
-    quot = target_power/contrast_power
-    quot_grad = (target_power_grad*contrast_power -
-            target_power*contrast_power_grad)/contrast_power**2
-    return -quot, -quot_grad
+# normalize (for every subject individually) with the power in the contrast
+# frequencies
+harmonics_csd, contrast_csd = zip(*[(h/np.trace(c).real, c/np.trace(c).real)
+    for h,c in zip(harmonics_csd, contrast_csd)])
 
-def avg_power_quot_grad(w, target_covs, contrast_covs):
-    quot, quot_grad = list(zip(*[power_quot_grad(w, t, c)
-        for t,c in zip(target_covs, contrast_covs)]))
-    return np.mean(quot), np.mean(quot_grad, 0)
+# calculate the SSD of the chosen frequencies with the harmonic mean as target
+# take p=-10 to emphasize that the minimum SNR of the frequencies is the target
+import gmeanSSD
+SSD_obj, SSD_filt = test_gmeanSSD.geoSSD(
+        np.mean(harmonics_csd, 0).T.real, np.mean(contrast_csd, 0).real,
+        p=-10, num=None)
 
-target_covs = [scipy.ndimage.convolve1d(c.real,
-    np.r_[1]/1., axis=-1)
-    for c in csd_1]
-contrast_covs = [scipy.ndimage.convolve1d(c.real,
-    np.r_[1,1,1,1,0,1,1,1,1]/8., axis=-1)
-    for c in csd_1]
 
-use_idx = np.arange(len(f))[np.all([f>=1, f<=20], 0)]
+# plot the results
+[plt.semilogx(f,
+    np.mean([SSD_filt[:,i].dot(c/np.trace(c).real).T.dot(SSD_filt[:,i]).real
+        for c in listen_csd], 0)) for i in range(3)]
+plt.axhline(0, lw=1, c='k')
+plt.gca().set_xlim([0.5, 10])
+plt.gca().set_ylim([0.8, 1.5])
+1/0
+plt.loglog(f, np.mean([eigvect[:,0].dot(c/np.trace(c).real).T.dot(
+    eigvect[:,0]).real for c in prestim_csd], 0))
 
-quot = []
-filt = []
+def calcPrePostCSP(prestim_csd, poststim_csd, randomize=False):
+    """A function to calculate the CSP between pre- and poststim matrices,
+    possibly after randomization between prestim and poststim
+    
+    Args:
+        prestim_csd: a list of channel x  channel x frequency matrices of
+            csds obtained pre-stimulus
+        poststim_csd: a list of channel x channel x frequency matrices of
+            csds obtained post-simulus
+        randomize (bool): whether the pre- and post-stimulus groups should
+            be randomized - usful for permutation testing
+    """
+    if randomize:
+        # mix between prestim and poststim
+        N = len(prestim_csd)
+        chooser = np.random.choice([True,False], N, replace=True)
+        prestim_idx = range(N) + chooser*N
+        poststim_idx = range(N) + ~chooser*N
+        prestim_csd, poststim_csd = zip(*[(
+            (prestim_csd + poststim_csd)[pre_idx],
+            (prestim_csd + poststim_csd)[post_idx])
+            for pre_idx, post_idx in
+            zip(prestim_idx, poststim_idx)])
+    ## normalize both matrices by the prestim period
+    prestim_csd, poststim_csd = zip(*[
+        (pre/np.trace(pre).real, post/np.trace(pre).real)
+        for pre,post in zip(prestim_csd, poststim_csd)])
+    # average across subjects
+    prestim_avg_csd = np.mean(prestim_csd, 0)
+    poststim_avg_csd = np.mean(poststim_csd, 0)
+    # calculate the CSP as an eigenvalue decomposition
+    eigval, eigvect = zip(*[helper_functions.eigh_rank(post.real, pre.real)
+        for pre, post in zip(prestim_avg_csd.T, poststim_avg_csd.T)])
+    return eigval, eigvect
 
-for i in tqdm(use_idx, desc='prelim SSD'):
-    temp_quot, temp_filt = FFTSSD(
-            [c[...,i].real for c in target_covs],
-            [c[...,i].real for c in contrast_covs],
-            num = None, bestof=100)
-    quot.append(temp_quot)
-    filt.append(temp_filt)
+eigval, eigvect = calcPrePostCSP(prestim_csd, listen_csd)
 
-#target_covs = [scipy.ndimage.convolve1d(c.real,
-#    np.r_[1,1,1,1,1]/5., axis=-1)
-#    for c in csd_1]
-#contrast_covs = [scipy.ndimage.convolve1d(c.real,
-#    np.r_[1,1,1,1,1,0,0,0,0,0,1,1,1,1,1]/10., axis=-1)
-#    for c in csd_1]
-#
-#quot_final = []
-#filt_final = []
-#
-#for i in tqdm(use_idx, desc='final SSD'):
-#    temp_quot, temp_filt = FFTSSD(
-#            [c[...,i].real for c in target_covs],
-#            [c[...,i].real for c in contrast_covs],
-#            num = None)
-#    quot_final.append(temp_quot)
-#    filt_final.append(temp_filt)
+1/0
 
-#chosen_SSD = np.argmax([q[0] for q in quot])
-chosen_SSD = np.argmin((f[use_idx]-3.5)**2)
+## normalize both matrices by the prestim period
+prestim_csd, listen_csd = zip(*[
+    (pre/np.trace(pre).real, post/np.trace(pre).real)
+    for pre,post in zip(prestim_csd, listen_csd)])
+# average across subjects
+prestim_avg_csd = np.mean(prestim_csd, 0)
+listen_avg_csd = np.mean(listen_csd, 0)
 
-snare_quot = quot[chosen_SSD]
-snare_filt = filt[chosen_SSD]
-wdBlk_quot = quot[chosen_SSD]
-wdBlk_filt = filt[chosen_SSD]
+chosen_CSP = np.argmin((f-1.75)**2)
+
+snare_quot = eigval[chosen_CSP]
+snare_filt = eigvect[chosen_CSP]
+wdBlk_quot = eigval[chosen_CSP]
+wdBlk_filt = eigvect[chosen_CSP]
 
 snare_pattern = scipy.linalg.solve(
-        snare_filt.T.dot(np.mean([
-            c[...,use_idx[chosen_SSD]] for c in target_covs],
-            0)).dot(snare_filt),
-        snare_filt.T.dot(np.mean([
-            c[...,use_idx[chosen_SSD]] for c in target_covs],
-                0)))
+        snare_filt.T.dot(listen_avg_csd[...,chosen_CSP].real).dot(
+            snare_filt),
+        snare_filt.T.dot(listen_avg_csd[...,chosen_CSP].real))
 wdBlk_pattern = scipy.linalg.solve(
-        wdBlk_filt.T.dot(np.mean([
-            c[...,use_idx[chosen_SSD]] for c in target_covs],
-            0)).dot(wdBlk_filt),
-        wdBlk_filt.T.dot(np.mean([
-            c[...,use_idx[chosen_SSD]] for c in target_covs],
-                0)))
+        wdBlk_filt.T.dot(listen_avg_csd[...,chosen_CSP].real).dot(
+            snare_filt),
+        wdBlk_filt.T.dot(listen_avg_csd[...,chosen_CSP].real))
+
+quot = eigval
+
+## save the results
+np.savez(os.path.join(result_folder, 'FFTCSP.npz'),
+        snare_filt = snare_filt,
+        snare_quot = snare_quot,
+        snare_pattern = snare_pattern,
+        wdBlk_filt = wdBlk_filt,
+        wdBlk_quot = wdBlk_quot,
+        wdBlk_pattern = wdBlk_pattern)
 
 # plot the patterns
 # name the ssd channels
@@ -200,12 +189,12 @@ fig = plt.figure(figsize=(3.54,3.54))
 gs = mpl.gridspec.GridSpec(4,4, height_ratios = [1]+[1]+[0.7]+[0.1])
 
 SNNR_ax = fig.add_subplot(gs[0,:], frame_on=True)
-SNNR_ax.plot(f[use_idx], [10*np.log10(q[0]) for q in quot], 'k-')
+SNNR_ax.plot(f, [10*np.log10(q[0]) for q in quot], 'k-')
 SNNR_ax.set_xlabel('frequency (Hz)')
 SNNR_ax.set_ylabel('SNNR (dB)')
-SNNR_ax.set_ylim(bottom=0, top=1.0)
+SNNR_ax.set_ylim(bottom=0, top=2.3)
 
-SNNR_ax.set_xlim(1,15)
+SNNR_ax.set_xlim(1,5)
 trans = mpl.transforms.blended_transform_factory(
         SNNR_ax.transData, SNNR_ax.transAxes)
 
@@ -215,21 +204,20 @@ SNNR_ax.text(wdBlkFreq, 0.96, r'\textbf{*}', ha='center', va='top',
         transform=trans, color='r', fontsize=12)
 SNNR_ax.text(3.5, 0.96, r'\textbf{*}', ha='center', va='top',
         transform=trans, color='k', fontsize=12)
-SNNR_ax.text(7, 0.96, r'\textbf{*}', ha='center', va='top',
-        transform=trans, color='k', fontsize=12)
+#SNNR_ax.text(7, 0.96, r'\textbf{*}', ha='center', va='top',
+#        transform=trans, color='k', fontsize=12)
 
 #mark_start = 0.5*(f[use_idx[chosen_SSD] - 3] + f[use_idx[chosen_SSD] - 2])
 #mark_stop = 0.5*(f[use_idx[chosen_SSD] + 3] + f[use_idx[chosen_SSD] + 2])
 #SNNR_ax.axvspan(mark_start, mark_stop, fc='r', alpha=0.2)
 
-SNNR_ax.plot([3.5, 3.5], [10*np.log10(snare_quot[0]),0], 'k-', lw=0.5)
+SNNR_ax.plot([f[chosen_CSP], f[chosen_CSP]], [10*np.log10(quot[chosen_CSP][0]),0], 'k-', lw=0.5)
 
 eigvals_ax = fig.add_subplot(gs[1,:], frame_on=True)
-eigvals_ax.plot(np.arange(1, len(snare_quot) + 1, 1), 10*np.log10(snare_quot),
-        'ko-', markersize=np.sqrt(20))
+eigvals_ax.plot(np.arange(1, len(snare_quot) + 1, 1), 10*np.log10(quot[chosen_CSP]),'ko-', markersize=np.sqrt(20))
 eigvals_ax.set_xlim([0, len(snare_quot) + 1])
 eigvals_ax.axhline(0, ls='-', c='k', lw=0.5)
-eigvals_ax.axvspan(0, 6.5, fc='r', alpha=0.2)
+eigvals_ax.axvspan(0, 4.5, fc='r', alpha=0.2)
 eigvals_ax.set_ylabel('SNNR (dB)')
 eigvals_ax.set_xlabel('component index')
 ax = []
@@ -264,43 +252,18 @@ gs.tight_layout(fig, pad=0.2)
 
 fig.canvas.draw()
 SNNR_ax.plot(
-        [3.5, 1],
+        [f[chosen_CSP], 1],
             [0,
                 SNNR_ax.transData.inverted().transform(
                     eigvals_ax.transAxes.transform([0,1]))[1]],
                 'k-', clip_on=False, alpha=0.5, lw=0.5)
 SNNR_ax.plot(
-        [3.5, 15],
+        [f[chosen_CSP], 5],
             [0,
                 SNNR_ax.transData.inverted().transform(
                     eigvals_ax.transAxes.transform([1,1]))[1]],
                 'k-', clip_on=False, alpha=0.5, lw=0.5)
 
 fig.align_ylabels([SNNR_ax, eigvals_ax])
-fig.savefig(os.path.join(result_folder, 'FFTSSD_patterns.pdf'))
+fig.savefig(os.path.join(result_folder, 'FFTCSP_patterns.pdf'))
 
-s_power2 = []
-for c in target_covs:
-    s_power2.append(snare_filt[:, 0].dot(
-    c[...,chosen_SSD]).dot(snare_filt[:,0]))
-
-#get the individual SNNR at the strongest component
-s_power = np.array([snare_filt[:, 0].dot(
-    c[...,use_idx[chosen_SSD]]).dot(snare_filt[:,0])
-    for c in target_covs])
-
-c_power = np.array([snare_filt[:, 0].dot(
-    c[...,use_idx[chosen_SSD]]).dot(snare_filt[:,0])
-    for c in contrast_covs])
-
-SNNR_i = s_power/c_power
-
-# save the results
-np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
-        snare_filt = snare_filt,
-        snare_quot = snare_quot,
-        snare_pattern = snare_pattern,
-        wdBlk_filt = wdBlk_filt,
-        wdBlk_quot = wdBlk_quot,
-        wdBlk_pattern = wdBlk_pattern,
-        SNNR_i = SNNR_i)

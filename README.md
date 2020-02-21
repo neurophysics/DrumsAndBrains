@@ -63,12 +63,13 @@ We are using spatial filters to obtain the best signal-to-noise ratio available.
 Two different types of spatial filters are to be used:
 
 1. Spatio-spectral decomposition (SSD): Filters are trained from the
-listening period to maximize the power of oscillations at the frequencies
+listening+silence period to maximize the power of oscillations at the frequencies
 of the polyrhythm the subjects were listening to.
 Algorithmically, this works by (1) Fourier transformation of the data
 (this is done in `prepareFFTSSD.py`)
-(3) generalized eigenvalue decomposition between the covarience of the
-requested frequency and its flanks (in `calcFFTSSD.py`)
+(3) Calculateing the SSD as the generalized mean signal-to-noise ratio of the
+rhythm frequencies (and harmonics). The generalized mean with p=-10 is used to
+mainly maximize the minimum signal-to-noise ratio. (in `calcFFTSSD.py`)
 
 2. partial Source power comodulation (pSPoC) optimization. Filters are trained from
 the silence period to maximize the dependence between the power of neuronal
@@ -99,6 +100,5 @@ will be stored containing as fields:
 1. `csd`: the average cross-spectral density matrix of all single trials
     of that subject
 2. `f`: an array of frequencies (in Hz) corresponding to `csd`
-
  
 ### Calculate SSD

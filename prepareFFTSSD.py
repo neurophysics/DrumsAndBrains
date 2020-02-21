@@ -1,6 +1,6 @@
 """
 This script calculates cross-spectra across channels for every
-single trial of a subject from the listening period of the experiment,
+single trial of a subject from the listening+silence period of the experiment,
 averages the results across single trial (the result is the average
 single-trial cross-spectral density matrix)
 and stores the result as 'prepared_FFTSSD.npz' in the Result folder
@@ -81,7 +81,7 @@ snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
 wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
 
 # get the temporal windows of the listening and silence bars and of both
-all_win = [0, int(4*bar_duration*s_rate)]
+all_win = [int(-2*bar_duration*s_rate), int(4*bar_duration*s_rate)]
 listen_win = [0, int(3*bar_duration*s_rate)]
 silence_win = [int(3*bar_duration*s_rate), int(4*bar_duration*s_rate)]
 
@@ -98,37 +98,42 @@ wdBlkFreq = 3./bar_duration
 # get a time index for the 3 listening bars and the silence bar
 t_listen = np.arange(listen_win[0], listen_win[1], 1)/float(s_rate)
 t_silence = np.arange(silence_win[0], silence_win[1], 1)/float(s_rate)
-t_all = np.arange(listen_win[0], silence_win[1], 1)/float(s_rate)
+t_all = np.arange(all_win[0], all_win[1], 1)/float(s_rate)
 
 # rereference to the average EEG amplitude
 EEG -= EEG.mean(0)
 
 # calculate the epoched data in the listen period (for snare AND woodblock)
-listen_trials = meet.epochEEG(EEG,
+poststim_trials = meet.epochEEG(EEG,
         np.r_[snareListenMarker[snareInlier],
             wdBlkListenMarker[wdBlkInlier]],
-        listen_win)
+        all_win)
+
+nperseg = 12*s_rate
+f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
 # calculate slepian windows for multitaper spectral estimation
-listen_win, listen_ratios = scipy.signal.windows.dpss(
-        min([12*s_rate, len(t_listen)]), NW=1.5,
+poststim_win, poststim_ratios = scipy.signal.windows.dpss(
+        min([nperseg, poststim_trials.shape[1]]), NW=1.5,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
-
-f = np.fft.rfftfreq(12*s_rate, d=1./s_rate)
-# calculate the spectrum of all the single trials
-csd = np.zeros([listen_trials.shape[0], listen_trials.shape[0], len(f)],
-        np.complex)
 
 from tqdm import tqdm # for progress bar
 
 # loop through all the trials and calculate the average csd across all
 # trials
-for t in tqdm(listen_trials.T):
-    csd += helper_functions.mtcsd(t.T, listen_win, listen_ratios,
-            nfft=12*s_rate)[1]
-csd /= listen_trials.shape[-1]
+# before, make the trials zero mean and normalize the total variance of
+# every trial to 0
+poststim_csd = np.zeros([poststim_trials.shape[0], poststim_trials.shape[0],
+    len(f)], np.complex)
+
+for p in tqdm(poststim_trials, desc='Calc. csd',
+        total=poststim_trials.shape[-1]):
+    p_csd = np.zeros_like(poststim_csd)
+    p_csd = helper_functions.mtcsd(l.T,
+            poststim_win, poststim_ratios, nfft=nperseg)
+    poststim_csd += p_csd/poststim_trials.shape[-1]
 
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
-        csd=csd,
+        poststim_csd=poststim_csd,
         f=f)
