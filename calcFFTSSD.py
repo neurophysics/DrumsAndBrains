@@ -45,18 +45,22 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 
 N_channels = len(channames)
 
-listen_csd = []
 prestim_csd = []
+poststim_csd = []
 f = []
 
 for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_FFTSSD.npz', 'r') as fi:
-            listen_csd.append(fi['poststim_csd'])
+            prestim_csd.append(fi['poststim_csd'])
+            poststim_csd.append(fi['poststim_csd'])
             f.append(fi['f'])
     except:
         print(('Warning: Subject %02d could not be loaded!' %i))
+
+poststim_norm_csd = [post/np.trace(pre).real
+        for pre, post in zip(prestim_csd, poststim_csd)]
 
 if np.all([np.all(f_now == f[0]) for f_now in f]):
     f = f[0]
@@ -67,33 +71,33 @@ if np.all([np.all(f_now == f[0]) for f_now in f]):
 harmonics = np.sort(np.unique(
     np.r_[np.arange(1,4)*snareFreq, np.arange(1,3)*wdBlkFreq]))
 harmonics_idx = np.array([np.argmin((f-h)**2) for h in harmonics])
-harmonics_csd = [c[...,harmonics_idx] for c in listen_csd]
+harmonics_csd = [c[...,harmonics_idx] for c in poststim_norm_csd]
 
 # contrast against the frequency range between 0.5 and 4 Hz
 contrast_idx = np.flatnonzero(np.all([f>=0.5, f<5],0))
 contrast_idx = contrast_idx[~np.isin(contrast_idx, harmonics_idx)]
-contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in listen_csd]
+contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in poststim_norm_csd]
 
-# normalize (for every subject individually) with the power in the contrast
-# frequencies
-harmonics_csd, contrast_csd = zip(*[(h/np.trace(c).real, c/np.trace(c).real)
-    for h,c in zip(harmonics_csd, contrast_csd)])
+## normalize (for every subject individually) with the power in the contrast
+## frequencies
+#harmonics_csd, contrast_csd = zip(*[(h/np.trace(c).real, c/np.trace(c).real)
+#    for h,c in zip(harmonics_csd, contrast_csd)])
 
 # calculate the SSD of the chosen frequencies with the harmonic mean as target
 # take p=-10 to emphasize that the minimum SNR of the frequencies is the target
 import gmeanSSD
-SSD_obj, SSD_filt = test_gmeanSSD.geoSSD(
+SSD_obj, SSD_filt = gmeanSSD.gmeanSSD(
         np.mean(harmonics_csd, 0).T.real, np.mean(contrast_csd, 0).real,
         p=-10, num=None)
 
-
 # plot the results
-[plt.semilogx(f,
-    np.mean([SSD_filt[:,i].dot(c/np.trace(c).real).T.dot(SSD_filt[:,i]).real
-        for c in listen_csd], 0)) for i in range(3)]
-plt.axhline(0, lw=1, c='k')
+[plt.loglog(f,
+    SSD_filt[:,i].dot(SSD_filt[:,i].dot(
+        np.mean([t/np.trace(t[...,contrast_idx].mean(-1)).real
+            for t in poststim_norm_csd], 0).real))) for i in range(6)]
+plt.gca().axhline(1, lw=1, c='k')
 plt.gca().set_xlim([0.5, 10])
-plt.gca().set_ylim([0.8, 1.5])
+plt.gca().set_ylim([0.5, 1.5])
 1/0
 plt.loglog(f, np.mean([eigvect[:,0].dot(c/np.trace(c).real).T.dot(
     eigvect[:,0]).real for c in prestim_csd], 0))

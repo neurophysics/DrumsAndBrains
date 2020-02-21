@@ -81,9 +81,9 @@ snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
 wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
 
 # get the temporal windows of the listening and silence bars and of both
-all_win = [int(-2*bar_duration*s_rate), int(4*bar_duration*s_rate)]
-listen_win = [0, int(3*bar_duration*s_rate)]
-silence_win = [int(3*bar_duration*s_rate), int(4*bar_duration*s_rate)]
+all_win = [int(-1*bar_duration*s_rate), int(4*bar_duration*s_rate)]
+prestim_win = [int(-1*bar_duration*s_rate), 0]
+poststim_win = [0, int(4*bar_duration*s_rate)]
 
 # reject trials that contain rejected data segments
 snareInlier = np.all(meet.epochEEG(artifact_mask, snareListenMarker,
@@ -96,23 +96,29 @@ snareFreq = 2./bar_duration
 wdBlkFreq = 3./bar_duration
 
 # get a time index for the 3 listening bars and the silence bar
-t_listen = np.arange(listen_win[0], listen_win[1], 1)/float(s_rate)
-t_silence = np.arange(silence_win[0], silence_win[1], 1)/float(s_rate)
-t_all = np.arange(all_win[0], all_win[1], 1)/float(s_rate)
+t_prestim = np.arange(prestim_win[0], prestim_win[1], 1)/float(s_rate)
+t_poststim = np.arange(poststim_win[0], poststim_win[1], 1)/float(s_rate)
 
 # rereference to the average EEG amplitude
 EEG -= EEG.mean(0)
 
-# calculate the epoched data in the listen period (for snare AND woodblock)
+# calculate the epoched data prestim and poststim
+prestim_trials = meet.epochEEG(EEG,
+        np.r_[snareListenMarker[snareInlier],
+            wdBlkListenMarker[wdBlkInlier]],
+        prestim_win)
 poststim_trials = meet.epochEEG(EEG,
         np.r_[snareListenMarker[snareInlier],
             wdBlkListenMarker[wdBlkInlier]],
-        all_win)
+        poststim_win)
 
 nperseg = 12*s_rate
 f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
 # calculate slepian windows for multitaper spectral estimation
+prestim_win, prestim_ratios = scipy.signal.windows.dpss(
+        min([nperseg, prestim_trials.shape[1]]), NW=1.5,
+        Kmax=2, sym=False, norm='subsample', return_ratios=True)
 poststim_win, poststim_ratios = scipy.signal.windows.dpss(
         min([nperseg, poststim_trials.shape[1]]), NW=1.5,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
@@ -125,15 +131,19 @@ from tqdm import tqdm # for progress bar
 # every trial to 0
 poststim_csd = np.zeros([poststim_trials.shape[0], poststim_trials.shape[0],
     len(f)], np.complex)
+prestim_csd = np.zeros_like(poststim_csd)
 
-for p in tqdm(poststim_trials, desc='Calc. csd',
-        total=poststim_trials.shape[-1]):
-    p_csd = np.zeros_like(poststim_csd)
-    p_csd = helper_functions.mtcsd(l.T,
-            poststim_win, poststim_ratios, nfft=nperseg)
-    poststim_csd += p_csd/poststim_trials.shape[-1]
+for pre, post in tqdm(zip(prestim_trials.T, poststim_trials.T),
+        desc='Calculating CSD', total=poststim_trials.shape[-1]):
+    pre_csd = helper_functions.mtcsd(pre.T, prestim_win, prestim_ratios,
+            nfft=nperseg)
+    post_csd = helper_functions.mtcsd(post.T, poststim_win, poststim_ratios,
+            nfft=nperseg)
+    prestim_csd += pre_csd/prestim_trials.shape[-1]
+    poststim_csd += post_csd/poststim_trials.shape[-1]
 
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
+        prestim_csd=prestim_csd,
         poststim_csd=poststim_csd,
         f=f)
