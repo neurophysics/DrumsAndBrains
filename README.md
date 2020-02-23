@@ -133,7 +133,7 @@ fields:
 Additionally, the result is plotted as `FFTSSD_patterns.pdf` and `png`
 
 ### Correlation SSD result with musical experience
-Run the script `SSDMusicCorr` with `data_folder` and `result_folder` as
+Run the script `SSDMusicCorr.py` with `data_folder` and `result_folder` as
 arguments.
 Significance testing is done as one-tailed permutation testing of the
 correlation with `N=1000` permutations.
