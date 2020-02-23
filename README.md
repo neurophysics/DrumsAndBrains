@@ -67,9 +67,9 @@ listening+silence period to maximize the power of oscillations at the frequencie
 of the polyrhythm the subjects were listening to.
 Algorithmically, this works by (1) Fourier transformation of the data
 (this is done in `prepareFFTSSD.py`)
-(3) Calculateing the SSD as the generalized mean signal-to-noise ratio of the
-rhythm frequencies (and harmonics). The generalized mean with p=-10 is used to
-mainly maximize the minimum signal-to-noise ratio. (in `calcFFTSSD.py`)
+(3) Calculating the SSD as the generalized mean signal-to-noise ratio of the
+rhythm frequencies (and harmonics). The generalized mean with p=-100 is used
+to mainly maximize the minimum signal-to-noise ratio. (in `calcFFTSSD.py`)
 
 2. partial Source power comodulation (pSPoC) optimization. Filters are trained from
 the silence period to maximize the dependence between the power of neuronal
@@ -97,8 +97,44 @@ It requires 3 arguments:
 In the `result_folder` of that subject, a file `prepared_FFTSSD.npz`
 will be stored containing as fields:
 
-1. `csd`: the average cross-spectral density matrix of all single trials
-    of that subject
-2. `f`: an array of frequencies (in Hz) corresponding to `csd`
+1. `prestim_csd`: the average cross-spectral density matrix of all single
+    trials of that subject in a pre-stimulus period (the bar prior to
+    stimulation)
+2. `poststim_csd`: as `prestim_csd` but in the 3 listening bars + the
+    silence bar
+3. `f`: an array of frequencies (in Hz) corresponding to `csd`
  
 ### Calculate SSD
+The scipt `calcFFTSSD.py` calculates the across-subject SSD.
+
+As input argument, it requires the `result_folder`
+
+It first loads the results from `prepareFFTSSD.py` and normalizes the
+poststimulus CSD of every subject by the trace of the prestimulus CSD (the
+total variance) in that frequency. This already normalizes the power across
+subjects.
+
+Then, as target frequencies the snare (1.16 Hz), woodblock (1.75 Hz) and the
+harmonics <= 5 Hz are defined. SSD filters are obtained by maximizing the
+SNR in relation to the 0.5-5 Hz range.
+To obtain filters that *simultaneously* maximize the SNR for all chosen
+frequencies, the *generalized mean* across those frequencies is calculated
+(with p=-100, it maximizes the minimal SNR of those frequencies).
+The calculation is done in the module `gmeanSSD.py`.
+
+`calcFFTSSD.py` stores its results in  the file `FFTSSD.npz` containing the 
+fields:
+1. `SSD_obj`: the objective function result - the generalized mean of the
+    SNRs at the chosen frequencies for every filter
+2. `SSD_obj_per_subject`: the same for every subject individually
+3. `SSD_filt`: the found SSD filters
+4. `SSD_patterns`: the spatial patterns corresponding to these filters
+
+Additionally, the result is plotted as `FFTSSD_patterns.pdf` and `png`
+
+### Correlation SSD result with musical experience
+Run the script `SSDMusicCorr` with `data_folder` and `result_folder` as
+arguments.
+Significance testing is done as one-tailed permutation testing of the
+correlation with `N=1000` permutations.
+Result is plotted as `SNNR_exp.pdf` and `png`.

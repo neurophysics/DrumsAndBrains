@@ -22,10 +22,10 @@ mpl.rcParams['axes.titlesize'] = 10
 
 cmap = 'plasma'
 
-color1 = '#a6cee3'.upper()
-color2 = '#1f78b4'.upper()
+color1 = '#1f78b4'.upper()
+color2 = '#33a02c'.upper()
 color3 = '#b2df8a'.upper()
-color4 = '#33a02c'.upper()
+color4 = '#a6cee3'.upper()
 
 colors=[color1, color2, color3, color4]
 
@@ -78,7 +78,7 @@ harmonics = np.sort(np.unique(
 harmonics_idx = np.array([np.argmin((f-h)**2) for h in harmonics])
 harmonics_csd = [c[...,harmonics_idx] for c in poststim_norm_csd]
 
-# contrast against the frequency range between 0.5 and 4 Hz
+# contrast against the frequency range between 0.5 and 5 Hz
 contrast_idx = np.flatnonzero(np.all([f>=0.5, f<5],0))
 contrast_idx = contrast_idx[~np.isin(contrast_idx, harmonics_idx)]
 contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in poststim_norm_csd]
@@ -93,7 +93,14 @@ contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in poststim_norm_csd]
 import gmeanSSD
 SSD_obj, SSD_filt = gmeanSSD.gmeanSSD(
         np.mean(harmonics_csd, 0).T.real, np.mean(contrast_csd, 0).real,
-        p=-10, num=None)
+        p=-100, num=None)
+
+# calculate the objective function for every subject individually
+SSD_obj_per_subject = np.array([
+    np.array([
+        -gmeanSSD.obj(f/np.sqrt(np.sum(f**2)), h.T.real, c.real, p=-1)[0]
+        for f in SSD_filt.T])
+    for h, c in zip(harmonics_csd, contrast_csd)])
 
 SSD_patterns = scipy.linalg.solve(
         SSD_filt.T.dot(np.mean(harmonics_csd, 0).mean(-1).T.real).dot(
@@ -165,17 +172,21 @@ spect_ax = fig.add_subplot(gs[2,:])
             for t in poststim_norm_csd], 0).real))),
         c=colors[i], lw=2) for i in range(4)]
 spect_ax.set_xlim([0.5, 8])
-spect_ax.set_ylim([-1.1, 1.1])
+spect_ax.set_ylim([-1.1, 2.1])
+spect_ax.set_yticks([-1, 0, 1, 2])
 spect_ax.axhline(0, c='k', lw=1)
 spect_ax.set_xlabel('frequency (Hz)')
 spect_ax.set_ylabel('SNR (dB)')
 spect_ax.set_title('normalized spectrum')
 
-spect_ax.axvline(snareFreq, color='b', zorder=0, lw=1)
-spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=1)
-spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=1)
-spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=1)
-spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)
+spect_ax.axvline(snareFreq, color='b', zorder=0, lw=2)
+spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=2)
+spect_ax.axvline(4*snareFreq, color='b', zorder=0, lw=1, ls='--')
+spect_ax.axvline(5*snareFreq, color='b', zorder=0, lw=1, ls='--')
+spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=2)
+spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=2)
+spect_ax.axvline(3*wdBlkFreq, color='r', zorder=0, lw=1, ls='--')
+spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1, ls='--')
 
 gs.tight_layout(fig, pad=0.2, h_pad=0.8)
 
@@ -185,5 +196,6 @@ fig.savefig(os.path.join(result_folder, 'FFTSSD_patterns.png'))
 ## save the results
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_obj = SSD_obj,
+        SSD_obj_per_subject = SSD_obj_per_subject,
         SSD_filt = SSD_filt,
         SSD_patterns = SSD_patterns)
