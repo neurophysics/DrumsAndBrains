@@ -24,6 +24,8 @@ data_folder = sys.argv[1]
 subject = int(sys.argv[2])
 result_folder = sys.argv[3]
 
+print('preparing sPoC for subject {:02d}'.format(subject))
+
 data_folder = os.path.join(data_folder, 'S%02d' % subject)
 save_folder = os.path.join(result_folder, 'S%02d' % subject)
 
@@ -67,10 +69,6 @@ with np.load(eeg_fname) as npzfile:
     EEG = npzfile['clean_data']
     artifact_mask = npzfile['artifact_mask']
 
-# apply a 0.5 - 20 Hz band-pass filter
-EEG_hp = meet.iir.butterworth(EEG, fs=(0.1, 70), fp=(2, 40),
-        s_rate=s_rate)
-
 # read the channel names
 channames = meet.sphere.getChannelNames(os.path.join(data_folder,
     '../channels.txt'))
@@ -82,10 +80,12 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 # get the sample indices at the start of the 3 'listening bars'
 snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
 wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
+
 # get the temporal windows of the listening and silence bars and of both
 all_win = [0, int(4*bar_duration*s_rate)]
 listen_win = [0, int(3*bar_duration*s_rate)]
 silence_win = [int(3*bar_duration*s_rate), int(4*bar_duration*s_rate)]
+
 # reject trials that contain rejected data segments
 snareInlier = np.all([
     np.isfinite(snare_deviation),
@@ -112,10 +112,12 @@ EEG -= EEG.mean(0)
 snare_listen_trials = meet.epochEEG(EEG,
         snareListenMarker[snareInlier],
         listen_win)
-# calculate the evoked potential to the silenceing and silence bars
 snare_silence_trials = meet.epochEEG(EEG,
         snareListenMarker[snareInlier],
         silence_win)
+snare_all_trials = meet.epochEEG(EEG,
+        snareListenMarker[snareInlier],
+        all_win)
 # calculate the evoked potential to the listening and silence bars
 wdBlk_listen_trials = meet.epochEEG(EEG,
         wdBlkListenMarker[wdBlkInlier],
@@ -124,72 +126,57 @@ wdBlk_listen_trials = meet.epochEEG(EEG,
 wdBlk_silence_trials = meet.epochEEG(EEG,
         wdBlkListenMarker[wdBlkInlier],
         silence_win)
+wdBlk_all_trials = meet.epochEEG(EEG,
+        wdBlkListenMarker[wdBlkInlier],
+        all_win)
 
-def mtcsd(x, win, ratios, nfft=12*s_rate):
-    #make zero mean
-    if x.shape[-1] > nfft:
-        x = x[...,-nfft:]
-    x = x - x.mean(-1)[...,np.newaxis]
-    f = np.fft.rfftfreq(nfft, d=1./s_rate)
-    csd = np.zeros([x.shape[0], x.shape[0], len(f)], np.complex)
-    n = x.shape[-1]
-    for w,r in zip(win, ratios):
-        temp = np.fft.rfft(w*x, n=nfft)
-        csd += r*np.einsum('ik,jk->ijk', np.conj(temp), temp)
-    csd /= ratios.sum()
-    return f, csd
+# use slepian windows for mutitaper spectral estimation of single
+# trials
+nfft = int(12*s_rate)
 
-#"""
-# use slepian windows
 listen_win, listen_ratios = scipy.signal.windows.dpss(
-        min([12*s_rate, len(t_listen)]), NW=1.5,
+        min([nfft, len(t_listen)]), NW=1.5,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
 silence_win, silence_ratios = scipy.signal.windows.dpss(
-        min([12*s_rate, len(t_silence)]), NW=1.5,
+        min([nfft, len(t_silence)]), NW=1.5,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
 all_win, all_ratios = scipy.signal.windows.dpss(
-        min([12*s_rate, len(t_all)]), NW=1.5,
+        min([nfft, len(t_all)]), NW=1.5,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
-"""
-# use a hanning window
-listen_win, listen_ratios = [scipy.signal.windows.hann(
-    min([12*s_rate, len(t_listen)]), sym=False)], np.array([1])
-silence_win, silence_ratios = [scipy.signal.windows.hann(
-    min([12*s_rate, len(t_silence)]), sym=False)], np.array([1])
-"""
 
-f = np.fft.rfftfreq(12*s_rate, d=1./s_rate)
-#f_ind = np.r_[np.abs(f - snareFreq).argmin(), np.abs(f - wdBlkFreq).argmin()]
-##f_con = f_ind[:,np.newaxis] + np.array([-4, -3, -2, -1, 1, 2, 3, 4])[
-##        np.newaxis]
-#f_con = np.all([f>=2, f<=5], 0)
-#f_con = [f_con, f_con]
-
+f = np.fft.rfftfreq(nfft, d=1./s_rate)
+# due to memory restrictions, keep only the frequencies < 50 Hz
 f_keep = np.all([f>=0, f<=10], 0)
 f = f[f_keep]
 
 # calculate the multitaper spectrum of all the single trials
-snare_listen_csd = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
-    ...,f_keep]
+snare_listen_csd = np.array([
+    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[1][
+        ...,f_keep]
     for t in snare_listen_trials.T])
-snare_silence_csd = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
-    ...,f_keep]
+snare_silence_csd = np.array([
+    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[1][
+        ...,f_keep]
     for t in snare_silence_trials.T])
-snare_all_csd = np.array([mtcsd(np.hstack([t.T, u.T]), all_win, all_ratios)[1][
-    ...,f_keep]
-    for t,u in zip(snare_listen_trials.T, snare_silence_trials.T)])
-wdBlk_listen_csd = np.array([mtcsd(t.T, listen_win, listen_ratios)[1][
-    ...,f_keep]
+snare_all_csd = np.array([
+    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[1][
+        ...,f_keep]
+    for t in snare_all_trials.T])
+wdBlk_listen_csd = np.array([
+    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[1][
+        ...,f_keep]
     for t in wdBlk_listen_trials.T])
-wdBlk_silence_csd = np.array([mtcsd(t.T, silence_win, silence_ratios)[1][
-    ...,f_keep]
+wdBlk_silence_csd = np.array([
+    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[1][
+        ...,f_keep]
     for t in wdBlk_silence_trials.T])
-wdBlk_all_csd = np.array([mtcsd(np.hstack([t.T, u.T]), all_win, all_ratios)[1][
-    ...,f_keep]
-    for t,u in zip(wdBlk_listen_trials.T, wdBlk_silence_trials.T)])
+wdBlk_all_csd = np.array([
+    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[1][
+        ...,f_keep]
+    for t in wdBlk_all_trials.T])
 
 #save the eeg results
-np.savez(os.path.join(save_folder, 'prepare_FFTcSPoC.npz'),
+np.savez(os.path.join(save_folder, 'prepared_FFTcSPoC.npz'),
         snare_listen_csd = snare_listen_csd,
         snare_silence_csd = snare_silence_csd,
         snare_all_csd = snare_all_csd,
@@ -207,4 +194,5 @@ np.savez(os.path.join(save_folder, 'prepare_FFTcSPoC.npz'),
         t_all = t_all,
         snareFreq = snareFreq,
         wdBlkFreq = wdBlkFreq,
+        f=f
         )

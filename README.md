@@ -132,9 +132,28 @@ fields:
 
 Additionally, the result is plotted as `FFTSSD_patterns.pdf` and `png`
 
-### Correlation SSD result with musical experience
+### Correlation of SSD result with musical experience
 Run the script `SSDMusicCorr.py` with `data_folder` and `result_folder` as
 arguments.
 Significance testing is done as one-tailed permutation testing of the
 correlation with `N=1000` permutations.
 Result is plotted as `SNNR_exp.pdf` and `png`.
+
+###Preparing for sPoC (source Power Correlation)
+Run the script prepareFFTcSPoC.py for every subject
+
+It requires 3 arguments:
+1. `data_folder`
+2. subject number
+3. `result_folder` (used to store the results)
+
+The script calculates the *single-trial* cross-spectral density (csd) for every
+subject in trials with snare (=duple) and woodblock (=triple) cues using a
+multitaper spectral estimation technique.
+Only the csd <= 10 Hz is kept.
+
+The results - including the behavioural data is stored in the Results folder of
+every subject as `prepared_FFTcSPoC.npz`
+
+The defined fields of that file are:
+
