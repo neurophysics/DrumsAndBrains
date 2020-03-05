@@ -41,6 +41,9 @@ N_subjects = 21
 snareFreq = 7./6
 wdBlkFreq = 7./4
 
+#define the type of generalized mean
+p=-1
+
 # read the channel names
 channames = meet.sphere.getChannelNames('channels.txt')
 chancoords = meet.sphere.getStandardCoordinates(channames)
@@ -74,12 +77,15 @@ if np.all([np.all(f_now == f[0]) for f_now in f]):
 #####################################################
 # get both frequencies and their harmonics
 harmonics = np.sort(np.unique(
-    np.r_[np.arange(1,4)*snareFreq, np.arange(1,3)*wdBlkFreq]))
+    np.r_[
+        np.arange(1,4)*snareFreq,
+        np.arange(1,3)*wdBlkFreq
+        ]))
 harmonics_idx = np.array([np.argmin((f-h)**2) for h in harmonics])
 harmonics_csd = [c[...,harmonics_idx] for c in poststim_norm_csd]
 
 # contrast against the frequency range between 0.5 and 5 Hz
-contrast_idx = np.flatnonzero(np.all([f>=0.5, f<5],0))
+contrast_idx = np.flatnonzero(np.all([f>=1, f<5],0))
 contrast_idx = contrast_idx[~np.isin(contrast_idx, harmonics_idx)]
 contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in poststim_norm_csd]
 
@@ -93,12 +99,12 @@ contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in poststim_norm_csd]
 import gmeanSSD
 SSD_obj, SSD_filt = gmeanSSD.gmeanSSD(
         np.mean(harmonics_csd, 0).T.real, np.mean(contrast_csd, 0).real,
-        p=-100, num=None)
+        p=p, num=None)
 
 # calculate the objective function for every subject individually
 SSD_obj_per_subject = np.array([
     np.array([
-        -gmeanSSD.obj(f/np.sqrt(np.sum(f**2)), h.T.real, c.real, p=-1)[0]
+        -gmeanSSD.obj(f/np.sqrt(np.sum(f**2)), h.T.real, c.real, p=p)[0]
         for f in SSD_filt.T])
     for h, c in zip(harmonics_csd, contrast_csd)])
 

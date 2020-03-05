@@ -151,28 +151,22 @@ f = f[f_keep]
 
 # calculate the multitaper spectrum of all the single trials
 snare_listen_csd = np.array([
-    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[1][
-        ...,f_keep]
+    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[...,f_keep]
     for t in snare_listen_trials.T])
 snare_silence_csd = np.array([
-    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[1][
-        ...,f_keep]
+    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[...,f_keep]
     for t in snare_silence_trials.T])
 snare_all_csd = np.array([
-    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[1][
-        ...,f_keep]
+    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[...,f_keep]
     for t in snare_all_trials.T])
 wdBlk_listen_csd = np.array([
-    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[1][
-        ...,f_keep]
+    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[...,f_keep]
     for t in wdBlk_listen_trials.T])
 wdBlk_silence_csd = np.array([
-    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[1][
-        ...,f_keep]
+    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[...,f_keep]
     for t in wdBlk_silence_trials.T])
 wdBlk_all_csd = np.array([
-    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[1][
-        ...,f_keep]
+    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[...,f_keep]
     for t in wdBlk_all_trials.T])
 
 #save the eeg results

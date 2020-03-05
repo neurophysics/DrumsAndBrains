@@ -109,4 +109,5 @@ prepared_filterdata.npz
 prepare_FFTcSPoC.npz
 cSPoC_results_*.npz
 prepared_FFTSSD.npz
+prepared_FFTcSPoC.npz
 FFTcSPoCv2.npz

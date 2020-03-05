@@ -40,9 +40,6 @@ with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'rU') as infile:
 raw_musicscores = np.array([background['%s' % i]
     for i in list(range(1,11,1)) + list(range(12, 22, 1))])
 
-#raw_musicscores = raw_musicscores[np.argsort(SNNR_i)[:-3]]
-#SNNR_i = np.sort(SNNR_i)[:-3]
-
 z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
         )/raw_musicscores.std(0)
 musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
@@ -50,7 +47,7 @@ musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 #SNNR_i = SNNR_i[np.argsort(musicscore)[:-3]]
 #musicscore = np.sort(musicscore)[:-3]
 
-N_bootstrap = 1000
+N_bootstrap = 10000
 
 
 corr = np.corrcoef(musicscore, SNNR_i)[0,1]

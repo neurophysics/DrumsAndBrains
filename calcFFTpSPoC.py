@@ -12,9 +12,8 @@ from tqdm import tqdm, trange
 import SPoC
 
 ########## define the type of analysis here #########
-N_bootstrap = 100
-snare_N_SSD = 2
-wdBlk_N_SSD = snare_N_SSD
+N_bootstrap = 2000
+N_SSD = 5
 #####################################################
 
 from scipy.optimize import fmin_l_bfgs_b as _minimize
@@ -50,15 +49,14 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 N_channels = len(channames)
 
 # load the SSD results
-with np.load(os.path.join(args.result_folder, 'FFTCSP.npz'),
+with np.load(os.path.join(args.result_folder, 'FFTSSD.npz'),
         'r') as fl:
-    snare_quot = fl['snare_quot']
-    snare_filt = fl['snare_filt']
-    wdBlk_quot = fl['wdBlk_quot']
-    wdBlk_filt = fl['wdBlk_filt']
+    SSD_obj = fl['SSD_obj']
+    SSD_filt = fl['SSD_filt']
 
-snare_filt /= np.sqrt(np.sum(snare_filt**2, 0))
-wdBlk_filt /= np.sqrt(np.sum(wdBlk_filt**2, 0))
+# normalize to a filter norm of 1
+SSD_filt /= np.sqrt(np.sum(SSD_filt**2, 0))
+SSD_filt /= np.sqrt(np.sum(SSD_filt**2, 0))
 
 snare_all_csd = []
 wdBlk_all_csd = []
@@ -68,12 +66,13 @@ snare_silence_csd = []
 wdBlk_silence_csd = []
 snare_deviation = []
 wdBlk_deviation = []
+f = []
 
 # read the oscillatory data from the silence period
 for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
-                + '/prepare_FFTcSPoC.npz', 'r') as fl:
+                + '/prepared_FFTcSPoC.npz', 'r') as fl:
             snare_all_csd.append(fl['snare_all_csd'])
             wdBlk_all_csd.append(fl['wdBlk_all_csd'])
             snare_listen_csd.append(fl['snare_listen_csd'])
@@ -82,40 +81,39 @@ for i in range(1, N_subjects + 1, 1):
             wdBlk_silence_csd.append(fl['wdBlk_silence_csd'])
             snare_deviation.append(fl['snare_deviation'])
             wdBlk_deviation.append(fl['wdBlk_deviation'])
+            f.append(fl['f'])
     except:
         print('Warning: Subject %02d could not be loaded!' %i)
 
+if np.all([np.all(f_now == f[0]) for f_now in f]):
+    f = f[0]
+
 # apply the SSD filters ############################
-snare_all_csd = [np.dot(
-    snare_filt[:,:snare_N_SSD].T, np.dot(
-        snare_filt[:,:snare_N_SSD].T, csd_now.T))
-    for csd_now in snare_all_csd]
-wdBlk_all_csd = [np.dot(
-    wdBlk_filt[:,:wdBlk_N_SSD].T, np.dot(
-        wdBlk_filt[:,:wdBlk_N_SSD].T, csd_now.T))
-    for csd_now in wdBlk_all_csd]
-snare_listen_csd = [np.dot(
-    snare_filt[:,:snare_N_SSD].T, np.dot(
-        snare_filt[:,:snare_N_SSD].T, csd_now.T))
-    for csd_now in snare_listen_csd]
-wdBlk_listen_csd = [np.dot(
-    wdBlk_filt[:,:wdBlk_N_SSD].T, np.dot(
-        wdBlk_filt[:,:wdBlk_N_SSD].T, csd_now.T))
-    for csd_now in wdBlk_listen_csd]
-snare_silence_csd = [np.dot(
-    snare_filt[:,:snare_N_SSD].T, np.dot(
-        snare_filt[:,:snare_N_SSD].T, csd_now.T))
-    for csd_now in snare_silence_csd]
-wdBlk_silence_csd = [np.dot(
-    wdBlk_filt[:,:wdBlk_N_SSD].T, np.dot(
-        wdBlk_filt[:,:wdBlk_N_SSD].T, csd_now.T))
-    for csd_now in wdBlk_silence_csd]
-####################################################
+snare_all_csd = [
+        np.tensordot(SSD_filt[:,:N_SSD],
+            np.tensordot(SSD_filt[:,:N_SSD], csd_now, axes=(0,1)),
+            axes=(0,2)) for csd_now in snare_all_csd]
+snare_listen_csd = [
+        np.tensordot(SSD_filt[:,:N_SSD],
+            np.tensordot(SSD_filt[:,:N_SSD], csd_now, axes=(0,1)),
+            axes=(0,2)) for csd_now in snare_listen_csd]
+snare_silence_csd = [
+        np.tensordot(SSD_filt[:,:N_SSD],
+            np.tensordot(SSD_filt[:,:N_SSD], csd_now, axes=(0,1)),
+            axes=(0,2)) for csd_now in snare_silence_csd]
+wdBlk_all_csd = [
+        np.tensordot(SSD_filt[:,:N_SSD],
+            np.tensordot(SSD_filt[:,:N_SSD], csd_now, axes=(0,1)),
+            axes=(0,2)) for csd_now in wdBlk_all_csd]
+wdBlk_listen_csd = [
+        np.tensordot(SSD_filt[:,:N_SSD],
+            np.tensordot(SSD_filt[:,:N_SSD], csd_now, axes=(0,1)),
+            axes=(0,2)) for csd_now in wdBlk_listen_csd]
+wdBlk_silence_csd = [
+        np.tensordot(SSD_filt[:,:N_SSD],
+            np.tensordot(SSD_filt[:,:N_SSD], csd_now, axes=(0,1)),
+            axes=(0,2)) for csd_now in wdBlk_silence_csd]
 
-f = np.fft.rfftfreq(12*s_rate, d=1./s_rate)
-f = f[np.all([f>=0, f<=10], 0)]
-
-# define the frequencies to analyse
 # define some constants
 QPM = 140 # quarter notes per minute
 SPQ = 60./QPM # seconds per quarter note
@@ -156,43 +154,44 @@ try:
 except (IOError, KeyError):
     # calculate the correlation between power and behaviour across all
     # trials
-    snare_z = np.hstack([np.abs(z_now - np.median(z_now))
-        for z_now in snare_deviation]).argsort().argsort()
-    wdBlk_z = np.hstack([np.abs(z_now - np.median(z_now))
-        for z_now in wdBlk_deviation]).argsort().argsort()
+    snare_z = np.hstack([np.abs(z_now - np.mean(z_now))#.argsort().argsort()
+        for z_now in snare_deviation])
+    wdBlk_z = np.hstack([np.abs(z_now - np.mean(z_now))#.argsort().argsort()
+        for z_now in wdBlk_deviation])
     partial_SPoC = SPoC.pSPoCr2(bestof=20)
     ###################################################################
     ###################################################################
     snare_all_corr2, snare_w = partial_SPoC(
-            np.concatenate([c[:,:,snareIdx].real
+            np.concatenate([c[...,snareIdx].real
                 for c in snare_all_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in snare_all_csd], -1),
             snare_z, num=None)
+    if len(snare_w) == 1: snare_w = snare_w.reshape([1,1])
     snare_all_corr = np.array([
         SPoC._partial_corr_grad(
             w_now,
-            np.concatenate([c[:,:,snareIdx].real
+            np.concatenate([c[...,snareIdx].real
                 for c in snare_all_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in snare_all_csd], -1),
             snare_z)[0]
         for w_now in snare_w.T])
     snare_listen_corr = np.array([
         SPoC._partial_corr_grad(
             w_now,
-            np.concatenate([c[:,:,snareIdx].real
+            np.concatenate([c[...,snareIdx].real
                 for c in snare_listen_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in snare_listen_csd], -1),
             snare_z)[0]
         for w_now in snare_w.T])
     snare_silence_corr = np.array([
         SPoC._partial_corr_grad(
             w_now,
-            np.concatenate([c[:,:,snareIdx].real
+            np.concatenate([c[...,snareIdx].real
                 for c in snare_silence_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in snare_silence_csd], -1),
             snare_z)[0]
         for w_now in snare_w.T])
@@ -207,27 +206,28 @@ except (IOError, KeyError):
         ztemp = np.random.choice(snare_z, size=len(snare_z),
                 replace=False)
         temp_all_boot2, temp_w = partial_SPoC(
-                np.concatenate([c[:,:,snareIdx].real
+                np.concatenate([c[...,snareIdx].real
                     for c in snare_all_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in snare_all_csd], -1),
                 ztemp, num=1)
+        if len(temp_w) == 1: temp_w = temp_w.reshape([1,1])
         temp_all_boot = SPoC._partial_corr_grad(temp_w,
-                np.concatenate([c[:,:,snareIdx].real
+                np.concatenate([c[...,snareIdx].real
                     for c in snare_all_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in snare_all_csd], -1),
                 ztemp)[0]
         temp_listen_boot = SPoC._partial_corr_grad(temp_w,
-                np.concatenate([c[:,:,snareIdx].real
+                np.concatenate([c[...,snareIdx].real
                     for c in snare_listen_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in snare_listen_csd], -1),
                 ztemp)[0]
         temp_silence_boot = SPoC._partial_corr_grad(temp_w,
-                np.concatenate([c[:,:,snareIdx].real
+                np.concatenate([c[...,snareIdx].real
                     for c in snare_silence_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in snare_silence_csd], -1),
                 ztemp)[0]
         snare_all_corr2_boot.append(temp_all_boot2)
@@ -241,35 +241,36 @@ except (IOError, KeyError):
     ###################################################################
     ###################################################################
     wdBlk_all_corr2, wdBlk_w = partial_SPoC(
-            np.concatenate([c[:,:,wdBlkIdx].real
+            np.concatenate([c[...,wdBlkIdx].real
                 for c in wdBlk_all_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in wdBlk_all_csd], -1),
             wdBlk_z, num=None)
+    if len(wdBlk_w) == 1: wdBlk_w = wdBlk_w.reshape([1,1])
     wdBlk_all_corr = np.array([
         SPoC._partial_corr_grad(
             w_now,
-            np.concatenate([c[:,:,wdBlkIdx].real
+            np.concatenate([c[...,wdBlkIdx].real
                 for c in wdBlk_all_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in wdBlk_all_csd], -1),
             wdBlk_z)[0]
         for w_now in wdBlk_w.T])
     wdBlk_listen_corr = np.array([
         SPoC._partial_corr_grad(
             w_now,
-            np.concatenate([c[:,:,wdBlkIdx].real
+            np.concatenate([c[...,wdBlkIdx].real
                 for c in wdBlk_listen_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in wdBlk_listen_csd], -1),
             wdBlk_z)[0]
         for w_now in wdBlk_w.T])
     wdBlk_silence_corr = np.array([
         SPoC._partial_corr_grad(
             w_now,
-            np.concatenate([c[:,:,wdBlkIdx].real
+            np.concatenate([c[...,wdBlkIdx].real
                 for c in wdBlk_silence_csd], -1),
-            np.concatenate([c[:,:,thetaIdx].mean(2).real
+            np.concatenate([c[...,thetaIdx].mean(-1).real
                 for c in wdBlk_silence_csd], -1),
             wdBlk_z)[0]
         for w_now in wdBlk_w.T])
@@ -284,27 +285,28 @@ except (IOError, KeyError):
         ztemp = np.random.choice(wdBlk_z, size=len(wdBlk_z),
                 replace=False)
         temp_all_boot2, temp_w = partial_SPoC(
-                np.concatenate([c[:,:,wdBlkIdx].real
+                np.concatenate([c[...,wdBlkIdx].real
                     for c in wdBlk_all_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in wdBlk_all_csd], -1),
                 ztemp, num=1)
+        if len(temp_w) == 1: temp_w = temp_w.reshape([1,1])
         temp_all_boot = SPoC._partial_corr_grad(temp_w,
-                np.concatenate([c[:,:,wdBlkIdx].real
+                np.concatenate([c[...,wdBlkIdx].real
                     for c in wdBlk_all_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in wdBlk_all_csd], -1),
                 ztemp)[0]
         temp_listen_boot = SPoC._partial_corr_grad(temp_w,
-                np.concatenate([c[:,:,wdBlkIdx].real
+                np.concatenate([c[...,wdBlkIdx].real
                     for c in wdBlk_listen_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in wdBlk_listen_csd], -1),
                 ztemp)[0]
         temp_silence_boot = SPoC._partial_corr_grad(temp_w,
-                np.concatenate([c[:,:,wdBlkIdx].real
+                np.concatenate([c[...,wdBlkIdx].real
                     for c in wdBlk_silence_csd], -1),
-                np.concatenate([c[:,:,thetaIdx].mean(2).real
+                np.concatenate([c[...,thetaIdx].mean(-1).real
                     for c in wdBlk_silence_csd], -1),
                 ztemp)[0]
         wdBlk_all_corr2_boot.append(temp_all_boot2)
@@ -315,6 +317,8 @@ except (IOError, KeyError):
     wdBlk_all_corr_boot = np.array(wdBlk_all_corr_boot)
     wdBlk_listen_corr_boot = np.array(wdBlk_listen_corr_boot)
     wdBlk_silence_corr_boot = np.array(wdBlk_silence_corr_boot)
+    ###################################################################
+    ###################################################################
     # store the results
     np.savez(os.path.join(args.result_folder,
         'FFTcSPoCv2.npz'),
@@ -339,18 +343,24 @@ except (IOError, KeyError):
             )
 
 # calculate raw p values (i.e., without correction for multiple comparisons)
-snare_all_corr_p = ((snare_all_corr_boot<snare_all_corr[:,np.newaxis]).sum(
-    -1) + 1)/float(N_bootstrap + 1)
-snare_listen_corr_p = ((snare_listen_corr_boot<snare_listen_corr[
-    :,np.newaxis]).sum(-1) + 1)/float(N_bootstrap + 1)
-snare_silence_corr_p = ((snare_silence_corr_boot<=snare_silence_corr[
-    :,np.newaxis]).sum(-1) + 1)/float(N_bootstrap + 1)
-wdBlk_all_corr_p = ((wdBlk_all_corr_boot<wdBlk_all_corr[:,np.newaxis]).sum(
-    -1) + 1)/float(N_bootstrap + 1)
-wdBlk_listen_corr_p = ((wdBlk_listen_corr_boot<wdBlk_listen_corr[
-    :,np.newaxis]).sum(-1) + 1)/float(N_bootstrap + 1)
-wdBlk_silence_corr_p = ((wdBlk_silence_corr_boot<=wdBlk_silence_corr[
-    :,np.newaxis]).sum(-1) + 1)/float(N_bootstrap + 1)
+snare_all_corr_p = (
+        (np.abs(snare_all_corr_boot)>=np.abs(snare_all_corr[:,np.newaxis])
+            ).sum(-1) + 1)/float(N_bootstrap + 1)
+snare_listen_corr_p = (
+        (np.abs(snare_listen_corr_boot)>=np.abs(snare_listen_corr[:,np.newaxis])
+            ).sum(-1) + 1)/float(N_bootstrap + 1)
+snare_silence_corr_p = (
+        (np.abs(snare_silence_corr_boot)>=np.abs(snare_silence_corr[:,np.newaxis])
+            ).sum(-1) + 1)/float(N_bootstrap + 1)
+wdBlk_all_corr_p = (
+        (np.abs(wdBlk_all_corr_boot)>=np.abs(wdBlk_all_corr[:,np.newaxis])
+            ).sum(-1) + 1)/float(N_bootstrap + 1)
+wdBlk_listen_corr_p = (
+        (np.abs(wdBlk_listen_corr_boot)>=np.abs(wdBlk_listen_corr[:,np.newaxis])
+            ).sum(-1) + 1)/float(N_bootstrap + 1)
+wdBlk_silence_corr_p = (
+        (np.abs(wdBlk_silence_corr_boot)>=np.abs(wdBlk_silence_corr[:,np.newaxis])
+            ).sum(-1) + 1)/float(N_bootstrap + 1)
 
 1/0
 
