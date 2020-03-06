@@ -133,15 +133,16 @@ wdBlk_all_trials = meet.epochEEG(EEG,
 # use slepian windows for mutitaper spectral estimation of single
 # trials
 nfft = int(12*s_rate)
-
+res = 50 #in Hz
+dt = 0.001
 listen_win, listen_ratios = scipy.signal.windows.dpss(
-        min([nfft, len(t_listen)]), NW=1.5,
+        min([nfft, len(t_listen)]), NW=2*res*dt*bar_duration*3, #N=bar_duration*3
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
 silence_win, silence_ratios = scipy.signal.windows.dpss(
-        min([nfft, len(t_silence)]), NW=1.5,
+        min([nfft, len(t_silence)]), NW=2*res*dt*bar_duration*1,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
 all_win, all_ratios = scipy.signal.windows.dpss(
-        min([nfft, len(t_all)]), NW=1.5,
+        min([nfft, len(t_all)]), NW=2*res*dt*bar_duration*4,
         Kmax=2, sym=False, norm='subsample', return_ratios=True)
 
 f = np.fft.rfftfreq(nfft, d=1./s_rate)
