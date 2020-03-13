@@ -130,45 +130,58 @@ wdBlk_all_trials = meet.epochEEG(EEG,
         wdBlkListenMarker[wdBlkInlier],
         all_win)
 
-# use slepian windows for mutitaper spectral estimation of single
-# trials
-nfft = int(12*s_rate)
-res = 50 #in Hz
-dt = 0.001
-listen_win, listen_ratios = scipy.signal.windows.dpss(
-        min([nfft, len(t_listen)]), NW=2*res*dt*bar_duration*3, #N=bar_duration*3
-        Kmax=2, sym=False, norm='subsample', return_ratios=True)
-silence_win, silence_ratios = scipy.signal.windows.dpss(
-        min([nfft, len(t_silence)]), NW=2*res*dt*bar_duration*1,
-        Kmax=2, sym=False, norm='subsample', return_ratios=True)
-all_win, all_ratios = scipy.signal.windows.dpss(
-        min([nfft, len(t_all)]), NW=2*res*dt*bar_duration*4,
-        Kmax=2, sym=False, norm='subsample', return_ratios=True)
+# use slepian windows for mutitaper spectral estimation of single trials
+nperseg = 12*s_rate
+f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
-f = np.fft.rfftfreq(nfft, d=1./s_rate)
+listen_Ntaper = min([nperseg, listen_win[1] - listen_win[0]])
+silence_Ntaper = min([nperseg, silence_win[1] - silence_win[0]])
+all_Ntaper = min([nperseg, all_win[1] - all_win[0]])
+
+#BW = (wdBlkFreq-snareFreq)
+BW = 1./6
+listen_NW = listen_Ntaper*0.5*BW/s_rate
+silence_NW = silence_Ntaper*0.5*BW/s_rate
+all_NW = all_Ntaper*0.5*BW/s_rate
+
+# calculate slepian windows for multitaper spectral estimation
+listen_win, listen_ratios = scipy.signal.windows.dpss(
+        listen_Ntaper, NW=listen_NW,
+        Kmax=max(1, int(np.round(2*listen_NW - 1))),
+        sym=False, norm='subsample', return_ratios=True)
+silence_win, silence_ratios = scipy.signal.windows.dpss(
+        silence_Ntaper, NW=silence_NW,
+        Kmax=max(1, int(np.round(2*silence_NW - 1))),
+        sym=False, norm='subsample', return_ratios=True)
+all_win, all_ratios = scipy.signal.windows.dpss(
+        all_Ntaper, NW=all_NW,
+        Kmax=max(1, int(np.round(2*all_NW - 1))),
+        sym=False, norm='subsample', return_ratios=True)
+
+f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 # due to memory restrictions, keep only the frequencies < 50 Hz
 f_keep = np.all([f>=0, f<=10], 0)
 f = f[f_keep]
 
 # calculate the multitaper spectrum of all the single trials
 snare_listen_csd = np.array([
-    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[...,f_keep]
-    for t in snare_listen_trials.T])
+    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft=nperseg)[
+        ...,f_keep] for t in snare_listen_trials.T])
 snare_silence_csd = np.array([
-    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[...,f_keep]
-    for t in snare_silence_trials.T])
+    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft=nperseg)[
+        ...,f_keep] for t in snare_silence_trials.T])
 snare_all_csd = np.array([
-    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[...,f_keep]
-    for t in snare_all_trials.T])
+    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft=nperseg)[
+        ...,f_keep] for t in snare_all_trials.T])
 wdBlk_listen_csd = np.array([
-    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft)[...,f_keep]
-    for t in wdBlk_listen_trials.T])
+    helper_functions.mtcsd(t.T, listen_win, listen_ratios, nfft=nperseg)[
+        ...,f_keep] for t in wdBlk_listen_trials.T])
 wdBlk_silence_csd = np.array([
-    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft)[...,f_keep]
-    for t in wdBlk_silence_trials.T])
+    helper_functions.mtcsd(t.T, silence_win, silence_ratios, nfft=nperseg)[
+        ...,f_keep] for t in wdBlk_silence_trials.T])
 wdBlk_all_csd = np.array([
-    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft)[...,f_keep]
-    for t in wdBlk_all_trials.T])
+    helper_functions.mtcsd(t.T, all_win, all_ratios, nfft=nperseg)[
+        ...,f_keep] for t in wdBlk_all_trials.T])
 
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepared_FFTcSPoC.npz'),

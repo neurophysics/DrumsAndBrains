@@ -13,7 +13,7 @@ import SPoC
 
 ########## define the type of analysis here #########
 N_bootstrap = 2000
-N_SSD = 5
+N_SSD = 4
 #####################################################
 
 from scipy.optimize import fmin_l_bfgs_b as _minimize

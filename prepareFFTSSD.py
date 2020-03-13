@@ -115,13 +115,19 @@ poststim_trials = meet.epochEEG(EEG,
 nperseg = 12*s_rate
 f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
+prestim_Ntaper = min([nperseg, prestim_trials.shape[1]])
+poststim_Ntaper = min([nperseg, poststim_trials.shape[1]])
+
+#BW = (wdBlkFreq-snareFreq)
+BW = 1./6
+prestim_NW = prestim_Ntaper*0.5*BW/s_rate
+poststim_NW = poststim_Ntaper*0.5*BW/s_rate
+
 # calculate slepian windows for multitaper spectral estimation
 prestim_win, prestim_ratios = scipy.signal.windows.dpss(
-        min([nperseg, prestim_trials.shape[1]]), NW=1.5,
-        Kmax=2, sym=False, norm='subsample', return_ratios=True)
+        prestim_Ntaper, NW=prestim_NW, Kmax=max(1, int(np.round(2*prestim_NW - 1))), sym=False, norm='subsample', return_ratios=True)
 poststim_win, poststim_ratios = scipy.signal.windows.dpss(
-        min([nperseg, poststim_trials.shape[1]]), NW=1.5,
-        Kmax=2, sym=False, norm='subsample', return_ratios=True)
+        poststim_Ntaper, NW=poststim_NW, Kmax=max(1, int(np.round(2*poststim_NW - 1))), sym=False, norm='subsample', return_ratios=True)
 
 from tqdm import tqdm # for progress bar
 

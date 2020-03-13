@@ -42,7 +42,7 @@ snareFreq = 7./6
 wdBlkFreq = 7./4
 
 #define the type of generalized mean
-p=-1
+p=-100
 
 # read the channel names
 channames = meet.sphere.getChannelNames('channels.txt')
