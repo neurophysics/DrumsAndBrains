@@ -1,7 +1,7 @@
 """
 This script imports the single-trial cross-spectral densities - prepared
-by prepareFFTCSP.py and calculates the CSP (prestim vs poststim) across a
-wide range of frequencies.
+by prepareFFTSSD.py and calculates the SSD of stimulation frequencies (and)
+harmonics vs the neighbouring frequencies.
 
 As input it requests the result folder
 """
@@ -27,7 +27,7 @@ color2 = '#33a02c'.upper()
 color3 = '#b2df8a'.upper()
 color4 = '#a6cee3'.upper()
 
-colors=[color1, color2, color3, color4]
+colors=[color1, color2, color3, color4, 'k']
 
 blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
@@ -42,7 +42,7 @@ snareFreq = 7./6
 wdBlkFreq = 7./4
 
 #define the type of generalized mean
-p=-100
+p=-1
 
 # read the channel names
 channames = meet.sphere.getChannelNames('channels.txt')
@@ -53,7 +53,6 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 
 N_channels = len(channames)
 
-prestim_csd = []
 poststim_csd = []
 f = []
 
@@ -61,14 +60,13 @@ for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_FFTSSD.npz', 'r') as fi:
-            prestim_csd.append(fi['poststim_csd'])
             poststim_csd.append(fi['poststim_csd'])
             f.append(fi['f'])
     except:
         print(('Warning: Subject %02d could not be loaded!' %i))
 
-poststim_norm_csd = [post/np.trace(pre).real
-        for pre, post in zip(prestim_csd, poststim_csd)]
+poststim_norm_csd = [post/np.trace(post).real
+        for post in poststim_csd]
 
 if np.all([np.all(f_now == f[0]) for f_now in f]):
     f = f[0]
@@ -84,8 +82,8 @@ harmonics = np.sort(np.unique(
 harmonics_idx = np.array([np.argmin((f-h)**2) for h in harmonics])
 harmonics_csd = [c[...,harmonics_idx] for c in poststim_norm_csd]
 
-# contrast against the frequency range between 0.5 and 5 Hz
-contrast_idx = np.flatnonzero(np.all([f>=1, f<5],0))
+# contrast against the frequency range between 0.5 and 4 Hz
+contrast_idx = np.flatnonzero(np.all([f>=0.5, f<4],0))
 contrast_idx = contrast_idx[~np.isin(contrast_idx, harmonics_idx)]
 contrast_csd = [(c[...,contrast_idx]).mean(-1) for c in poststim_norm_csd]
 
@@ -141,11 +139,11 @@ SNNR_ax.set_xlabel('component (index)')
 SNNR_ax.set_title('resulting SNR after SSD')
 
 # plot the four spatial patterns
-gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
+gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[1,:],
         height_ratios = [1,0.1], wspace=0, hspace=0.8)
 head_ax = []
 pc = []
-for i, pat in enumerate(potmaps[:4]):
+for i, pat in enumerate(potmaps[:5]):
     try:
         head_ax.append(fig.add_subplot(gs2[0,i], sharex=head_ax[0],
             sharey=head_ax[0], frame_on=False, aspect='equal'))

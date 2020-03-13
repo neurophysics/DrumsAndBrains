@@ -125,9 +125,13 @@ poststim_NW = poststim_Ntaper*0.5*BW/s_rate
 
 # calculate slepian windows for multitaper spectral estimation
 prestim_win, prestim_ratios = scipy.signal.windows.dpss(
-        prestim_Ntaper, NW=prestim_NW, Kmax=max(1, int(np.round(2*prestim_NW - 1))), sym=False, norm='subsample', return_ratios=True)
+        prestim_Ntaper, NW=prestim_NW,
+        Kmax=max(1, int(np.round(2*prestim_NW - 1))), sym=False,
+        norm='subsample', return_ratios=True)
 poststim_win, poststim_ratios = scipy.signal.windows.dpss(
-        poststim_Ntaper, NW=poststim_NW, Kmax=max(1, int(np.round(2*poststim_NW - 1))), sym=False, norm='subsample', return_ratios=True)
+        poststim_Ntaper, NW=poststim_NW,
+        Kmax=max(1, int(np.round(2*poststim_NW - 1))), sym=False,
+        norm='subsample', return_ratios=True)
 
 from tqdm import tqdm # for progress bar
 
