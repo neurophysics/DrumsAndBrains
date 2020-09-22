@@ -111,3 +111,5 @@ cSPoC_results_*.npz
 prepared_FFTSSD.npz
 prepared_FFTcSPoC.npz
 FFTcSPoCv2.npz
+prepared_VerifyFFTSSD.npz
+FFTSSD.npz
