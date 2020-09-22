@@ -1,10 +1,23 @@
 """
-This script calculates cross-spectra across channels for every
-single trial of a subject from the listening+silence period of the experiment,
-averages the results across single trial (the result is the average
-single-trial cross-spectral density matrix)
-and stores the result as 'prepared_FFTSSD.npz' in the Result folder
-of that subject
+prepare the SSD for a single subject
+
+This script reads the EEG and behavioural data.
+
+The Fourier transform is applied to the listen trials (first three bars
+of the stimulus) after padding to 12 s to result in a frequency resolution
+of 1/6 Hz.
+
+SSD is prepared by:
+    isolating snare and woodblock frequency from the FFT and applying the
+    inverse transform, then calculation of covariance matrices for every
+    trial = 'target'
+
+    isolationg range of 1-2 Hz, applying inverse transform and calculation of
+    covariance matrices for every single trial = 'contrast'
+
+Results are stored for the subject in prepared_FFTSSD.npz
+
+After running the script for every subject, proceed with calcFFTSSD.npz
 
 The inputs are:
 1. the EEG data of the subject (after artifact cleaning)
@@ -81,79 +94,63 @@ snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
 wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
 
 # get the temporal windows of the listening and silence bars and of both
-all_win = [int(-1*bar_duration*s_rate), int(4*bar_duration*s_rate)]
-prestim_win = [int(-1*bar_duration*s_rate), 0]
-poststim_win = [0, int(4*bar_duration*s_rate)]
+listen_win = [0, int(3*bar_duration*s_rate)]
 
 # reject trials that contain rejected data segments
 snareInlier = np.all(meet.epochEEG(artifact_mask, snareListenMarker,
-    all_win), 0)
+    listen_win), 0)
 wdBlkInlier = np.all(meet.epochEEG(artifact_mask, wdBlkListenMarker,
-    all_win), 0)
+    listen_win), 0)
 
 # get the frequencies of the snaredrum (duple) and woodblock (triple) beats
 snareFreq = 2./bar_duration
 wdBlkFreq = 3./bar_duration
 
 # get a time index for the 3 listening bars and the silence bar
-t_prestim = np.arange(prestim_win[0], prestim_win[1], 1)/float(s_rate)
-t_poststim = np.arange(poststim_win[0], poststim_win[1], 1)/float(s_rate)
+t_listen = np.arange(listen_win[0], listen_win[1], 1)/float(s_rate)
 
 # rereference to the average EEG amplitude
 EEG -= EEG.mean(0)
 
-# calculate the epoched data prestim and poststim
-prestim_trials = meet.epochEEG(EEG,
+# calculate the epoched data for the listen period
+listen_trials = meet.epochEEG(EEG,
         np.r_[snareListenMarker[snareInlier],
             wdBlkListenMarker[wdBlkInlier]],
-        prestim_win)
-poststim_trials = meet.epochEEG(EEG,
-        np.r_[snareListenMarker[snareInlier],
-            wdBlkListenMarker[wdBlkInlier]],
-        poststim_win)
+        listen_win)
 
+# in order to have correct frequency bins, set nperseg to 12000 samples
 nperseg = 12*s_rate
 f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
-prestim_Ntaper = min([nperseg, prestim_trials.shape[1]])
-poststim_Ntaper = min([nperseg, poststim_trials.shape[1]])
+# calculate the fourier transform of all trials
+F = np.fft.rfft(listen_trials, n=nperseg, axis=1)
 
-#BW = (wdBlkFreq-snareFreq)
-BW = 1./6
-prestim_NW = prestim_Ntaper*0.5*BW/s_rate
-poststim_NW = poststim_Ntaper*0.5*BW/s_rate
+# apply a filter in the Fourier domain to extract only the frequencies
+# of interest, i.e. 1-3 Hz (contrast) and snare + wdBlkFreq (target)
+contrast_freqwin = [1,2]
+contrast_mask = np.all([f>=contrast_freqwin[0], f<=contrast_freqwin[1]], 0)
 
-# calculate slepian windows for multitaper spectral estimation
-prestim_win, prestim_ratios = scipy.signal.windows.dpss(
-        prestim_Ntaper, NW=prestim_NW,
-        Kmax=max(1, int(np.round(2*prestim_NW - 1))), sym=False,
-        norm='subsample', return_ratios=True)
-poststim_win, poststim_ratios = scipy.signal.windows.dpss(
-        poststim_Ntaper, NW=poststim_NW,
-        Kmax=max(1, int(np.round(2*poststim_NW - 1))), sym=False,
-        norm='subsample', return_ratios=True)
+target_mask = np.zeros(f.shape, bool)
+target_mask[np.argmin((f-snareFreq)**2)] = True
+target_mask[np.argmin((f-wdBlkFreq)**2)] = True
 
-from tqdm import tqdm # for progress bar
+target_F = np.copy(F)
+target_F[:,~target_mask] = 0
 
-# loop through all the trials and calculate the average csd across all
-# trials
-# before, make the trials zero mean and normalize the total variance of
-# every trial to 0
-poststim_csd = np.zeros([poststim_trials.shape[0], poststim_trials.shape[0],
-    len(f)], np.complex)
-prestim_csd = np.zeros_like(poststim_csd)
+contrast_F = np.copy(F)
+contrast_F[:,~contrast_mask] = 0
 
-for pre, post in tqdm(zip(prestim_trials.T, poststim_trials.T),
-        desc='Calculating CSD', total=poststim_trials.shape[-1]):
-    pre_csd = helper_functions.mtcsd(pre.T, prestim_win, prestim_ratios,
-            nfft=nperseg)
-    post_csd = helper_functions.mtcsd(post.T, poststim_win, poststim_ratios,
-            nfft=nperseg)
-    prestim_csd += pre_csd/prestim_trials.shape[-1]
-    poststim_csd += post_csd/poststim_trials.shape[-1]
+# apply the inverse Fourier transform
+target_trials = np.fft.irfft(target_F, n=nperseg, axis=1)
+contrast_trials = np.fft.irfft(contrast_F, n=nperseg, axis=1)
+
+# calculate the covariance matrix of every single trial
+target_cov = np.einsum('ijk, ljk -> ilk', target_trials, target_trials)
+contrast_cov = np.einsum('ijk, ljk -> ilk', contrast_trials, contrast_trials)
 
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
-        prestim_csd=prestim_csd,
-        poststim_csd=poststim_csd,
+        target_cov = target_cov,
+        contrast_cov = contrast_cov,
+        F,
         f=f)
