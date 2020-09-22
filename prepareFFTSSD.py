@@ -152,5 +152,5 @@ contrast_cov = np.einsum('ijk, ljk -> ilk', contrast_trials, contrast_trials)
 np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
         target_cov = target_cov,
         contrast_cov = contrast_cov,
-        F,
-        f=f)
+        F = F,
+        f = f)
