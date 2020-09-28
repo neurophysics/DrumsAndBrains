@@ -134,6 +134,9 @@ target_mask = np.zeros(f.shape, bool)
 target_mask[np.argmin((f-snareFreq)**2)] = True
 target_mask[np.argmin((f-wdBlkFreq)**2)] = True
 
+# exclude the target frequencies from the contrast mask
+contrast_mask = contrast_mask != target_mask
+
 target_F = np.copy(F)
 target_F[:,~target_mask] = 0
 
