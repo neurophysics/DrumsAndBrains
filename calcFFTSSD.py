@@ -100,7 +100,7 @@ SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
 ########################
 
 # average across trials
-F_mean = [np.abs(F_now).mean(-1) for F_now in F]
+F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 F_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_mean, contrast_cov)]
 F_SSD_mean = [np.abs(np.tensordot(SSD_filters, F_now, axes=(0,0)))
         for F_now in F_mean]
