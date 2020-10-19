@@ -95,6 +95,7 @@ l = snare_pairedMRI[0].astype(int)
 r = snare_pairedMRI[1].astype(int)
 #r = (r[0],r[2],r[1]) #swap axes as in mri
 
+<<<<<<< HEAD
 cmap = 'bone'
 blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labeltop=False, labelbottom=False, labelleft=False, labelright=False)
@@ -121,6 +122,25 @@ for ax_now in ax:
 
 fig.tight_layout()
 
+=======
+fig,ax = plt.subplots(3,1,figsize=(4,10))
+plt.subplots_adjust(hspace=0.4)
+ax[0].imshow(mri[l[0],:,:].T) #lim: 466x378
+#ax[0].scatter(r[1],r[2],s=5, c='orange')
+ax[0].set_title('Sagittal')
+ax[0].invert_yaxis() #otherwise the picture is turned upside down
+ax[0].scatter(l[1],l[2],s=5, c='red')
+ax[1].imshow(mri[:,l[1],:].T) #lim: 394x378
+ax[1].invert_yaxis()
+ax[1].scatter(l[0],l[1],s=5, c='red')
+ax[1].scatter(r[0],r[1],s=5, c='orange')
+ax[1].set_title('Coronal')
+ax[2].imshow(mri[:,:,l[2]].T) #lim: 394x466
+ax[2].invert_yaxis()
+ax[2].scatter(l[0],l[2],s=5, c='red')
+ax[2].scatter(r[0],r[2],s=5, c='orange')
+ax[2].set_title('Horizontal')
+>>>>>>> 56d6984179e58052d8e3a856c65c1e526a87ff6a
 plt.show()
 
 def plotMNI(coordinates, figname):
