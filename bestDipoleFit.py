@@ -113,3 +113,32 @@ ax[2].scatter(l[0],l[2],s=5, c='red')
 ax[2].scatter(r[0],r[2],s=5, c='orange')
 ax[2].set_title('Horizontal')
 plt.show()
+
+def plotMNI(coordinates, figname):
+    x,y,z = coordinates
+    fig,ax = plt.subplots(3,1,figsize=(4,10))
+    plt.subplots_adjust(hspace=0.4)
+    ax[0].imshow(mri[x,:,:].T) #lim: 466x378
+    ax[0].set_title('Sagittal')
+    ax[0].invert_yaxis() #otherwise the picture is turned upside down
+    ax[0].scatter(y,z,s=5, c='red')
+
+    ax[1].imshow(mri[:,y,:].T) #lim: 394x378
+    ax[1].invert_yaxis()
+    ax[1].scatter(x,z,s=5, c='red')
+    ax[1].set_title('Coronal')
+
+    ax[2].imshow(mri[:,:,z].T) #lim: 394x466
+    ax[2].invert_yaxis()
+    ax[2].scatter(x,y,s=5, c='red')
+    ax[2].set_title('Horizontal')
+    plt.savefig(figname)
+
+occ_coordMRI = (-8,-76,-8)
+occ = mni2mri(test_coordMRI).astype(int)
+plotMNI(occ,'test_occipital.png')
+plotMNI(mni2mri((32,-4,-50)).astype(int),'test_temporal.png')
+plotMNI(mni2mri((28,-4,-26)).astype(int),'test_amygdala.png')
+plotMNI(mni2mri((50,28,34)).astype(int),'test_PFC.png')
+plotMNI(mni2mri((10,26,44)).astype(int),'test_dACC.png')
+plotMNI(mni2mri((4,-10,4)).astype(int),'test_thalamus.png')
