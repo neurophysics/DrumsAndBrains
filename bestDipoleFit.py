@@ -46,7 +46,7 @@ def mni2mri(inpoint, mat=mni2mri_matrix):
 # map channels to ours
 ch_labels = []
 for elem in ascii_labels:
-    ch_labels.append(''.join([chr(c) for c in elem[0]]))
+    ch_labels.append(''.join([chr(int(c)) for c in elem[0]]))
 channames = meet.sphere.getChannelNames('channels.txt')
 channames = [x.lower() for x in channames]
 ch_indices = [i for i, x in enumerate(ch_labels) if x.lower() in channames]
@@ -89,17 +89,65 @@ snare_singleMRI = mni2mri(snare_singleMNI)
 snare_pairedMRI = np.array([mni2mri(snare_pairedMNI[0]),mni2mri(snare_pairedMNI[1])])
 
 mri = mri.swapaxes(0,2) #X should be left to right, Y back front, Z down up
-
+#mri.shape = (394, 466, 378)
 l = snare_pairedMRI[0].astype(int)
+#l = (l[0],l[2],l[1]) #swap axes as in mri
 r = snare_pairedMRI[1].astype(int)
-fig,ax = plt.subplots(3,1)
-ax[0].imshow(mri[67,:,:].T)
-ax[0].scatter(l[1],l[2],s=5, c='red')
-ax[0].scatter(r[1],r[2],s=5, c='orange')
-ax[1].imshow(mri[:,163,:].T)
-ax[1].scatter(l[0],l[2],s=5, c='red')
-ax[1].scatter(r[0],r[2],s=5, c='orange')
-ax[2].imshow(mri[:,:,217].T)
-ax[2].scatter(l[0],l[1],s=5, c='red')
-ax[2].scatter(r[0],r[1],s=5, c='orange')
+#r = (r[0],r[2],r[1]) #swap axes as in mri
+
+cmap = 'bone'
+blind_ax = dict(top=False, bottom=False, left=False, right=False,
+        labeltop=False, labelbottom=False, labelleft=False, labelright=False)
+
+
+fig,ax = plt.subplots(3,1,figsize=(4,10))
+plt.subplots_adjust(hspace=0.4)
+ax[0].imshow(mri[l[0],:,:].T, cmap=cmap, origin='lower', aspect='equal') #lim: 466x378
+#ax[0].scatter(r[1],r[2],s=5, c='orange')
+ax[0].set_title('Sagittal')
+ax[0].scatter(l[1],l[2],s=10, c='red')
+ax[1].imshow(mri[:,l[1],:].T, cmap=cmap, origin='lower', aspect='equal') #lim: 394x378
+ax[1].scatter(l[0],l[2],s=10, c='red')
+ax[1].scatter(r[0],r[2],s=10, c='orange')
+ax[1].set_title('Coronal')
+ax[2].imshow(mri[:,:,l[2]].T, cmap=cmap, origin='lower', aspect='equal') #lim: 394x466
+ax[2].scatter(l[0],l[1],s=10, c='red')
+ax[2].scatter(r[0],r[1],s=10, c='orange')
+ax[2].set_title('Horizontal')
+
+for ax_now in ax:
+    ax_now.tick_params(**blind_ax)
+    ax_now.set_frame_on(False)
+
+fig.tight_layout()
+
 plt.show()
+
+def plotMNI(coordinates, figname):
+    x,y,z = coordinates
+    fig,ax = plt.subplots(3,1,figsize=(4,10))
+    plt.subplots_adjust(hspace=0.4)
+    ax[0].imshow(mri[x,:,:].T) #lim: 466x378
+    ax[0].set_title('Sagittal')
+    ax[0].invert_yaxis() #otherwise the picture is turned upside down
+    ax[0].scatter(y,z,s=5, c='red')
+
+    ax[1].imshow(mri[:,y,:].T) #lim: 394x378
+    ax[1].invert_yaxis()
+    ax[1].scatter(x,z,s=5, c='red')
+    ax[1].set_title('Coronal')
+
+    ax[2].imshow(mri[:,:,z].T) #lim: 394x466
+    ax[2].invert_yaxis()
+    ax[2].scatter(x,y,s=5, c='red')
+    ax[2].set_title('Horizontal')
+    plt.savefig(figname)
+
+occ_coordMRI = (-8,-76,-8)
+occ = mni2mri(test_coordMRI).astype(int)
+plotMNI(occ,'test_occipital.png')
+plotMNI(mni2mri((32,-4,-50)).astype(int),'test_temporal.png')
+plotMNI(mni2mri((28,-4,-26)).astype(int),'test_amygdala.png')
+plotMNI(mni2mri((50,28,34)).astype(int),'test_PFC.png')
+plotMNI(mni2mri((10,26,44)).astype(int),'test_dACC.png')
+plotMNI(mni2mri((4,-10,4)).astype(int),'test_thalamus.png')
