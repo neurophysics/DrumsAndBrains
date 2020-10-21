@@ -30,7 +30,7 @@ except:
 # load ny head
 with tables.open_file('sa_nyhead.mat', 'r') as f:
     mni2mri_matrix = f.root.sa.mni2mri.read()
-    large_coord = f.root.sa.cortex75K.vc.read()
+    large_coord = f.root.sa.cortex75K.vc_smooth.read()
     large_leadfield = f.root.sa.cortex75K.V_fem_normal.read() #assume axons oriented perpendiculary to cortical surface
     sulcimap = f.root.sa.cortex75K.sulcimap.read().astype(bool).ravel()
     vertex_indices = f.root.sa.cortex2K.in_from_cortex75K.read().ravel().astype(int) - 1 # -1 because this gives matlab indices
