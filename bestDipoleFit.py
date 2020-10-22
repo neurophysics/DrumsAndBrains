@@ -15,9 +15,14 @@ parser.add_argument('result_folder', type=str, default='./Results/',
         help='the folder to store all results', nargs='?')
 args = parser.parse_args()
 
-
 scatter_cmap = 'OrRd'
 scatter_cmap_inst = mpl.cm.get_cmap(scatter_cmap)
+
+def mni2mri(inpoint, mat=mni2mri_matrix):
+    '''transform mni coordinates to mri coordinates using given
+    transformation matrix'''
+    inpoint = np.r_[inpoint, 1]
+    return np.dot(inpoint,mat)[:3]
 
 try:
     with np.load(os.path.join(args.result_folder,
@@ -35,7 +40,7 @@ with tables.open_file('sa_nyhead.mat', 'r') as f:
     sulcimap = f.root.sa.cortex75K.sulcimap.read().astype(bool).ravel()
     vertex_indices = f.root.sa.cortex2K.in_from_cortex75K.read().ravel().astype(int) - 1 # -1 because this gives matlab indices
     electrode_labels = f.root.sa.clab_electrodes.read()
-    # indices 0 to 1001 left, 1002 to 2003 right:
+    # sorted: first half left, second half right:
     #inLeft = f.root.sa.cortex2K.in_left.read().astype(int)-1
     #inRight = f.root.sa.cortex2K.in_right.read().astype(int)-1
     mri = f.root.sa.mri.data.read()
@@ -63,7 +68,7 @@ snare_pattern = (np.delete(snare_pattern,index).reshape(1,-1)
 wdBlk_pattern = (np.delete(wdBlk_pattern,index).reshape(1,-1)
     - snare_pattern.mean())
 
-# Calculate similarity between sPoC-Pattern and leadfield projections
+# Calculate similarity between SPoC-Pattern and leadfield projections
 # choose single best voxel with max cosine similarity
 snare_sim = cosine_similarity(leadfield, snare_pattern)
 snare_singleFit = np.argmax(abs(snare_sim))
@@ -71,8 +76,8 @@ wdBlk_sim = cosine_similarity(leadfield, wdBlk_pattern)
 wdBlk_singleFit = np.argmax(abs(wdBlk_sim))
 
 # pairwise best voxels
-# check if pairs (i,i+1002) are correct (left,right) voxel pairs using coordinates:
-# sum([((coord[0,l])*(-1)==coord[0,l+1002]) for l in range(1002)]) # only differ in first coord
+# check if pairs (i,i+vertex_indices.shape[0]//2) are correct (left,right) voxel pairs using coordinates:
+# sum([((coord[0,l])*(-1)==coord[0,l+vertex_indices.shape[0]]//2) for l in range(vertex_indices.shape[0]//2)]) # only differ in first coord
 leadfield_paired = np.zeros([leadfield.shape[0]//2, leadfield.shape[1]])
 for i in range(leadfield.shape[0]//2):
     leadfield_paired[i] = leadfield[i] + leadfield[i + leadfield.shape[0]//2]
@@ -84,25 +89,16 @@ wdBlk_pairedSim = cosine_similarity(leadfield_paired, wdBlk_pattern)
 wdBlk_pairedFit = (np.argmax(abs(wdBlk_pairedSim)),
     np.argmax(abs(wdBlk_pairedSim))+leadfield.shape[0]//2)
 
-def mni2mri(inpoint, mat=mni2mri_matrix):
-    '''transform mni coordinates to mri coordinates using given
-    transformation matrix'''
-    inpoint = np.r_[inpoint, 1]
-    return np.dot(inpoint,mat)[:3]
-
 # Visualize
 snare_singleMNI = coord[:,snare_singleFit]
-snare_pairedMNI = (coord[:,snare_pairedFit[0]] ,coord[:,snare_pairedFit[1]])
+snare_pairedMNI = (coord[:,snare_pairedFit[0]], coord[:,snare_pairedFit[1]])
 snare_singleMRI = mni2mri(snare_singleMNI)
 snare_pairedMRI = np.array([
     mni2mri(snare_pairedMNI[0]),mni2mri(snare_pairedMNI[1])])
 
 mri = mri.swapaxes(0,2) #X should be left to right, Y back front, Z down up
-#mri.shape = (394, 466, 378)
 l = snare_pairedMRI[0].astype(int)
-#l = (l[0],l[2],l[1]) #swap axes as in mri
 r = snare_pairedMRI[1].astype(int)
-#r = (r[0],r[2],r[1]) #swap axes as in mri
 
 # define colormap
 cmap = 'bone'
@@ -121,12 +117,12 @@ snare_singleSim_norm /= snare_singleSim_norm.max()
 # plot paired similarity #
 ##########################
 fig1, ax1 = plt.subplots(3,1,figsize=(4,10))
-ax1[0].imshow(mri[mri.shape[0]//2 + 5,:,:].T, cmap=cmap, origin='lower',
+ax1[0].imshow(mri[mri.shape[0]//2 + 5,:,:].T, cmap=cmap, origin='lower', #why +5?
         aspect='equal') #lim: 466x378
 ax1[0].set_title('Sagittal')
 
 for i, sim in enumerate(snare_pairedSim_norm.ravel()):
-    l_now,r_now = mni2mri(coord[:,i]), mni2mri(np.r_[-1,1,1]*coord[:,i]) 
+    l_now,r_now = mni2mri(coord[:,i]), mni2mri(np.r_[-1,1,1]*coord[:,i]) #in MNI coordinates, right and left differ only in first coordinates' sign
     ax1[0].scatter(l_now[1],l_now[2], s=75, color=scatter_cmap_inst(sim),
             alpha=0.9*sim, edgecolors='none', zorder=sim)
     ax1[0].scatter(r_now[1],r_now[2], s=75, color=scatter_cmap_inst(sim),
@@ -137,7 +133,7 @@ ax1[1].imshow(mri[:,mri.shape[1]//2,:].T, cmap=cmap, origin='lower',
 ax1[1].set_title('Coronal')
 
 for i, sim in enumerate(snare_pairedSim_norm.ravel()):
-    l_now,r_now = mni2mri(coord[:,i]), mni2mri(np.r_[-1,1,1]*coord[:,i]) 
+    l_now,r_now = mni2mri(coord[:,i]), mni2mri(np.r_[-1,1,1]*coord[:,i])
     ax1[1].scatter(l_now[0],l_now[2], s=75, color=scatter_cmap_inst(sim),
             alpha=0.9*sim, edgecolors='none', zorder=sim)
     ax1[1].scatter(r_now[0],r_now[2], s=75, color=scatter_cmap_inst(sim),
@@ -148,7 +144,7 @@ ax1[2].imshow(mri[:,:,mri.shape[2]//2].T, cmap=cmap, origin='lower',
 ax1[2].set_title('Horizontal')
 
 for i, sim in enumerate(snare_pairedSim_norm.ravel()):
-    l_now,r_now = mni2mri(coord[:,i]), mni2mri(np.r_[-1,1,1]*coord[:,i]) 
+    l_now,r_now = mni2mri(coord[:,i]), mni2mri(np.r_[-1,1,1]*coord[:,i])
     ax1[2].scatter(l_now[0],l_now[1], s=75, color=scatter_cmap_inst(sim),
             alpha=0.9*sim, edgecolors='none', zorder=sim)
     ax1[2].scatter(r_now[0],r_now[1], s=75, color=scatter_cmap_inst(sim),
@@ -160,6 +156,8 @@ for ax_now in ax1:
     ax_now.set_frame_on(False)
 
 fig1.tight_layout()
+fig1.savefig(os.path.join(args.result_folder,
+        'BestDipoleFit_snarePaired.pdf'))
 
 ##########################
 # plot single similarity #
@@ -198,8 +196,9 @@ for ax_now in ax2:
     ax_now.set_frame_on(False)
 
 fig2.tight_layout()
-
-plt.show()
+fig2.savefig(os.path.join(args.result_folder,
+        'BestDipoleFit_snareSingle.pdf'))
+#plt.show()
 
 
 def plotMNI(coordinates, figname):
@@ -222,11 +221,11 @@ def plotMNI(coordinates, figname):
     ax[2].set_title('Horizontal')
     plt.savefig(figname)
 
-occ_coordMRI = (-8,-76,-8)
-occ = mni2mri(test_coordMRI).astype(int)
+'''occ_coordMRI = (-8,-76,-8)
+occ = mni2mri(occ_coordMRI).astype(int)
 plotMNI(occ,'test_occipital.png')
 plotMNI(mni2mri((32,-4,-50)).astype(int),'test_temporal.png')
 plotMNI(mni2mri((28,-4,-26)).astype(int),'test_amygdala.png')
 plotMNI(mni2mri((50,28,34)).astype(int),'test_PFC.png')
 plotMNI(mni2mri((10,26,44)).astype(int),'test_dACC.png')
-plotMNI(mni2mri((4,-10,4)).astype(int),'test_thalamus.png')
+plotMNI(mni2mri((4,-10,4)).astype(int),'test_thalamus.png')'''
