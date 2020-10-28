@@ -18,12 +18,6 @@ args = parser.parse_args()
 scatter_cmap = 'OrRd'
 scatter_cmap_inst = mpl.cm.get_cmap(scatter_cmap)
 
-def mni2mri(inpoint, mat=mni2mri_matrix):
-    '''transform mni coordinates to mri coordinates using given
-    transformation matrix'''
-    inpoint = np.r_[inpoint, 1]
-    return np.dot(inpoint,mat)[:3]
-
 try:
     with np.load(os.path.join(args.result_folder,
             'FFTSSD.npz'), 'r') as f:
@@ -90,6 +84,12 @@ wdBlk_pairedFit = (np.argmax(abs(wdBlk_pairedSim)),
     np.argmax(abs(wdBlk_pairedSim))+leadfield.shape[0]//2)
 
 # Visualize
+def mni2mri(inpoint, mat=mni2mri_matrix):
+    '''transform mni coordinates to mri coordinates using given
+    transformation matrix'''
+    inpoint = np.r_[inpoint, 1]
+    return np.dot(inpoint,mat)[:3]
+    
 snare_singleMNI = coord[:,snare_singleFit]
 snare_pairedMNI = (coord[:,snare_pairedFit[0]], coord[:,snare_pairedFit[1]])
 snare_singleMRI = mni2mri(snare_singleMNI)
