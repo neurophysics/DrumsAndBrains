@@ -74,10 +74,10 @@ if np.all([np.all(f[0] == f_now) for f_now in f]):
 # normalize by the trace of the contrast covariance matrix
 
 for t, c in zip(target_cov, contrast_cov):
-    t_now = t.mean(-1)/np.trace(c.mean(-1))
-    c_now = c.mean(-1)/np.trace(c.mean(-1))
-    #t_now = t.mean(-1)
-    #c_now = c.mean(-1)
+    #t_now = t.mean(-1)/np.trace(c.mean(-1))
+    #c_now = c.mean(-1)/np.trace(c.mean(-1))
+    t_now = t.mean(-1)
+    c_now = c.mean(-1)
     try:
         all_target_cov += t_now
         all_contrast_cov += c_now
@@ -100,10 +100,11 @@ SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
 ########################
 
 # average across trials
+F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD]
 F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
-F_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_mean, contrast_cov)]
-F_SSD_mean = [np.abs(np.tensordot(SSD_filters, F_now, axes=(0,0)))
-        for F_now in F_mean]
+
+#F_SSD_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_SSD_mean, contrast_cov)]
+#F_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_mean, contrast_cov)]
 
 # normalize by dividing with the power in the 1-2 Hz range (except snare
 # and woodblock frequency components)
@@ -120,11 +121,11 @@ F_SSD_mean_norm = [F_now / F_now[:,target_mask!=contrast_mask].mean(1)[
     :,np.newaxis] for F_now in F_SSD_mean]
 
 
-#
-#F_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
-#        for F_now in F_mean]
-#F_SSD_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
-#        for F_now in F_SSD_mean]
+
+F_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
+        for F_now in F_mean]
+F_SSD_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
+        for F_now in F_SSD_mean]
 
 
 f_plot_mask = np.all([f>=0.5, f<=4], 0)
@@ -136,8 +137,6 @@ ax.plot(f[f_plot_mask], 20*np.log10(np.mean(F_mean_norm, 0)[:,f_plot_mask].T),
         'k-', alpha=0.1)
 ax.plot(f[f_plot_mask], 20*np.log10(np.mean(F_SSD_mean_norm, 0)[:SSD_num,
     f_plot_mask].T))
-
-
 
 # save the results
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
