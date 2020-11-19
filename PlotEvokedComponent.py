@@ -58,7 +58,7 @@ wdBlkFreq = 3./bar_duration
 N_channels = len(channames)
 # read the oscillatory data from the silence period
 
-for i in xrange(1, N_subjects + 1, 1):
+for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
                 + '/prepare_FFTcSPoC.npz', 'r') as fl:
@@ -77,7 +77,7 @@ for i in xrange(1, N_subjects + 1, 1):
                 snare_N = fl['snare_listen_trials'].shape[-1]
                 wdBlk_N = fl['wdBlk_listen_trials'].shape[-1]
     except IOError:
-        print('Warning: Subject %02d could not be loaded!' %i)
+        print(('Warning: Subject %02d could not be loaded!' %i))
 
 
 listen_avg = (snare_listen_trials + wdBlk_listen_trials)/(

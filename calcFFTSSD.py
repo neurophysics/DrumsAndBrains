@@ -71,13 +71,13 @@ if np.all([np.all(f[0] == f_now) for f_now in f]):
     f = f[0]
 
 # average the covariance matrices across all subjects
-# normalize by the trace of the contrast covariance matrix
 
 for t, c in zip(target_cov, contrast_cov):
-    #t_now = t.mean(-1)/np.trace(c.mean(-1))
-    #c_now = c.mean(-1)/np.trace(c.mean(-1))
-    t_now = t.mean(-1)
-    c_now = c.mean(-1)
+    # normalize by the trace of the contrast covariance matrix
+    t_now = t.mean(-1)/np.trace(c.mean(-1))
+    c_now = c.mean(-1)/np.trace(c.mean(-1))
+    #t_now = t.mean(-1)
+    #c_now = c.mean(-1)
     try:
         all_target_cov += t_now
         all_contrast_cov += c_now
@@ -98,44 +98,42 @@ SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
 ########################
 # plot all the results #
 ########################
+F_SSD = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
 
 # average across trials
 F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD]
 F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 
-#F_SSD_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_SSD_mean, contrast_cov)]
-#F_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_mean, contrast_cov)]
+F_SSD_subj_mean = np.mean(F_SSD_mean, axis=0)
+F_subj_mean = np.mean(F_mean, axis=0)
 
 # normalize by dividing with the power in the 1-2 Hz range (except snare
 # and woodblock frequency components)
-contrast_freqwin = [1,2]
+contrast_freqwin = [1, 2]
 contrast_mask = np.all([f>=contrast_freqwin[0], f<=contrast_freqwin[1]], 0)
 
 target_mask = np.zeros(f.shape, bool)
 target_mask[np.argmin((f-snareFreq)**2)] = True
 target_mask[np.argmin((f-wdBlkFreq)**2)] = True
 
-F_mean_norm = [F_now / F_now[:,target_mask!=contrast_mask].mean(1)[
-    :,np.newaxis] for F_now in F_mean]
-F_SSD_mean_norm = [F_now / F_now[:,target_mask!=contrast_mask].mean(1)[
-    :,np.newaxis] for F_now in F_SSD_mean]
+F_SSD_subj_mean_norm = F_SSD_subj_mean/F_SSD_subj_mean[
+        :,target_mask != contrast_mask].mean(-1)[:,np.newaxis]
+F_subj_mean_norm = F_subj_mean/F_subj_mean[
+        :,target_mask != contrast_mask].mean(-1)[:,np.newaxis]
 
-
-
-F_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
-        for F_now in F_mean]
-F_SSD_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
-        for F_now in F_SSD_mean]
-
+F_SSD_subj_mean_peak = F_SSD_subj_mean / scipy.ndimage.convolve1d(
+        F_SSD_subj_mean, np.r_[[1]*2, 0, [1]*2]/4)
+F_subj_mean_peak = F_subj_mean / scipy.ndimage.convolve1d(
+        F_subj_mean, np.r_[[1]*2, 0, [1]*2]/4)
 
 f_plot_mask = np.all([f>=0.5, f<=4], 0)
 SSD_num = 4
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
-ax.plot(f[f_plot_mask], 20*np.log10(np.mean(F_mean_norm, 0)[:,f_plot_mask].T),
+ax.plot(f[f_plot_mask], 20*np.log10(F_subj_mean_norm[:,f_plot_mask].T),
         'k-', alpha=0.1)
-ax.plot(f[f_plot_mask], 20*np.log10(np.mean(F_SSD_mean_norm, 0)[:SSD_num,
+ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
     f_plot_mask].T))
 
 # save the results
