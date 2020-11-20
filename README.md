@@ -43,7 +43,7 @@ e.g., the line
 
     python eeg_outlier.py ~/Data 01 Results
 
-looks for subject `S01` in folder `~/Data` and will put the results into folder `./Results` 
+looks for subject `S01` in folder `~/Data` and will put the results into folder `./Results`
 
 ### Outlier Rejection Process
 1. A window with the EEG data will open. Change gain with +/- and scroll with 'Home'/'End', LeftArrow, RightArrow, PgUp, PgDown Keys. Select artifactual segments by drawing a rectangle (only temporal information will be recorded, the selected channels are irrelavant) and save by pressing 'r'. After you think all relevant artifact segments were selected, close the window. The plotted EEG data had been downsampled to 250 Hz, high-pass filtered above 2 Hz for subsequent ICA, and re-referenced to the average potential.
@@ -58,27 +58,20 @@ The ICA results are stored in the data folder of every single subject as a file 
 Additionally some plots are saved in the Results folder of that subject.
 
 ## Calculation of Spatial filters
+
 We are using spatial filters to obtain the best signal-to-noise ratio available.
 
 Two different types of spatial filters are to be used:
 
 1. Spatio-spectral decomposition (SSD): Filters are trained from the
-listening+silence period to maximize the power of oscillations at the frequencies
+listening period to maximize the power of oscillations at the frequencies
 of the polyrhythm the subjects were listening to.
-Algorithmically, this works by (1) Fourier transformation of the data
-(this is done in `prepareFFTSSD.py`)
-(3) Calculating the SSD as the generalized mean signal-to-noise ratio of the
-rhythm frequencies (and harmonics). The generalized mean with p=-100 is used
-to mainly maximize the minimum signal-to-noise ratio. (in `calcFFTSSD.py`)
+Algorithmically, this works by
+(1) isolating snare and woodblock frequency from the FFT and applying the inverse transform, then calculation of covariance matrices for every trial = 'target',
+(2) isolating range of 1-2 Hz, applying inverse transform and calculation of covariance matrices for every single trial 'contrast' (1+2 is done in `prepareFFTSSD.py`) and
+(3) calculating the SSD of stimulation frequencies vs. the neighboring frequencies (in `calcFFTSSD.py`).
 
-2. partial Source power comodulation (pSPoC) optimization. Filters are trained from
-the silence period to maximize the dependence between the power of neuronal
-oscillations and performance. Typically, a smaller number of SSD filters are
-used as pre-processing to safe-guard against overfitting.
-
-Note, that there is an important difference between methods 1+2.
-Methods 2 directly maximize the relation between oscillations and
-behaviour and thus might be prone to overfitting.
+2. GAMLSS
 
 ### Analysis *across subjects*
 Here, we chose an approach to train the spatial filters across subjects,
@@ -97,40 +90,36 @@ It requires 3 arguments:
 In the `result_folder` of that subject, a file `prepared_FFTSSD.npz`
 will be stored containing as fields:
 
-1. `prestim_csd`: the average cross-spectral density matrix of all single
-    trials of that subject in a pre-stimulus period (the bar prior to
-    stimulation)
-2. `poststim_csd`: as `prestim_csd` but in the 3 listening bars + the
-    silence bar
-3. `f`: an array of frequencies (in Hz) corresponding to `csd`
- 
-### Calculate SSD
-The scipt `calcFFTSSD.py` calculates the across-subject SSD.
+1. `target_cov`: the covariance matrix for the target frequencies (7/6 and 7/4) of all single trials of that subject in the listening period (the first 3 bars)
+2. `contrast_cov`: as `target_cov` but for the contrast frequencies, i.e. a 1-2 Hz window but without the target frequencies
+3. `F`: the Fast Fourier Transform (FFT) of all listen trials (padded to 12 sec)
+4. `f`: an array of frequencies (in Hz) use in the FFT
 
-As input argument, it requires the `result_folder`
+### Calculate SSD
+The script `calcFFTSSD.py` calculates the across-subject SSD.
+
+As input argument, it requires the `result_folder`. Number of subjects is set to be 21.
 
 It first loads the results from `prepareFFTSSD.py` and normalizes the
-poststimulus CSD of every subject by the trace of the prestimulus CSD (the
-total variance) in that frequency. This already normalizes the power across
-subjects.
+target and contrast covariance matrices of every subject by the trace of their contrast covariance matrix. This already normalizes the power across subjects.
 
-Then, as target frequencies the snare (1.16 Hz), woodblock (1.75 Hz) and the
-harmonics <= 5 Hz are defined. SSD filters are obtained by maximizing the
-SNR in relation to the 0.5-5 Hz range.
+Then, SSD eigenvalues and filters are obtained using eigh_rank in from `helper_functions.py`. The corresponding SSD patterns are calculated and normalized s.t. channel Cz is always positive.
+
+Finally, the FFT with and without applied SSD is normalized and averaged and plotted to verify the SSD (use `plot.show()` to show the plot).
+
+`calcFFTSSD.py` stores its results in  the file `FFTSSD.npz` containing the
+fields:
+1. `SSD_eigvals`: the found eigenvalues corresponding to the SSD filters
+3. `SSD_filters`: the found SSD filters
+4. `SSD_patterns`: the spatial patterns corresponding to these filters
+
+
+
+# old
 To obtain filters that *simultaneously* maximize the SNR for all chosen
 frequencies, the *generalized mean* across those frequencies is calculated
 (with p=-100, it maximizes the minimal SNR of those frequencies).
 The calculation is done in the module `gmeanSSD.py`.
-
-`calcFFTSSD.py` stores its results in  the file `FFTSSD.npz` containing the 
-fields:
-1. `SSD_obj`: the objective function result - the generalized mean of the
-    SNRs at the chosen frequencies for every filter
-2. `SSD_obj_per_subject`: the same for every subject individually
-3. `SSD_filt`: the found SSD filters
-4. `SSD_patterns`: the spatial patterns corresponding to these filters
-
-Additionally, the result is plotted as `FFTSSD_patterns.pdf` and `png`
 
 ### Correlation of SSD result with musical experience
 Run the script `SSDMusicCorr.py` with `data_folder` and `result_folder` as
@@ -156,4 +145,3 @@ The results - including the behavioural data is stored in the Results folder of
 every subject as `prepared_FFTcSPoC.npz`
 
 The defined fields of that file are:
-
