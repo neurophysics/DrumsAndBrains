@@ -1,7 +1,7 @@
 """
 This script imports the single-trial cross-spectral densities - prepared
-by prepareFFTSSD.py - and calculates the SSD of stimulation frequencies (and)
-harmonics vs the neighbouring frequencies.
+by prepareFFTSSD.py - and calculates the SSD of stimulation frequencies
+vs the neighbouring frequencies.
 
 As input it requests the result folder
 """
@@ -16,6 +16,20 @@ import helper_functions
 import meet
 from tqdm import trange, tqdm # for a progress bar
 
+
+# set parameters
+## input
+result_folder = sys.argv[1]
+N_subjects = 21
+
+## sampling rate of the EEG
+s_rate = 1000
+
+## target frequencies
+snareFreq = 7./6
+wdBlkFreq = 7./4
+
+## plot
 mpl.rcParams['axes.labelsize'] = 7
 mpl.rcParams['axes.titlesize'] = 10
 
@@ -32,15 +46,9 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
         labelbottom=False)
 
-s_rate = 1000 # sampling rate of the EEG
 
-result_folder = sys.argv[1]
-N_subjects = 21
-
-snareFreq = 7./6
-wdBlkFreq = 7./4
-
-# read the channel names
+# read data (from channels.txt and prepared_FFTSSD.npz)
+## read the channel names
 channames = meet.sphere.getChannelNames('channels.txt')
 chancoords = meet.sphere.getStandardCoordinates(channames)
 chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
@@ -48,7 +56,7 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
         projection='stereographic')
 N_channels = len(channames)
 
-#read the data of the single subjects
+## read the data of the single subjects
 f = [] #frequency bins
 F = [] #discrete Fourier transform
 target_cov = [] #covariance matrix of frequencies 1.16 and 1.75
@@ -65,81 +73,87 @@ for i in range(1, N_subjects + 1, 1):
     except:
         print(('Warning: Subject %02d could not be loaded!' %i))
 
-# the frequency array should be the same for all subjects.
-# Verify that and keep only the first one
+
+# data preprocessing
+## the frequency array should be the same for all subjects
 if np.all([np.all(f[0] == f_now) for f_now in f]):
     f = f[0]
 
-# average the covariance matrices across all subjects
-
+## average the covariance matrices across all subjects
 for t, c in zip(target_cov, contrast_cov):
-    #t_now = t.mean(-1)/np.trace(c.mean(-1))
-    #c_now = c.mean(-1)/np.trace(c.mean(-1))
-    t_now = t.mean(-1) #averaged over trials => shape (32,32)
-    c_now = c.mean(-1)
+    # normalize by the trace of the contrast covariance matrix
+    t_now = t.mean(-1)/np.trace(c.mean(-1))
+    c_now = c.mean(-1)/np.trace(c.mean(-1))
+    #t_now = t.mean(-1)
+    #c_now = c.mean(-1)    #averaged over trials => shape (32,32)
     try:
         all_target_cov += t_now
         all_contrast_cov += c_now
     except: #init
         all_target_cov = t_now
         all_contrast_cov = c_now
-#dont need to divide by number of matrices to get average because scale doesnt matter
 
+
+# calculate SSD
+## EV and filter
 SSD_eigvals, SSD_filters = helper_functions.eigh_rank(
         all_target_cov, all_contrast_cov)
 
+## patterns
 SSD_patterns = scipy.linalg.solve(
         SSD_filters.T.dot(all_target_cov).dot(SSD_filters),
         SSD_filters.T.dot(all_target_cov))
 
-#normalize the patterns such that Cz is always positive
+### normalize the patterns such that Cz is always positive
 SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
 
-########################
-# plot all the results #
-########################
 
-# average across trials
+# average and normalize to plot
+## apply SSD to FFT
+F_SSD = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
+
+## average across trials
 F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD]
 F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 
-#F_SSD_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_SSD_mean, contrast_cov)]
-#F_mean = [F_now/np.trace(c.mean(-1)) for F_now, c in zip(F_mean, contrast_cov)]
+## average across subjects
+F_SSD_subj_mean = np.mean(F_SSD_mean, axis=0)
+F_subj_mean = np.mean(F_mean, axis=0)
 
-# normalize by dividing with the power in the 1-2 Hz range (except snare
-# and woodblock frequency components)
-contrast_freqwin = [1,2]
+## normalize by mean power of frequencies (except snare/wdblk)
+## (divide to get SNR => want higher SNR at target frequence)
+### compute target and contrast mask
+contrast_freqwin = [1, 2]
 contrast_mask = np.all([f>=contrast_freqwin[0], f<=contrast_freqwin[1]], 0)
 
 target_mask = np.zeros(f.shape, bool)
 target_mask[np.argmin((f-snareFreq)**2)] = True
 target_mask[np.argmin((f-wdBlkFreq)**2)] = True
 
-#normalize by mean power of frequencies (except snare/wdblk)
-#divide to get SNR => want higher SNR at target frequence
-# (noise is mean of non-target frequencies)
-F_mean_norm = [F_now / F_now[:,target_mask!=contrast_mask].mean(1)[
-    :,np.newaxis] for F_now in F_mean]
-F_SSD_mean_norm = [F_now / F_now[:,target_mask!=contrast_mask].mean(1)[
-    :,np.newaxis] for F_now in F_SSD_mean]
+### divide by mean power of frequencies (except snare/wdblk)
+F_SSD_subj_mean_norm = F_SSD_subj_mean/F_SSD_subj_mean[
+        :,target_mask != contrast_mask].mean(-1)[:,np.newaxis]
+F_subj_mean_norm = F_subj_mean/F_subj_mean[
+        :,target_mask != contrast_mask].mean(-1)[:,np.newaxis]
+
+## alternatively, normalize for each frequency by their neighboring frequencies
+F_SSD_subj_mean_peak = F_SSD_subj_mean / scipy.ndimage.convolve1d(
+        F_SSD_subj_mean, np.r_[[1]*2, 0, [1]*2]/4)
+F_subj_mean_peak = F_subj_mean / scipy.ndimage.convolve1d(
+        F_subj_mean, np.r_[[1]*2, 0, [1]*2]/4)
 
 
-
-F_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
-        for F_now in F_mean]
-F_SSD_mean_norm = [F_now / scipy.ndimage.convolve1d(F_now, np.r_[[1]*2, 0, [1]*2]/4)
-        for F_now in F_SSD_mean]
-
-
+# plot the results
 f_plot_mask = np.all([f>=0.5, f<=4], 0)
 SSD_num = 4
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
-ax.plot(f[f_plot_mask], 20*np.log10(np.mean(F_mean_norm, 0)[:,f_plot_mask].T),
+ax.plot(f[f_plot_mask], 20*np.log10(F_subj_mean_norm[:,f_plot_mask].T),
         'k-', alpha=0.1)
-ax.plot(f[f_plot_mask], 20*np.log10(np.mean(F_SSD_mean_norm, 0)[:SSD_num,
+ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
     f_plot_mask].T))
+
 
 # save the results
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
