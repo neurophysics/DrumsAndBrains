@@ -49,10 +49,10 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 N_channels = len(channames)
 
 #read the data of the single subjects
-f = []
-F = []
-target_cov = []
-contrast_cov = []
+f = [] #frequency bins
+F = [] #discrete Fourier transform
+target_cov = [] #covariance matrix of frequencies 1.16 and 1.75
+contrast_cov = [] #cov matrix of other frequencies in [1,2]
 
 for i in range(1, N_subjects + 1, 1):
     try:
@@ -76,14 +76,15 @@ if np.all([np.all(f[0] == f_now) for f_now in f]):
 for t, c in zip(target_cov, contrast_cov):
     #t_now = t.mean(-1)/np.trace(c.mean(-1))
     #c_now = c.mean(-1)/np.trace(c.mean(-1))
-    t_now = t.mean(-1)
+    t_now = t.mean(-1) #averaged over trials => shape (32,32)
     c_now = c.mean(-1)
     try:
         all_target_cov += t_now
         all_contrast_cov += c_now
-    except:
+    except: #init
         all_target_cov = t_now
         all_contrast_cov = c_now
+#dont need to divide by number of matrices to get average because scale doesnt matter
 
 SSD_eigvals, SSD_filters = helper_functions.eigh_rank(
         all_target_cov, all_contrast_cov)
@@ -115,6 +116,9 @@ target_mask = np.zeros(f.shape, bool)
 target_mask[np.argmin((f-snareFreq)**2)] = True
 target_mask[np.argmin((f-wdBlkFreq)**2)] = True
 
+#normalize by mean power of frequencies (except snare/wdblk)
+#divide to get SNR => want higher SNR at target frequence
+# (noise is mean of non-target frequencies)
 F_mean_norm = [F_now / F_now[:,target_mask!=contrast_mask].mean(1)[
     :,np.newaxis] for F_now in F_mean]
 F_SSD_mean_norm = [F_now / F_now[:,target_mask!=contrast_mask].mean(1)[
