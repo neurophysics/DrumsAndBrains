@@ -71,7 +71,6 @@ if np.all([np.all(f[0] == f_now) for f_now in f]):
     f = f[0]
 
 # average the covariance matrices across all subjects
-# normalize by the trace of the contrast covariance matrix
 
 for t, c in zip(target_cov, contrast_cov):
     #t_now = t.mean(-1)/np.trace(c.mean(-1))
