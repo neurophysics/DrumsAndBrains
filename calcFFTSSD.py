@@ -12,6 +12,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import sys
 import os.path
+import csv
 import helper_functions
 import meet
 from tqdm import trange, tqdm # for a progress bar
@@ -156,7 +157,12 @@ ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
 
 
 # save the results
+## save F_SSD
+np.savez(os.path.join(result_folder, 'F_SSD.npz'), *F_SSD)
+
+## save SSG eigenvalues, filters and patterns in a.npz
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_eigvals = SSD_eigvals,
         SSD_filters = SSD_filters,
-        SSD_patterns = SSD_patterns)
+        SSD_patterns = SSD_patterns
+        )
