@@ -58,6 +58,7 @@ for (subject in 1:N_subjects) {
 addInfo <- read.csv(file.path(data_folder,'additionalSubjectInfo.csv'), sep=';')
 music_total_score <- addInfo$MusicQualification + addInfo$MusicianshipLevel + addInfo$TrainingYears
 music_z_score <- (music_total_score - mean(music_total_score)) / sd(music_total_score)
+music_z_score <- c(music_z_score[1:10], music_z_score[12:21]) #del subject 11 for we dont have corresponding eeg data
 
 ## read F_SSD, the SSD for each subject
 #?? how to store this: as df that would be 6001*2 SSDs rows and then a column for each subject?
@@ -77,6 +78,9 @@ for (subject in 1:N_subjects){
 }
 length(F_SSD) # list of N_subjects elements
 dim(F_SSD[[1]]) #each element a about (2,6001,148) shaped array
+#TODO: sollten wir die shape mit NaNs auffüllen, damit das richtig in die Matrix passt? 
+#brauchen maske mit welcher trial ist snare, welcher wdblk, welcher NaN
+# => em Ende eine F_SSD Liste für Snare und eine für WdBlk (siehe Design Matrix)
 
 
 #check normality of response variable
@@ -98,8 +102,36 @@ qqline(behavior_wdBlk$dev)
 
 # create design matrix
 design_mat <- data.frame(rbind(rep(1,N_subjects*N_trials)))
-#beta1 <- x_it - mean(x_i)
-#design_mat <- rbind(design_mat, beta1)
+beta1 <- matrix(nrow=N_comp, ncol=N_subjects*N_trials)
+beta2 <- matrix(nrow=N_comp, ncol=N_subjects*N_trials)
+beta3 <- c()
+ypsilon0 <- matrix(nrow=N_subjects, ncol=N_subjects*N_trials)
+ypsilon1 <- matrix(0L, nrow=N_subjects*N_comp, ncol=N_subjects*N_trials)
+'TODO: 1,2,3,4 hardcoden in abhängigkeit von N_Comp (aufdröseln in N_freq und N_SSD?'
+for (i in 1:N_subjects) {
+  ## beta1 contains the 4 (2 SSDs for 2 freq) trial averaged components for every subject
+  snare_Tmean <- sapply(F_SSD_snare[[i]], 3, mean)
+  wdBlk_Tmean <- sapply(F_SSD_wdBlk[[i]], 3, mean)
+  beta1[1:2, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean #trials are 3rd dim
+  beta1[3:4, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_wdBlk[[i]] - wdBlk_Tmean
+  
+  ## beta2 contains the 4 (2 SSDs for 2 freq) trial averages for every subject (repeated N_trials times)
+  beta2[1:2, 1+(i-1)*N_trials:i*N_trials] <- rep(snare_Tmean, N_trials)
+  beta2[3:4, 1+(i-1)*N_trials:i*N_trials] <- rep(wdBlk_Tmean, N_trials)
+  
+  ## beta3 contains the musical z_score of each proband repeated N_trials times
+  beta3 <- c(beta3, rep(music_z_score[i], N_trials))
+  
+  ## ypsilon0 contains a 1 if subject row and column are the same, 0 else
+  yps0 <- rep(0, N_subjects)
+  yps0[i] <- 1
+  ypsilon0[i,] <- rep(yps0, each=N_trials)
+  
+  ## ypsilon1 contains x_it-mean(x_i) if subject row and column are the same, 0 else
+  ypsilon1[1+(i-1)*N_comp:2+(i-1)*N_comp, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean #trials are 3rd dim
+  ypsilon1[3+(i-1)*N_comp:4+(i-1)*N_comp, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_wdBlk[[i]] - wdBlk_Tmean
+}
+design_mat <- rbind(design_mat, beta1, beta2, beta3, ypsilon0, ypsilon1)
 
 
 #TODO
