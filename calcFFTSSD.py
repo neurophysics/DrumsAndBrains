@@ -157,8 +157,13 @@ ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
 
 
 # save the results
-## save F_SSD
-np.savez(os.path.join(result_folder, 'F_SSD.npz'), *F_SSD)
+## save sorted F_SSD: add 4th dim that contains subject number to sort by
+F_SSD_sorted = [F_now[:,:,:,np.newaxis] for F_now in F_SSD]
+for i in range(len(F_SSD)):
+    arr = F_SSD_sorted[i]
+    arr[0,0,0,0]=i
+F_SSD_zip = zip(F_SSD,range(len(F_SSD)))
+np.savez(os.path.join(result_folder, 'F_SSD.npz'), *F_SSD_sorted)
 
 ## save SSG eigenvalues, filters and patterns in a.npz
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
