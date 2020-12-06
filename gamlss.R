@@ -13,7 +13,7 @@ rm(mod)
 # set constants
 result_folder = '/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains/Results'
 data_folder = '/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains/Data'
-N_subjects = 2
+N_subjects = 20
 N_trials = 75
 N_comp = 4
 
@@ -61,27 +61,40 @@ music_z_score <- (music_total_score - mean(music_total_score)) / sd(music_total_
 music_z_score <- c(music_z_score[1:10], music_z_score[12:21]) #del subject 11 for we dont have corresponding eeg data
 
 ## read F_SSD, the SSD for each subject
-#?? how to store this: as df that would be 6001*2 SSDs rows and then a column for each subject?
 F_SSD_file <- np$load(file.path(result_folder, 'F_SSD.npz')) 
-F_SSD_file$files #contains arr_0 to arr_19
-F_SSD <- vector("list", length(N_subjects))
+F_SSD <- vector("list", length(N_subjects))# geht das mit dem indizieren oder mss ich mit 0en init machen?
 for (subject in 1:N_subjects){
-  if (subject<=10){
-    F_SSD_subj <- F_SSD_file$f[[sprintf('arr_%d', subject-1)]] #python has 0 index
-    F_SSD[[subject]] <- F_SSD_subj[1:2,,] # only need first two SSD Components
-  }
-  else if(subject==11) next #no data for subjcet 11
-  else{
-    F_SSD_subj <- F_SSD_file$f[[sprintf('arr_%d', subject)]] #no index is right     
-    F_SSD[[subject]] <- F_SSD_subj[1:2,,] # only need first two SSD Components  
-  }   
+  arr <- F_SSD_file$f[[sprintf('arr_%d', subject-1)]]
+  s <- abs(arr[1,1,1,1])+1 #4th dim is coded to give subject/sort number, python indices start with 0
+  F_SSD[[s]] <- drop(arr) #deletes 4th dimension
 }
-length(F_SSD) # list of N_subjects elements
-dim(F_SSD[[1]]) #each element a about (2,6001,148) shaped array
-#TODO: sollten wir die shape mit NaNs auffüllen, damit das richtig in die Matrix passt? 
-#brauchen maske mit welcher trial ist snare, welcher wdblk, welcher NaN
-# => em Ende eine F_SSD Liste für Snare und eine für WdBlk (siehe Design Matrix)
-
+F_SSD_snare <- vector("list", length(N_subjects))
+F_SSD_wdBlk <- vector("list", length(N_subjects))
+for (subject in 1:N_subjects){
+  F_SSD_subj <- F_SSD[[subject]]
+  ### check for valid trials
+  eeg_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'eeg_results.npz')) 
+  snareInlier <- eeg_file$f[['snareInlier']]
+  wdBlkInlier <- eeg_file$f[['wdBlkInlier']]
+  
+  ### get snare and wdBlk trial indices
+  file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'behavioural_results.npz')) 
+  snareCue_times <- file$f[['snareCue_times']][snareInlier]
+  wdBlkCue_times <- file$f[['wdBlkCue_times']][wdBlkInlier]
+  type_df <- data.frame(rep(FALSE,length(snareCue_times)),snareCue_times)
+  names(type_df) <- c('type_index','cueTime')
+  type_df2 <- data.frame(rep(TRUE,length(wdBlkCue_times)), wdBlkCue_times)
+  names(type_df2) <- c('type_index','cueTime')
+  type_df <- rbind(type_df, type_df2)
+  trial_type <- type_df[order(type_df$cueTime),]$type_index
+  
+  ### only need first two SSD Components, divide into snare and wdBlk
+  F_SSD_wdBlk[[subject]] <- F_SSD_subj[1:2,,trial_type]
+  F_SSD_snare[[subject]] <- F_SSD_subj[1:2,,!trial_type]
+}
+length(F_SSD_wdBlk) # list of N_subjects elements
+dim(F_SSD_wdBlk[[1]]) #each element a about (2,6001,148) shaped array
+# TODO: sollten wir die shape mit NaNs auffüllen, damit das richtig in die Matrix passt? 
 
 #check normality of response variable
 
@@ -101,7 +114,7 @@ qqline(behavior_wdBlk$dev)
 
 
 # create design matrix
-design_mat <- data.frame(rbind(rep(1,N_subjects*N_trials)))
+design_mat <- data.frame(rbind(rep(1,N_subjects*N_trials)), use.names=FALSE)
 beta1 <- matrix(nrow=N_comp, ncol=N_subjects*N_trials)
 beta2 <- matrix(nrow=N_comp, ncol=N_subjects*N_trials)
 beta3 <- c()
@@ -110,9 +123,9 @@ ypsilon1 <- matrix(0L, nrow=N_subjects*N_comp, ncol=N_subjects*N_trials)
 'TODO: 1,2,3,4 hardcoden in abhängigkeit von N_Comp (aufdröseln in N_freq und N_SSD?'
 for (i in 1:N_subjects) {
   ## beta1 contains the 4 (2 SSDs for 2 freq) trial averaged components for every subject
-  snare_Tmean <- sapply(F_SSD_snare[[i]], 3, mean)
-  wdBlk_Tmean <- sapply(F_SSD_wdBlk[[i]], 3, mean)
-  beta1[1:2, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean #trials are 3rd dim
+  snare_Tmean <- apply(F_SSD_snare[[i]], 3, mean) #trials are 3rd dim
+  wdBlk_Tmean <- apply(F_SSD_wdBlk[[i]], 3, mean)
+  beta1[1:2, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean 
   beta1[3:4, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_wdBlk[[i]] - wdBlk_Tmean
   
   ## beta2 contains the 4 (2 SSDs for 2 freq) trial averages for every subject (repeated N_trials times)
@@ -124,17 +137,18 @@ for (i in 1:N_subjects) {
   
   ## ypsilon0 contains a 1 if subject row and column are the same, 0 else
   yps0 <- rep(0, N_subjects)
-  yps0[i] <- 1
-  ypsilon0[i,] <- rep(yps0, each=N_trials)
+  yps0[i] <- 1 # 1 at subject column
+  ypsilon0[i,] <- rep(yps0, each=N_trials) #repeat 1 for number of trials ine ach row
   
   ## ypsilon1 contains x_it-mean(x_i) if subject row and column are the same, 0 else
-  ypsilon1[1+(i-1)*N_comp:2+(i-1)*N_comp, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean #trials are 3rd dim
+  ypsilon1[1+(i-1)*N_comp:2+(i-1)*N_comp, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean 
   ypsilon1[3+(i-1)*N_comp:4+(i-1)*N_comp, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_wdBlk[[i]] - wdBlk_Tmean
 }
 design_mat <- rbind(design_mat, beta1, beta2, beta3, ypsilon0, ypsilon1)
 
 
 #TODO
+#0 pad deleted trials with NaN
 #1 designmatrix erstellen (110x1500 df)
 #2 OLS fit ohne gamlss (mixed RE anf FE model)
 #3 gamlss
@@ -144,3 +158,5 @@ mod<-gamlss(behavior_df$absDev~pb(x),sigma.fo=~pb(x), family=Normal, data=data, 
 
 #R cheatsheet
 # first array slice: a[1, , ]
+# get positions: snare_index <- which(trial_type %in% 0)
+#  TypeError: 'BagObj' object is not subscriptable => falsche indizierung i.e. [[]] insteaf od []
