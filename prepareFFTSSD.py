@@ -170,4 +170,6 @@ np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
         target_cov = target_cov,
         contrast_cov = contrast_cov,
         F = F,
-        f = f)
+        f = f,
+        snareInlier = snareInlier,
+        wdBlkInlier = wdBlkInlier)
