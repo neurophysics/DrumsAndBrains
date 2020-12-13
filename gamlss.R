@@ -14,149 +14,248 @@ rm(mod)
 result_folder = '/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains/Results'
 data_folder = '/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains/Data'
 N_subjects = 20
-N_trials = 75
-N_comp = 4
+N_comp_ssd = 2 #first two
+N_comp_freq = 2 #snare and wdblk
 
 
-# read our data
-library(reticulate) # use python in R
+##### read our data #####
+# use python in R
+library(reticulate) 
 np <- import("numpy")
 
-## read y (absolute latency)
-for (subject in 1:N_subjects) {
-  if (subject==11) next #no data für subject 11
-  behavior <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'behavioural_results.npz'), 
-                      encoding='latin1', allow_pickle=TRUE)
-  snareDev <- behavior$f[["snareCue_DevToClock"]] 
-  wdBlkDev <- behavior$f[['wdBlkCue_DevToClock']]
-  
-  ### flatten list and use session index instead
-  N_sessions <- length(snareDev)
-  snare_session <- c()
-  wdBlk_session <- c()
-  for (i in 1:N_sessions){
-    snare_session <- c(snare_session, rep(i,length(snareDev[[i]])))
-    wdBlk_session <- c(wdBlk_session, rep(i,length(wdBlkDev[[i]])))
-  }
-  ### combine each to data frame
-  snareDev <- unlist(snareDev)
-  wdBlkDev <- unlist(wdBlkDev)
-  snare_df <- data.frame(rep(subject, length(snareDev)), snare_session, snareDev)
-  names(snare_df) <- c('subject_ID','session','dev')
-  wdBlk_df <- data.frame(rep(subject, length(wdBlkDev)), snare_session, wdBlkDev)
-  names(wdBlk_df) <- c('subject_ID','session','dev')
-  
-  ### combine to single data frame with index 0 for snare and 1 for wdBlk (type_index)
-  type_index <- c(rep(0,length(snare_df[,1])),rep(1,length(wdBlk_df[,2])))
-  behavior_subj <- data.frame(type_index, rbind(snare_df, wdBlk_df))
-  behavior_subj$dev <- behavior_subj$dev - mean(behavior_subj$dev) # normalize subjects to have 0 mean each
-  if (subject==1) behavior_df <- behavior_subj
-  else behavior_df <- rbind(behavior_df, behavior_subj)
-}
-
-## read additional subject info (handedness and musical score)
-addInfo <- read.csv(file.path(data_folder,'additionalSubjectInfo.csv'), sep=';')
-music_total_score <- addInfo$MusicQualification + addInfo$MusicianshipLevel + addInfo$TrainingYears
-music_z_score <- (music_total_score - mean(music_total_score)) / sd(music_total_score)
-music_z_score <- c(music_z_score[1:10], music_z_score[12:21]) #del subject 11 for we dont have corresponding eeg data
-
-## read F_SSD, the SSD for each subject
+# read F_SSD, the SSD for each subject and sort by subject
+## load file and initialize F_SSD list
 F_SSD_file <- np$load(file.path(result_folder, 'F_SSD.npz')) 
-F_SSD <- vector("list", length(N_subjects))# geht das mit dem indizieren oder mss ich mit 0en init machen?
+F_SSD <- vector("list", length(N_subjects))
+## get freq bins und snare/wdBlk freq indices (same for all subjects)
+f <- np$load(file.path(result_folder, 'S01', 'prepared_FFTSSD.npz')) [['f']] 
+i_sn_freq <- which(abs(f-7/6)<0.000001)
+i_wb_freq <- which(abs(f-7/4)<0.000001)
+## loop over subjects, sort and store needed F_SSD parts in list
 for (subject in 1:N_subjects){
   arr <- F_SSD_file$f[[sprintf('arr_%d', subject-1)]]
   s <- abs(arr[1,1,1,1])+1 #4th dim is coded to give subject/sort number, python indices start with 0
-  F_SSD[[s]] <- drop(arr) #deletes 4th dimension
+  arr <- drop(arr) #deletes 4th dimension
+  arr <- arr[1:2,c(i_sn_freq,i_wb_freq),] #only need first two SSD components and two relevant frequencies
+  F_SSD[[s]] <- arr
 }
+
+# divide F_SSD into conditions and read behavioral data
 F_SSD_snare <- vector("list", length(N_subjects))
 F_SSD_wdBlk <- vector("list", length(N_subjects))
-for (subject in 1:N_subjects){
-  F_SSD_subj <- F_SSD[[subject]]
-  ### check for valid trials
-  eeg_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'eeg_results.npz')) 
-  snareInlier <- eeg_file$f[['snareInlier']]
-  wdBlkInlier <- eeg_file$f[['wdBlkInlier']]
+N_trials_wb <- c() #stores number of valid wdBlk trials for each subject
+N_trials_sn <- c() #stores number of valid snare trials for each subject
+for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
+  ## get right subject index (no eeg data für subject 11) => use i_subject to assess new data structure but subject to load data
+  if (subject==11) next 
+  else if (subject<11) i_subject <- subject
+  else i_subject <- subject-1 
   
-  ### get snare and wdBlk trial indices
-  file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'behavioural_results.npz')) 
-  snareCue_times <- file$f[['snareCue_times']][snareInlier]
-  wdBlkCue_times <- file$f[['wdBlkCue_times']][wdBlkInlier]
+  ## get valid EEG trials in listening window (not noisy)
+  inlier_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'prepared_FFTSSD.npz'))
+  snareInlier <- inlier_file$f[['snareInlier']]
+  wdBlkInlier <- inlier_file$f[['wdBlkInlier']]
+  N_trials_sn <- c(N_trials_sn, sum(snareInlier))
+  N_trials_wb <- c(N_trials_wb, sum(wdBlkInlier))
+  
+  
+  ### read and divide F_SSD into snare and woodblock,reject invalid trials
+  F_SSD_subj <- F_SSD[[i_subject]]
+  behavior_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'behavioural_results.npz'),
+                           allow_pickle = T, encoding='latin1') 
+  snareCue_times <- behavior_file$f[['snareCue_times']]
+  snareCue_times <- snareCue_times[snareInlier]
+  wdBlkCue_times <- behavior_file$f[['wdBlkCue_times']]
+  wdBlkCue_times <- wdBlkCue_times[wdBlkInlier]
   type_df <- data.frame(rep(FALSE,length(snareCue_times)),snareCue_times)
   names(type_df) <- c('type_index','cueTime')
   type_df2 <- data.frame(rep(TRUE,length(wdBlkCue_times)), wdBlkCue_times)
   names(type_df2) <- c('type_index','cueTime')
   type_df <- rbind(type_df, type_df2)
   trial_type <- type_df[order(type_df$cueTime),]$type_index
+  F_SSD_wdBlk[[i_subject]] <- F_SSD_subj[,,trial_type]
+  F_SSD_snare[[i_subject]] <- F_SSD_subj[,,!trial_type]
   
-  ### only need first two SSD Components, divide into snare and wdBlk
-  F_SSD_wdBlk[[subject]] <- F_SSD_subj[1:2,,trial_type]
-  F_SSD_snare[[subject]] <- F_SSD_subj[1:2,,!trial_type]
+  ## read behavioral data
+  snareDev <- behavior_file$f[["snare_deviation"]] #deviation
+  snareDev <- snareDev[snareInlier]
+  wdBlkDev <- behavior_file$f[["wdBlk_deviation"]]
+  wdBlkDev <- wdBlkDev[wdBlkInlier]
+  wdBlkDevToClock <- behavior_file$f[["wdBlkCue_DevToClock"]] #to get sessions
+  snareDevToClock <- behavior_file$f[["snareCue_DevToClock"]]
+
+  ### flatten list and use session index instead
+  N_sessions <- length(snareDevToClock)
+  snare_session <- c()
+  wdBlk_session <- c()
+  for (i in 1:N_sessions){
+    snare_session <- c(snare_session, rep(i,length(snareDevToClock[[i]])))
+    wdBlk_session <- c(wdBlk_session, rep(i,length(wdBlkDevToClock[[i]])))
+  }
+  snare_session <- snare_session[snareInlier]
+  wdBlk_session <- wdBlk_session[wdBlkInlier]
+  
+  ### combine each to data frame
+  snare_df <- data.frame(rep(subject, length(snareDev)), snare_session, snareDev)
+  names(snare_df) <- c('subject_ID','session','dev')
+  wdBlk_df <- data.frame(rep(subject, length(wdBlkDev)), wdBlk_session, wdBlkDev)
+  names(wdBlk_df) <- c('subject_ID','session','dev')
+  
+  ### reject invalid trials 
+  snare_df <- snare_df[snareInlier,]
+  wdBlk_df <- wdBlk_df[wdBlkInlier,]
+  
+  ### reject outlier by taking range median ± 1.5*IQR 
+  lb <- median(snare_df$dev, na.rm=T) - 1.5*IQR(snare_df$dev, na.rm=T)
+  ub <- median(snare_df$dev, na.rm=T) + 1.5*IQR(snare_df$dev, na.rm=T)
+  ind <- which(snare_df$dev>lb & snare_df$dev<ub)
+  snare_df <- snare_df[ind,]
+  lb <- median(wdBlk_df$dev, na.rm=T) - 1.5*IQR(wdBlk_df$dev, na.rm=T)
+  ub <- median(wdBlk_df$dev, na.rm=T) + 1.5*IQR(wdBlk_df$dev, na.rm=T)
+  ind <- which(wdBlk_df$dev>lb & wdBlk_df$dev<ub)
+  wdBlk_df <- wdBlk_df[ind,]
+  
+  ### combine to single data frame with index 0 for snare and 1 for wdBlk (type_index)
+  type_index <- c(rep(0,length(snare_df[,1])),rep(1,length(wdBlk_df[,2])))
+  behavior_subj <- data.frame(type_index, rbind(snare_df, wdBlk_df))
+  behavior_subj$dev <- behavior_subj$dev - mean(behavior_subj$dev, na.rm=TRUE) # normalize subjects to have 0 mean each
+  if (i_subject==1) behavior_df <- behavior_subj
+  else behavior_df <- rbind(behavior_df, behavior_subj)
 }
-length(F_SSD_wdBlk) # list of N_subjects elements
-dim(F_SSD_wdBlk[[1]]) #each element a about (2,6001,148) shaped array
-# TODO: sollten wir die shape mit NaNs auffüllen, damit das richtig in die Matrix passt? 
 
-#check normality of response variable
+# read additional subject info (handedness and musical score)
+addInfo <- read.csv(file.path(data_folder,'additionalSubjectInfo.csv'), sep=';')
+music_total_score <- addInfo$MusicQualification + addInfo$MusicianshipLevel + addInfo$TrainingYears
+music_z_score <- (music_total_score - mean(music_total_score)) / sd(music_total_score)
+music_z_score <- c(music_z_score[1:10], music_z_score[12:21]) #del subject 11 for we dont have corresponding eeg data
 
-## split into conditions
-behavior_snare <- split(behavior_df, type_index)[[1]]
-behavior_wdBlk <- split(behavior_df, type_index)[[2]]
+# remove unused objects
+rm('F_SSD_file','eeg_file','snareInlier','wdBlkInlier','F_SSD_subj','file','snareCue_times','wdBlkCue_times',
+   'type_df','type_df2','trial_type','behavior','snareDev','wdBlkDev','wdBlkDevToClock',
+   'snareDevToClock','snare_df', 'wdBlk_df','behavior_subj','addInfo', 'music_total_score')
 
-## substract mean deviation
-behavior_snare$dev <- behavior_snare$dev-mean(behavior_snare$dev)
-behavior_wdBlk$dev <- behavior_wdBlk$dev-mean(behavior_wdBlk$dev)
+##### check normality of response variable #####
 
-## qq plot
-qqnorm(behavior_snare$dev)
-qqline(behavior_snare$dev)
-qqnorm(behavior_wdBlk$dev)
-qqline(behavior_wdBlk$dev)
+# split into conditions
+behavior_snare <- split(behavior_df, behavior_df$type_index)[[1]]
+behavior_wdBlk <- split(behavior_df, behavior_df$type_index)[[2]]
 
+# hist and qq plot for first 4 subjects
+for (i in 1:4){
+  par(mfrow=c(2,2))
+  hist(behavior_snare[behavior_snare[,2]==i,4], breaks=20, main=sprintf('Subject %d, Snare', i), xlab='Deviation from Cue') 
+  hist(behavior_wdBlk[behavior_wdBlk[,2]==i,4], breaks=20, main=sprintf('Subject %d, WdBlk', i), xlab='Deviation from Cue') 
+  qqnorm(behavior_snare[behavior_snare[,2]==i,4], main=sprintf('Subject %d, Snare', i))
+  qqline(behavior_snare[behavior_snare[,2]==i,4])
+  qqnorm(behavior_wdBlk[behavior_wdBlk[,2]==i,4], main=sprintf('Subject %d, WdBlk', i))
+  qqline(behavior_wdBlk[behavior_wdBlk[,2]==i,4])
+  #mtext(sprintf('Subject %d', i), side = 3, line = -1, outer = TRUE)
+}
+# hist and qq plot for all subjects, save in Results folder
+pdf(file=file.path(result_folder,'gamlss_NormalityDev.pdf'))
+par(mfrow=c(2,2))
+hist(behavior_snare[,4], breaks=20, main='All Subjects Snare', xlab='Deviation from Cue')
+hist(behavior_wdBlk[,4], breaks=20, main='All Subjects WdBlk', xlab='Deviation from Cue')
+qqnorm(behavior_snare[,4], main='All Subjects Snare')
+qqline(behavior_snare[,4])
+qqnorm(behavior_wdBlk[,4], main='All Subjects WdBlk')
+qqline(behavior_wdBlk[,4])
+dev.off()
 
-# create design matrix
-design_mat <- data.frame(rbind(rep(1,N_subjects*N_trials)), use.names=FALSE)
-beta1 <- matrix(nrow=N_comp, ncol=N_subjects*N_trials)
-beta2 <- matrix(nrow=N_comp, ncol=N_subjects*N_trials)
+##### create design matrix for snare #####
+intercept <- rep(1,sum(N_trials_sn))
+beta1 <- matrix(nrow=N_comp_ssd*N_comp_freq, ncol=sum(N_trials_sn))
+beta2 <- matrix(nrow=N_comp_ssd*N_comp_freq, ncol=sum(N_trials_sn))
 beta3 <- c()
-ypsilon0 <- matrix(nrow=N_subjects, ncol=N_subjects*N_trials)
-ypsilon1 <- matrix(0L, nrow=N_subjects*N_comp, ncol=N_subjects*N_trials)
-'TODO: 1,2,3,4 hardcoden in abhängigkeit von N_Comp (aufdröseln in N_freq und N_SSD?'
+ypsilon0 <- matrix(nrow=N_subjects, ncol=sum(N_trials_sn))
+ypsilon1 <- matrix(0L, nrow=N_subjects*N_comp_ssd*N_comp_freq, ncol=sum(N_trials_sn))
+'TODO: 1,2,3,4 hardcoden in abhängigkeit von N_comp_ssd (aufdröseln in N_freq und N_SSD?'
+trial_index <- c(0,cumsum(N_trials_sn))
 for (i in 1:N_subjects) {
+  ## calculate needed indices
+  i1 <- 1
+  i2 <- N_comp_ssd
+  i3 <- 1+N_comp_freq
+  i4 <- N_comp_ssd*N_comp_freq
   ## beta1 contains the 4 (2 SSDs for 2 freq) trial averaged components for every subject
-  snare_Tmean <- apply(F_SSD_snare[[i]], 3, mean) #trials are 3rd dim
-  wdBlk_Tmean <- apply(F_SSD_wdBlk[[i]], 3, mean)
-  beta1[1:2, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean 
-  beta1[3:4, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_wdBlk[[i]] - wdBlk_Tmean
+  snare_Tmean <- apply(F_SSD_snare[[i]], c(1,2), mean) #trials are 3rd dim (keep first two)
+  beta1[i1:i2, (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,1,] - snare_Tmean[,1] #snare freq
+  beta1[i3:i4, (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2] #wdblk freq
   
   ## beta2 contains the 4 (2 SSDs for 2 freq) trial averages for every subject (repeated N_trials times)
-  beta2[1:2, 1+(i-1)*N_trials:i*N_trials] <- rep(snare_Tmean, N_trials)
-  beta2[3:4, 1+(i-1)*N_trials:i*N_trials] <- rep(wdBlk_Tmean, N_trials)
+  beta2[i1:i2, (trial_index[i]+1):trial_index[i+1]] <- rep(snare_Tmean[,1], N_trials_sn[i])
+  beta2[i3:i4, (trial_index[i]+1):trial_index[i+1]] <- rep(snare_Tmean[,2], N_trials_sn[i])
   
-  ## beta3 contains the musical z_score of each proband repeated N_trials times
-  beta3 <- c(beta3, rep(music_z_score[i], N_trials))
+  ## beta3 contains the musical z_score of each proband repeated N_trials_sn times
+  beta3 <- c(beta3, rep(music_z_score[i], N_trials_sn[i]))
+
+  ## ypsilon0 contains a 1 if subject row and column are the same, 0 else
+  yps0 <- rep(0, N_subjects)
+  yps0[i] <- 1 # 1 at subject column
+  ypsilon0[i,] <- rep(yps0, N_trials_sn) #repeat 1 for number of trials in each row
+  
+  ## ypsilon1 contains x_it-mean(x_i) if subject row and column are the same, 0 else
+  ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,1,] - snare_Tmean[,1]
+  ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2]
+}
+design_mat_snare <- rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1)
+
+
+##### create design matrix for wdBlk #####
+intercept <- rep(1,sum(N_trials_wb))
+beta1 <- matrix(nrow=N_comp_ssd*N_comp_freq, ncol=sum(N_trials_wb))
+beta2 <- matrix(nrow=N_comp_ssd*N_comp_freq, ncol=sum(N_trials_wb))
+beta3 <- c()
+ypsilon0 <- matrix(nrow=N_subjects, ncol=sum(N_trials_wb))
+ypsilon1 <- matrix(0L, nrow=N_subjects*N_comp_ssd*N_comp_freq, ncol=sum(N_trials_wb))
+'TODO: 1,2,3,4 hardcoden in abhängigkeit von N_comp_ssd (aufdröseln in N_freq und N_SSD?'
+trial_index <- c(0,cumsum(N_trials_wb))
+for (i in 1:N_subjects) {
+  ## calculate needed indices
+  i1 <- 1
+  i2 <- N_comp_ssd
+  i3 <- 1+N_comp_freq
+  i4 <- N_comp_ssd*N_comp_freq
+  ## beta1 contains the 4 (2 SSDs for 2 freq) trial averaged components for every subject
+  wdBlk_Tmean <- apply(F_SSD_wdBlk[[i]], c(1,2), mean) #trials are 3rd dim (keep first two)
+  beta1[i1:i2, (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1] #wdBlk freq
+  beta1[i3:i4, (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2] #wdblk freq
+  
+  ## beta2 contains the 4 (2 SSDs for 2 freq) trial averages for every subject (repeated N_trials times)
+  beta2[i1:i2, (trial_index[i]+1):trial_index[i+1]] <- rep(wdBlk_Tmean[,1], N_trials_wb[i])
+  beta2[i3:i4, (trial_index[i]+1):trial_index[i+1]] <- rep(wdBlk_Tmean[,2], N_trials_wb[i])
+  
+  ## beta3 contains the musical z_score of each proband repeated N_trials_wb times
+  beta3 <- c(beta3, rep(music_z_score[i], N_trials_wb[i]))
   
   ## ypsilon0 contains a 1 if subject row and column are the same, 0 else
   yps0 <- rep(0, N_subjects)
   yps0[i] <- 1 # 1 at subject column
-  ypsilon0[i,] <- rep(yps0, each=N_trials) #repeat 1 for number of trials ine ach row
+  ypsilon0[i,] <- rep(yps0, N_trials_wb) #repeat 1 for number of trials in each row
   
   ## ypsilon1 contains x_it-mean(x_i) if subject row and column are the same, 0 else
-  ypsilon1[1+(i-1)*N_comp:2+(i-1)*N_comp, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_snare[[i]] - snare_Tmean 
-  ypsilon1[3+(i-1)*N_comp:4+(i-1)*N_comp, 1+(i-1)*N_trials:i*N_trials] <- F_SSD_wdBlk[[i]] - wdBlk_Tmean
+  ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
+  ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
 }
-design_mat <- rbind(design_mat, beta1, beta2, beta3, ypsilon0, ypsilon1)
+design_mat_wdBlk <- rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1)
+dim(design_mat_wdBlk)
+
+##### TODO #####
+#2 OLS fit ohne gamlss (mixed RE anf FE model) wollen p werte für einzelne coef
+#3 trial index/session index ergänzen? bräuchten noch FE und RE (könnte systematischen einfluss haben der unterschiedlich stark in jedem probandinnen)
+#4 gamlss
+#5 gamlss und regression vergleiche, das gleiche nochmal für wbre und wdblk zusammen 
+# (wenn unterschied nicht groß vllt nur regression)
 
 
-#TODO
-#0 pad deleted trials with NaN
-#1 designmatrix erstellen (110x1500 df)
-#2 OLS fit ohne gamlss (mixed RE anf FE model)
-#3 gamlss
-
+##### notes #####
+# snare_deviation contains nan which are not corresponding to Inlier... keep for now, take care with mean!
 # explanatory variables: type_index, subject_ID, music_z_score, addInfo$LQ
 mod<-gamlss(behavior_df$absDev~pb(x),sigma.fo=~pb(x), family=Normal, data=data, method=mixed(1,20))
 
 #R cheatsheet
 # first array slice: a[1, , ]
 # get positions: snare_index <- which(trial_type %in% 0)
-#  TypeError: 'BagObj' object is not subscriptable => falsche indizierung i.e. [[]] insteaf od []
+#  TypeError: 'BagObj' object is not subscriptable => falsche indizierung i.e. [[]] insteaf od [] (or set pickle to true)
+# NaN operations: add na.remove=T
+# Inlier here ralte to listen window (thats why they have to be loaded from prepared_FFTSSD.npz)
