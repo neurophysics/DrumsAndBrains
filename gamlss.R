@@ -1,15 +1,6 @@
 # install.packages('gamlss')
 # install.packages('reticulate')
 
-library(gamlss)
-# example
-data(abdom)
-dim(abdom)
-mod<-gamlss(y~pb(x),sigma.fo=~pb(x),family=BCT, data=abdom, method=mixed(1,20))
-plot(mod)
-summary(mod)
-rm(mod)
-
 # set constants
 result_folder = '/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains/Results'
 data_folder = '/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains/Data'
@@ -37,7 +28,7 @@ for (subject in 1:N_subjects){
   s <- abs(arr[1,1,1,1])+1 #4th dim is coded to give subject/sort number, python indices start with 0
   arr <- drop(arr) #deletes 4th dimension
   arr <- arr[1:2,c(i_sn_freq,i_wb_freq),] #only need first two SSD components and two relevant frequencies
-  F_SSD[[s]] <- arr
+  F_SSD[[s]] <- abs(arr) #eeg is complex
 }
 
 # divide F_SSD into conditions and read behavioral data
@@ -52,12 +43,9 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   else i_subject <- subject-1 
   
   ## get valid EEG trials in listening window (not noisy)
-  inlier_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'prepared_FFTSSD.npz'))
+  inlier_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'eeg_results.npz'))
   snareInlier <- inlier_file$f[['snareInlier']]
   wdBlkInlier <- inlier_file$f[['wdBlkInlier']]
-  N_trials_sn <- c(N_trials_sn, sum(snareInlier))
-  N_trials_wb <- c(N_trials_wb, sum(wdBlkInlier))
-  
   
   ### read and divide F_SSD into snare and woodblock,reject invalid trials
   F_SSD_subj <- F_SSD[[i_subject]]
@@ -101,19 +89,23 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   wdBlk_df <- data.frame(rep(subject, length(wdBlkDev)), wdBlk_session, wdBlkDev)
   names(wdBlk_df) <- c('subject_ID','session','dev')
   
-  ### reject invalid trials 
+  ### reject invalid eeg trials 
   snare_df <- snare_df[snareInlier,]
   wdBlk_df <- wdBlk_df[wdBlkInlier,]
   
   ### reject outlier by taking range median ± 1.5*IQR 
   lb <- median(snare_df$dev, na.rm=T) - 1.5*IQR(snare_df$dev, na.rm=T)
   ub <- median(snare_df$dev, na.rm=T) + 1.5*IQR(snare_df$dev, na.rm=T)
-  ind <- which(snare_df$dev>lb & snare_df$dev<ub)
-  snare_df <- snare_df[ind,]
+  ind_sn <- which(snare_df$dev>lb & snare_df$dev<ub)
+  snare_df <- snare_df[ind_sn,]
+  F_SSD_snare[[i_subject]] <- F_SSD_snare[[i_subject]][,,ind_sn]
+  N_trials_sn <- c(N_trials_sn, length(ind_sn))
   lb <- median(wdBlk_df$dev, na.rm=T) - 1.5*IQR(wdBlk_df$dev, na.rm=T)
   ub <- median(wdBlk_df$dev, na.rm=T) + 1.5*IQR(wdBlk_df$dev, na.rm=T)
-  ind <- which(wdBlk_df$dev>lb & wdBlk_df$dev<ub)
-  wdBlk_df <- wdBlk_df[ind,]
+  ind_wb <- which(wdBlk_df$dev>lb & wdBlk_df$dev<ub)
+  wdBlk_df <- wdBlk_df[ind_wb,]
+  F_SSD_wdBlk[[i_subject]] <- F_SSD_wdBlk[[i_subject]][,,ind_wb]
+  N_trials_wb <- c(N_trials_wb, length(ind_wb))
   
   ### combine to single data frame with index 0 for snare and 1 for wdBlk (type_index)
   type_index <- c(rep(0,length(snare_df[,1])),rep(1,length(wdBlk_df[,2])))
@@ -121,6 +113,11 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   behavior_subj$dev <- behavior_subj$dev - mean(behavior_subj$dev, na.rm=TRUE) # normalize subjects to have 0 mean each
   if (i_subject==1) behavior_df <- behavior_subj
   else behavior_df <- rbind(behavior_df, behavior_subj)
+  
+  # check dimensions
+  #print(length(ind_wb))
+  #print(length(wdBlk_df$subject_ID==i_subject))
+  #print(dim(F_SSD_wdBlk[[i_subject]]))
 }
 
 # read additional subject info (handedness and musical score)
@@ -143,24 +140,29 @@ behavior_wdBlk <- split(behavior_df, behavior_df$type_index)[[2]]
 # hist and qq plot for first 4 subjects
 for (i in 1:4){
   par(mfrow=c(2,2))
-  hist(behavior_snare[behavior_snare[,2]==i,4], breaks=20, main=sprintf('Subject %d, Snare', i), xlab='Deviation from Cue') 
-  hist(behavior_wdBlk[behavior_wdBlk[,2]==i,4], breaks=20, main=sprintf('Subject %d, WdBlk', i), xlab='Deviation from Cue') 
-  qqnorm(behavior_snare[behavior_snare[,2]==i,4], main=sprintf('Subject %d, Snare', i))
-  qqline(behavior_snare[behavior_snare[,2]==i,4])
-  qqnorm(behavior_wdBlk[behavior_wdBlk[,2]==i,4], main=sprintf('Subject %d, WdBlk', i))
-  qqline(behavior_wdBlk[behavior_wdBlk[,2]==i,4])
+  hist(behavior_snare[behavior_snare$subject_ID==i,4], breaks=20, main=sprintf('Subject %d, Snare', i), xlab='Deviation from Cue') 
+  hist(behavior_wdBlk[behavior_wdBlk$subject_ID==i,4], breaks=20, main=sprintf('Subject %d, WdBlk', i), xlab='Deviation from Cue') 
+  qqnorm(behavior_snare[behavior_snare$subject_ID==i,4], main=sprintf('Subject %d, Snare', i))
+  qqline(behavior_snare[behavior_snare$subject_ID==i,4])
+  qqnorm(behavior_wdBlk[behavior_wdBlk$subject_ID==i,4], main=sprintf('Subject %d, WdBlk', i))
+  qqline(behavior_wdBlk[behavior_wdBlk$subject_ID==i,4])
   #mtext(sprintf('Subject %d', i), side = 3, line = -1, outer = TRUE)
 }
 # hist and qq plot for all subjects, save in Results folder
 pdf(file=file.path(result_folder,'gamlss_NormalityDev.pdf'))
 par(mfrow=c(2,2))
-hist(behavior_snare[,4], breaks=20, main='All Subjects Snare', xlab='Deviation from Cue')
-hist(behavior_wdBlk[,4], breaks=20, main='All Subjects WdBlk', xlab='Deviation from Cue')
-qqnorm(behavior_snare[,4], main='All Subjects Snare')
-qqline(behavior_snare[,4])
-qqnorm(behavior_wdBlk[,4], main='All Subjects WdBlk')
-qqline(behavior_wdBlk[,4])
+hist(behavior_snare$dev, breaks=20, main='All Subjects Snare', xlab='Deviation from Cue')
+hist(behavior_wdBlk$dev, breaks=20, main='All Subjects WdBlk', xlab='Deviation from Cue')
+qqnorm(behavior_snare$dev, main='All Subjects Snare')
+qqline(behavior_snare$dev)
+qqnorm(behavior_wdBlk$dev, main='All Subjects WdBlk')
+qqline(behavior_wdBlk$dev)
 dev.off()
+# can be left like this because we have RE on variance
+
+# Kolmogorov-Smirnov Test
+ks.test(behavior_snare$dev, y='pnorm', mean(behavior_snare$dev, na.rm=T), sd(behavior_snare$dev, na.rm=T), alternative = 'two.sided')
+ks.test(behavior_wdBlk$dev, y='pnorm', mean(behavior_wdBlk$dev, na.rm=T), sd(behavior_wdBlk$dev, na.rm=T), alternative = 'two.sided')
 
 ##### create design matrix for snare #####
 intercept <- rep(1,sum(N_trials_sn))
@@ -251,7 +253,8 @@ dim(design_mat_wdBlk)
 ##### notes #####
 # snare_deviation contains nan which are not corresponding to Inlier... keep for now, take care with mean!
 # explanatory variables: type_index, subject_ID, music_z_score, addInfo$LQ
-mod<-gamlss(behavior_df$absDev~pb(x),sigma.fo=~pb(x), family=Normal, data=data, method=mixed(1,20))
+#mod<-gamlss(behavior_df$absDev~pb(x),sigma.fo=~pb(x), family=Normal, data=data, method=mixed(1,20))
+# maybe we should change Inlier to be all_win for better analysis
 
 #R cheatsheet
 # first array slice: a[1, , ]
@@ -259,3 +262,12 @@ mod<-gamlss(behavior_df$absDev~pb(x),sigma.fo=~pb(x), family=Normal, data=data, 
 #  TypeError: 'BagObj' object is not subscriptable => falsche indizierung i.e. [[]] insteaf od [] (or set pickle to true)
 # NaN operations: add na.remove=T
 # Inlier here ralte to listen window (thats why they have to be loaded from prepared_FFTSSD.npz)
+
+library(gamlss)
+# example
+data(abdom)
+dim(abdom)
+mod<-gamlss(y~pb(x),sigma.fo=~pb(x),family=BCT, data=abdom, method=mixed(1,20))
+plot(mod)
+summary(mod)
+rm(mod)
