@@ -99,31 +99,31 @@ wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
 snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
 wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
 
-## get the temporal windows of the listening window
-listen_win = [0, int(3*bar_duration*s_rate)]
+## get the temporal window
+all_win = [0, int(4*bar_duration*s_rate)]
 
 ## reject trials that contain rejected data segments
 snareInlier = np.all(meet.epochEEG(artifact_mask, snareListenMarker,
-    listen_win), 0)
+    all_win), 0)
 wdBlkInlier = np.all(meet.epochEEG(artifact_mask, wdBlkListenMarker,
-    listen_win), 0)
+    all_win), 0)
 
 ## get the frequencies of the snaredrum (duple) and woodblock (triple) beats
 snareFreq = 2./bar_duration
 wdBlkFreq = 3./bar_duration
 
 ## get a time index for the 3 listening bars and the silence bar
-t_listen = np.arange(listen_win[0], listen_win[1], 1)/float(s_rate)
+#t_listen = np.arange(listen_win[0], listen_win[1], 1)/float(s_rate) #unneaded?
 
 ## rereference to the average EEG amplitude
 EEG -= EEG.mean(0)
 
 ## calculate the epoched data for the listen period
 ### mix both for they should have the same source
-listen_trials = meet.epochEEG(EEG,
+all_trials = meet.epochEEG(EEG,
         np.r_[snareListenMarker[snareInlier],
             wdBlkListenMarker[wdBlkInlier]],
-        listen_win)
+        all_win)
 
 
 # DFFT
@@ -132,7 +132,7 @@ nperseg = 12*s_rate
 f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
 ## calculate the fourier transform of all listen trials
-F = np.fft.rfft(listen_trials, n=nperseg, axis=1)
+F = np.fft.rfft(all_trials, n=nperseg, axis=1)
 
 ## apply a filter in the Fourier domain to extract only the frequencies
 ## of interest, i.e. 1-2 Hz (contrast) and snare + wdBlkFreq (target)
@@ -170,6 +170,4 @@ np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
         target_cov = target_cov,
         contrast_cov = contrast_cov,
         F = F,
-        f = f,
-        snareInlier = snareInlier,
-        wdBlkInlier = wdBlkInlier)
+        f = f)
