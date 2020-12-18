@@ -2,7 +2,7 @@
 The DrumsAndBrain experiment aims at revealing the relation between neuronal oscillations and polyrhythmic listening experience and performance.
 
 ## Description of the experiment.
-Sujects were listening to a drum beat (snare and woodblock) playing a duple (two notes per bar - snare drum) vs. a triple (3 beats per bar - woodblock) rhythm. This polyrhythm was played for three bars to the subjects followed by a bar of silence. An auditory cue beat (snare or woodblock) at the start of the subsequent bar indicated whether the subjects should tap the last note of that bar of either the duple or triple rhythm on an electronic drumpad.
+Subjects were listening to a drum beat (snare and woodblock) playing a duple (two notes per bar - snare drum) vs. a triple (3 beats per bar - woodblock) rhythm. This polyrhythm was played for three bars to the subjects followed by a bar of silence. An auditory cue beat (snare or woodblock) at the start of the subsequent bar indicated whether the subjects should tap the last note of that bar of either the duple or triple rhythm on an electronic drumpad.
 This paradigm forces the subjects to concentrate on both rhythms and keep the rhythms active internally during the break bar - since only after the break bar the cue indicates which rhythm should be performed.
 75 trials of every condition (duple/triple) were recorded (=150 trials in total) in every subject in (pseudo)-randomized order. Recordings were split into 6 sessions with breaks of self-determined duration. After every session subjects were asked to rate their performance and vigilance. Recordings took in total about 45 min per subject.
 The tempo of the rhythm had been 150 QPM (quarter notes per minute), i.e. a complete bar took around 1.71 s.
@@ -46,7 +46,7 @@ e.g., the line
 looks for subject `S01` in folder `~/Data` and will put the results into folder `./Results`
 
 ### Outlier Rejection Process
-1. A window with the EEG data will open. Change gain with +/- and scroll with 'Home'/'End', LeftArrow, RightArrow, PgUp, PgDown Keys. Select artifactual segments by drawing a rectangle (only temporal information will be recorded, the selected channels are irrelavant) and save by pressing 'r'. After you think all relevant artifact segments were selected, close the window. The plotted EEG data had been downsampled to 250 Hz, high-pass filtered above 2 Hz for subsequent ICA, and re-referenced to the average potential.
+1. A window with the EEG data will open. Change gain with +/- and scroll with 'Home'/'End', LeftArrow, RightArrow, PgUp, PgDown Keys. Select artifactual segments by drawing a rectangle (only temporal information will be recorded, the selected channels are irrelevant) and save by pressing 'r'. After you think all relevant artifact segments were selected, close the window. The plotted EEG data had been downsampled to 250 Hz, high-pass filtered above 2 Hz for subsequent ICA, and re-referenced to the average potential.
 2. Repeat the process in a new window to be sure you selected everything important.
 3. (optional) "Bad" channels can be rejected (and interpolated by a spherical spline algorithm) by creating a file `interpolate_channels.txt` in the data folder of that subject and containing the channel names to be rejected (uppercase letters), one per line.
 4. ICA (FastICA after a whitening step using PCA) will be performed and the independent components, their scalp projections and powers will be plotted. The variance of the independent components will reflect the contribution to the surface EEG. Create a file `reject_ICs.txt` in the data folder of the subject containing the names of the components to be rejected ('IC00', 'IC01' etc - one per line).
@@ -61,17 +61,15 @@ Additionally some plots are saved in the Results folder of that subject.
 
 We are using spatial filters to obtain the best signal-to-noise ratio available.
 
-Two different types of spatial filters are to be used:
 
-1. Spatio-spectral decomposition (SSD): Filters are trained from the
-listening period to maximize the power of oscillations at the frequencies
+Spatio-spectral decomposition (SSD): Filters are trained from the
+listening and silence period to maximize the power of oscillations at the frequencies
 of the polyrhythm the subjects were listening to.
 Algorithmically, this works by
 (1) isolating snare and woodblock frequency from the FFT and applying the inverse transform, then calculation of covariance matrices for every trial = 'target',
 (2) isolating range of 1-2 Hz, applying inverse transform and calculation of covariance matrices for every single trial 'contrast' (1+2 is done in `prepareFFTSSD.py`) and
 (3) calculating the SSD of stimulation frequencies vs. the neighboring frequencies (in `calcFFTSSD.py`).
 
-2. GAMLSS
 
 ### Analysis *across subjects*
 Here, we chose an approach to train the spatial filters across subjects,
@@ -109,13 +107,20 @@ Finally, the FFT with and without applied SSD is normalized and averaged and plo
 
 `calcFFTSSD.py` stores its results in  the file `FFTSSD.npz` containing the
 fields:
-1. `SSD_eigvals`: the found eigenvalues corresponding to the SSD filters
+1. `F_SSD`: the FFT with applied SSD
+2. `SSD_eigvals`: the found eigenvalues corresponding to the SSD filters
 3. `SSD_filters`: the found SSD filters
 4. `SSD_patterns`: the spatial patterns corresponding to these filters
 
+## GAMLSS
+Best two SSD Filters applied to EEG, additional subject information and behavioral data is read and divided into snare and wdBlk trials. Behavioral data is normalized by rejecting data outside median ± 1.5 IQR, resulting histograms and qqplots over all subjects are stored in the result folder under `gamlss_NormalityDev.pdf`.
+OLS is performed for snare and wdBlk individually.
+explained variable: Behavioral data (deviation)
+explanatory variables: (intercept,) SSD filtered EEG, musical score, random effect (RE) within and between subjects
+...
 
 
-# old
+# old (ok if delete?)
 To obtain filters that *simultaneously* maximize the SNR for all chosen
 frequencies, the *generalized mean* across those frequencies is calculated
 (with p=-100, it maximizes the minimal SNR of those frequencies).
