@@ -201,7 +201,8 @@ for (i in 1:N_subjects) {
   ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2]
 }
 design_mat_snare <- rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1)
-
+snare_data <- data.frame(t(rbind(behavior_snare$dev, beta1, beta2, beta3, ypsilon0, ypsilon1))) #dont need intercept for its added automatically
+dim(design_mat_snare)
 
 ##### create design matrix for wdBlk #####
 intercept <- rep(1,sum(N_trials_wb))
@@ -239,11 +240,33 @@ for (i in 1:N_subjects) {
   ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
   ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
 }
-design_mat_wdBlk <- rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1)
+design_mat_wdBlk <- data.frame(t(rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1)))
+wdBlk_data <- data.frame(t(rbind(behavior_wdBlk$dev, beta1, beta2, beta3, ypsilon0, ypsilon1))) #dont need intercept for its added automatically
 dim(design_mat_wdBlk)
 
+
+##### OLS ######
+formula_snare <- as.formula(snare_data)
+ols_snare <- lm(formula_snare, data = snare_data)
+summary(ols_snare) #NA??? sum(is.na.data.frame(snare_data))=0, 
+# intercept, beta2, some v0 and one v1 significant
+# beta1 and beta3 not significant
+# NA for S15-20 in v0 S2 and S20 in v1 (14 not defined because of singularities)
+# alias(ols_snare) shows dependencies
+p <- predict(ols_snare)
+cor(p,snare_data$V1) #0.45
+
+formula_wdBlk <- as.formula(wdBlk_data)
+ols_wdBlk <- lm(formula_wdBlk, data = wdBlk_data, na.action=na.exclude)
+summary(ols_wdBlk)
+# Intercept, beta2, beta3, v0 (except NA and S10) significant
+# beta1 and v1 not significant
+# NA for S15-20 in v0, S2 and S20 in v1
+p <- predict(ols_wdBlk)
+cor(p,wdBlk_data$V1) #0.38
+
+
 ##### TODO #####
-#2 OLS fit ohne gamlss (mixed RE anf FE model) wollen p werte für einzelne coef
 #3 trial index/session index ergänzen? bräuchten noch FE und RE (könnte systematischen einfluss haben der unterschiedlich stark in jedem probandinnen)
 #4 gamlss
 #5 gamlss und regression vergleiche, das gleiche nochmal für wbre und wdblk zusammen 
@@ -254,14 +277,12 @@ dim(design_mat_wdBlk)
 # snare_deviation contains nan which are not corresponding to Inlier... keep for now, take care with mean!
 # explanatory variables: type_index, subject_ID, music_z_score, addInfo$LQ
 #mod<-gamlss(behavior_df$absDev~pb(x),sigma.fo=~pb(x), family=Normal, data=data, method=mixed(1,20))
-# maybe we should change Inlier to be all_win for better analysis
 
 #R cheatsheet
 # first array slice: a[1, , ]
 # get positions: snare_index <- which(trial_type %in% 0)
 #  TypeError: 'BagObj' object is not subscriptable => falsche indizierung i.e. [[]] insteaf od [] (or set pickle to true)
 # NaN operations: add na.remove=T
-# Inlier here ralte to listen window (thats why they have to be loaded from prepared_FFTSSD.npz)
 
 library(gamlss)
 # example
