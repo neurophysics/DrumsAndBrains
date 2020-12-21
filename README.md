@@ -59,8 +59,10 @@ Additionally some plots are saved in the Results folder of that subject.
 
 ## Calculation of Spatial filters
 
-We are using spatial filters to obtain the best signal-to-noise ratio available.
-
+We are using spatial filters to obtain the best signal-to-noise ratio available. We chose an approach to train the spatial filters across subjects,
+which (1) increases the amount of data and hereby decreases the risk of
+overfitting and (2) should lead to a generalized result - approximately
+valid for an 'average' subject.
 
 Spatio-spectral decomposition (SSD): Filters are trained from the
 listening and silence period to maximize the power of oscillations at the frequencies
@@ -71,13 +73,8 @@ Algorithmically, this works by
 (3) calculating the SSD of stimulation frequencies vs. the neighboring frequencies (in `calcFFTSSD.py`).
 
 
-### Analysis *across subjects*
-Here, we chose an approach to train the spatial filters across subjects,
-which (1) increases the amount of data and hereby decreases the risk of
-overfitting and (2) should lead to a generalized result - approximately
-valid for an 'average' subject.
-
 ### Prepare SSD calculation
+
 The script `prepareFFTSSD.py` needs to be run for every subject.
 It requires 3 arguments:
 
@@ -88,7 +85,7 @@ It requires 3 arguments:
 In the `result_folder` of that subject, a file `prepared_FFTSSD.npz`
 will be stored containing as fields:
 
-1. `target_cov`: the covariance matrix for the target frequencies (7/6 and 7/4) of all single trials of that subject in the listening period (the first 3 bars)
+1. `target_cov`: the covariance matrix (cross spectral density, csd) for the target frequencies (7/6 and 7/4) of all single trials of that subject in the listening period (the first 3 bars)
 2. `contrast_cov`: as `target_cov` but for the contrast frequencies, i.e. a 1-2 Hz window but without the target frequencies
 3. `F`: the Fast Fourier Transform (FFT) of all listen trials (padded to 12 sec)
 4. `f`: an array of frequencies (in Hz) use in the FFT
@@ -112,19 +109,6 @@ fields:
 3. `SSD_filters`: the found SSD filters
 4. `SSD_patterns`: the spatial patterns corresponding to these filters
 
-## GAMLSS
-Best two SSD Filters applied to EEG, additional subject information and behavioral data is read and divided into snare and wdBlk trials. Behavioral data is normalized by rejecting data outside median ± 1.5 IQR, resulting histograms and qqplots over all subjects are stored in the result folder under `gamlss_NormalityDev.pdf`.
-OLS is performed for snare and wdBlk individually.
-explained variable: Behavioral data (deviation)
-explanatory variables: (intercept,) SSD filtered EEG, musical score, random effect (RE) within and between subjects
-...
-
-
-# old (ok if delete?)
-To obtain filters that *simultaneously* maximize the SNR for all chosen
-frequencies, the *generalized mean* across those frequencies is calculated
-(with p=-100, it maximizes the minimal SNR of those frequencies).
-The calculation is done in the module `gmeanSSD.py`.
 
 ### Correlation of SSD result with musical experience
 Run the script `SSDMusicCorr.py` with `data_folder` and `result_folder` as
@@ -133,20 +117,10 @@ Significance testing is done as one-tailed permutation testing of the
 correlation with `N=1000` permutations.
 Result is plotted as `SNNR_exp.pdf` and `png`.
 
-###Preparing for sPoC (source Power Correlation)
-Run the script prepareFFTcSPoC.py for every subject
 
-It requires 3 arguments:
-1. `data_folder`
-2. subject number
-3. `result_folder` (used to store the results)
-
-The script calculates the *single-trial* cross-spectral density (csd) for every
-subject in trials with snare (=duple) and woodblock (=triple) cues using a
-multitaper spectral estimation technique.
-Only the csd <= 10 Hz is kept.
-
-The results - including the behavioural data is stored in the Results folder of
-every subject as `prepared_FFTcSPoC.npz`
-
-The defined fields of that file are:
+## GAMLSS
+Best two SSD Filters applied to EEG, additional subject information and behavioral data is read and divided into snare and wdBlk trials. Behavioral data is normalized by rejecting data outside median ± 1.5 IQR, resulting histograms and qqplots over all subjects are stored in the result folder under `gamlss_NormalityDev.pdf`.
+OLS is performed for snare and wdBlk individually.
+explained variable: Behavioral data (deviation)
+explanatory variables: (intercept,) SSD filtered EEG, musical score, random effect (RE) within and between subjects
+...
