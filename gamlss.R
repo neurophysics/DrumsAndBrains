@@ -1,5 +1,6 @@
 # install.packages('gamlss')
 # install.packages('reticulate')
+# install.packages('abind)
 
 # set constants
 result_folder = '/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains/Results'
@@ -15,13 +16,14 @@ library(reticulate)
 np <- import("numpy")
 
 # read F_SSD, the SSD for each subject and sort by subject
-## load file and initialize F_SSD list
-F_SSD_file <- np$load(file.path(result_folder, 'F_SSD.npz')) 
-F_SSD <- vector("list", length(N_subjects))
 ## get freq bins und snare/wdBlk freq indices (same for all subjects)
 f <- np$load(file.path(result_folder, 'S01', 'prepared_FFTSSD.npz')) [['f']] 
 i_sn_freq <- which(abs(f-7/6)<0.000001)
 i_wb_freq <- which(abs(f-7/4)<0.000001)
+## load file and initialize F_SSD list
+F_SSD_file <- np$load(file.path(result_folder, 'F_SSD.npz')) 
+F_SSD <- vector("list", length(N_subjects))
+N_trials <- c()
 ## loop over subjects, sort and store needed F_SSD parts in list
 for (subject in 1:N_subjects){
   arr <- F_SSD_file$f[[sprintf('arr_%d', subject-1)]]
@@ -29,13 +31,24 @@ for (subject in 1:N_subjects){
   arr <- drop(arr) #deletes 4th dimension
   arr <- arr[1:2,c(i_sn_freq,i_wb_freq),] #only need first two SSD components and two relevant frequencies
   F_SSD[[s]] <- abs(arr) #eeg is complex
+  #print(sum(is.nan(F_SSD[[s]])))
+  #print(is.numeric(F_SSD[[s]]))
+  N_trials <- c(N_trials, dim(arr)[3])
 }
+# calculate mean and sd over all subjects
+## concatenate to one big array
+library(abind)
+F_SSD_concat <- abind(F_SSD, along = 3)
+#F_SSD_concat <- array(F_SSD, dim=c(2,2,sum(N_trials)))
+F_SSD_mean <- apply(F_SSD_concat, c(1,2), mean)
+F_SSD_sd <- apply(F_SSD_concat, c(1,2), mean)
 
 # divide F_SSD into conditions and read behavioral data
 F_SSD_snare <- vector("list", length(N_subjects))
 F_SSD_wdBlk <- vector("list", length(N_subjects))
 N_trials_wb <- c() #stores number of valid wdBlk trials for each subject
 N_trials_sn <- c() #stores number of valid snare trials for each subject
+trial_id <- c(1:75)
 for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   ## get right subject index (no eeg data für subject 11) => use i_subject to assess new data structure but subject to load data
   if (subject==11) next 
@@ -46,9 +59,9 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   inlier_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'eeg_results.npz'))
   snareInlier <- inlier_file$f[['snareInlier']]
   wdBlkInlier <- inlier_file$f[['wdBlkInlier']]
-  
-  ### read and divide F_SSD into snare and woodblock,reject invalid trials
-  F_SSD_subj <- F_SSD[[i_subject]]
+
+  ### read, calculate z-score and divide F_SSD into snare and woodblock,reject invalid trials
+  F_SSD_subj <- sweep(sweep(F_SSD[[i_subject]], MARGIN=c(1,2), F_SSD_mean, FUN="-"), MARGIN=c(1,2), F_SSD_sd, FUN="/")
   behavior_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'behavioural_results.npz'),
                            allow_pickle = T, encoding='latin1') 
   snareCue_times <- behavior_file$f[['snareCue_times']]
@@ -66,9 +79,9 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   
   ## read behavioral data
   snareDev <- behavior_file$f[["snare_deviation"]] #deviation
-  snareDev <- snareDev[snareInlier]
+  #snareDev <- snareDev[snareInlier]
   wdBlkDev <- behavior_file$f[["wdBlk_deviation"]]
-  wdBlkDev <- wdBlkDev[wdBlkInlier]
+  #wdBlkDev <- wdBlkDev[wdBlkInlier]
   wdBlkDevToClock <- behavior_file$f[["wdBlkCue_DevToClock"]] #to get sessions
   snareDevToClock <- behavior_file$f[["snareCue_DevToClock"]]
 
@@ -80,14 +93,12 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
     snare_session <- c(snare_session, rep(i,length(snareDevToClock[[i]])))
     wdBlk_session <- c(wdBlk_session, rep(i,length(wdBlkDevToClock[[i]])))
   }
-  snare_session <- snare_session[snareInlier]
-  wdBlk_session <- wdBlk_session[wdBlkInlier]
   
   ### combine each to data frame
-  snare_df <- data.frame(rep(subject, length(snareDev)), snare_session, snareDev)
-  names(snare_df) <- c('subject_ID','session','dev')
-  wdBlk_df <- data.frame(rep(subject, length(wdBlkDev)), wdBlk_session, wdBlkDev)
-  names(wdBlk_df) <- c('subject_ID','session','dev')
+  snare_df <- data.frame(rep(subject, length(snareDev)), snare_session, trial_id, snareDev)
+  names(snare_df) <- c('subject_ID','session','trial', 'dev')
+  wdBlk_df <- data.frame(rep(subject, length(wdBlkDev)), wdBlk_session, trial_id, wdBlkDev)
+  names(wdBlk_df) <- c('subject_ID','session','trial', 'dev')
   
   ### reject invalid eeg trials 
   snare_df <- snare_df[snareInlier,]
@@ -100,6 +111,7 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   snare_df <- snare_df[ind_sn,]
   F_SSD_snare[[i_subject]] <- F_SSD_snare[[i_subject]][,,ind_sn]
   N_trials_sn <- c(N_trials_sn, length(ind_sn))
+  
   lb <- median(wdBlk_df$dev, na.rm=T) - 1.5*IQR(wdBlk_df$dev, na.rm=T)
   ub <- median(wdBlk_df$dev, na.rm=T) + 1.5*IQR(wdBlk_df$dev, na.rm=T)
   ind_wb <- which(wdBlk_df$dev>lb & wdBlk_df$dev<ub)
@@ -120,6 +132,10 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   #print(dim(F_SSD_wdBlk[[i_subject]]))
 }
 
+# split into conditions
+behavior_df_snare <- split(behavior_df, behavior_df$type_index)[[1]]
+behavior_df_wdBlk <- split(behavior_df, behavior_df$type_index)[[2]]
+
 # read additional subject info (handedness and musical score)
 addInfo <- read.csv(file.path(data_folder,'additionalSubjectInfo.csv'), sep=';')
 music_total_score <- addInfo$MusicQualification + addInfo$MusicianshipLevel + addInfo$TrainingYears
@@ -133,36 +149,34 @@ rm('F_SSD_file','eeg_file','snareInlier','wdBlkInlier','F_SSD_subj','file','snar
 
 ##### check normality of response variable #####
 
-# split into conditions
-behavior_snare <- split(behavior_df, behavior_df$type_index)[[1]]
-behavior_wdBlk <- split(behavior_df, behavior_df$type_index)[[2]]
-
 # hist and qq plot for first 4 subjects
 for (i in 1:4){
   par(mfrow=c(2,2))
-  hist(behavior_snare[behavior_snare$subject_ID==i,4], breaks=20, main=sprintf('Subject %d, Snare', i), xlab='Deviation from Cue') 
-  hist(behavior_wdBlk[behavior_wdBlk$subject_ID==i,4], breaks=20, main=sprintf('Subject %d, WdBlk', i), xlab='Deviation from Cue') 
-  qqnorm(behavior_snare[behavior_snare$subject_ID==i,4], main=sprintf('Subject %d, Snare', i))
-  qqline(behavior_snare[behavior_snare$subject_ID==i,4])
-  qqnorm(behavior_wdBlk[behavior_wdBlk$subject_ID==i,4], main=sprintf('Subject %d, WdBlk', i))
-  qqline(behavior_wdBlk[behavior_wdBlk$subject_ID==i,4])
+  hist(behavior_df_snare[behavior_df_snare$subject_ID==i,4], breaks=20, main=sprintf('Subject %d, Snare', i), xlab='Deviation from Cue') 
+  hist(behavior_df_wdBlk[behavior_df_wdBlk$subject_ID==i,4], breaks=20, main=sprintf('Subject %d, WdBlk', i), xlab='Deviation from Cue') 
+  qqnorm(behavior_df_snare[behavior_df_snare$subject_ID==i,4], main=sprintf('Subject %d, Snare', i))
+  qqline(behavior_df_snare[behavior_df_snare$subject_ID==i,4])
+  qqnorm(behavior_df_wdBlk[behavior_df_wdBlk$subject_ID==i,4], main=sprintf('Subject %d, WdBlk', i))
+  qqline(behavior_df_wdBlk[behavior_df_wdBlk$subject_ID==i,4])
   #mtext(sprintf('Subject %d', i), side = 3, line = -1, outer = TRUE)
 }
 # hist and qq plot for all subjects, save in Results folder
 pdf(file=file.path(result_folder,'gamlss_NormalityDev.pdf'))
 par(mfrow=c(2,2))
-hist(behavior_snare$dev, breaks=20, main='All Subjects Snare', xlab='Deviation from Cue')
-hist(behavior_wdBlk$dev, breaks=20, main='All Subjects WdBlk', xlab='Deviation from Cue')
-qqnorm(behavior_snare$dev, main='All Subjects Snare')
-qqline(behavior_snare$dev)
-qqnorm(behavior_wdBlk$dev, main='All Subjects WdBlk')
-qqline(behavior_wdBlk$dev)
+hist(behavior_df_snare$dev, breaks=20, main='All Subjects Snare', xlab='Deviation from Cue')
+hist(behavior_df_wdBlk$dev, breaks=20, main='All Subjects WdBlk', xlab='Deviation from Cue')
+qqnorm(behavior_df_snare$dev, main='All Subjects Snare')
+qqline(behavior_df_snare$dev)
+qqnorm(behavior_df_wdBlk$dev, main='All Subjects WdBlk')
+qqline(behavior_df_wdBlk$dev)
 dev.off()
 # can be left like this because we have RE on variance
 
 # Kolmogorov-Smirnov Test
-ks.test(behavior_snare$dev, y='pnorm', mean(behavior_snare$dev, na.rm=T), sd(behavior_snare$dev, na.rm=T), alternative = 'two.sided')
-ks.test(behavior_wdBlk$dev, y='pnorm', mean(behavior_wdBlk$dev, na.rm=T), sd(behavior_wdBlk$dev, na.rm=T), alternative = 'two.sided')
+data <- behavior_df_snare[behavior_df_snare$subject_ID==1,4]
+ks.test(data, y='pnorm', mean(data, na.rm=T), sd(data, na.rm=T), alternative = 'two.sided')
+ks.test(behavior_df_wdBlk$dev, y='pnorm', mean(behavior_df_wdBlk$dev, na.rm=T), sd(behavior_df_wdBlk$dev, na.rm=T), alternative = 'two.sided')
+## single subjects seem to be normally dist, but not all together
 
 ##### create design matrix for snare #####
 intercept <- rep(1,sum(N_trials_sn))
@@ -200,8 +214,8 @@ for (i in 1:N_subjects) {
   ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,1,] - snare_Tmean[,1]
   ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2]
 }
-design_mat_snare <- rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1)
-snare_data <- data.frame(t(rbind(behavior_snare$dev, beta1, beta2, beta3, ypsilon0, ypsilon1))) #dont need intercept for its added automatically
+design_mat_snare <- rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_snare$session, behavior_df_snare$trial)
+snare_data <- data.frame(t(rbind(behavior_df_snare$dev, beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_snare$session, behavior_df_snare$trial))) #dont need intercept for its added automatically
 dim(design_mat_snare)
 
 ##### create design matrix for wdBlk #####
@@ -240,26 +254,30 @@ for (i in 1:N_subjects) {
   ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
   ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
 }
-design_mat_wdBlk <- data.frame(t(rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1)))
-wdBlk_data <- data.frame(t(rbind(behavior_wdBlk$dev, beta1, beta2, beta3, ypsilon0, ypsilon1))) #dont need intercept for its added automatically
+design_mat_wdBlk <- rbind(intercept, beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_wdBlk$session, behavior_df_wdBlk$trial)
+wdBlk_data <- data.frame(t(rbind(behavior_df_wdBlk$dev, beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_wdBlk$session, behavior_df_wdBlk$trial))) #dont need intercept for its added automatically
 dim(design_mat_wdBlk)
 
 
 ##### OLS ######
 formula_snare <- as.formula(snare_data)
 ols_snare <- lm(formula_snare, data = snare_data)
-summary(ols_snare) #NA??? sum(is.na.data.frame(snare_data))=0, 
-# intercept, beta2, some v0 and one v1 significant
+summary(ols_snare) #NA? sum(is.na.data.frame(snare_data))=0, 
+# intercept, beta2, session and trial index some v0 and one v1 significant
 # beta1 and beta3 not significant
 # NA for S15-20 in v0 S2 and S20 in v1 (14 not defined because of singularities)
 # alias(ols_snare) shows dependencies
+# intercept: subjects are 0.02 s too early
+
+# wenn abs(dev): negative komponente heißt besser (zweite ssd bei snare größer => reduziert abweichung)
+# also, around 40% of variance explained
 p <- predict(ols_snare)
-cor(p,snare_data$V1) #0.45
+cor(p,snare_data$V1) #0.46
 
 formula_wdBlk <- as.formula(wdBlk_data)
 ols_wdBlk <- lm(formula_wdBlk, data = wdBlk_data, na.action=na.exclude)
 summary(ols_wdBlk)
-# Intercept, beta2, beta3, v0 (except NA and S10) significant
+# Intercept, beta2, beta3, v0 (except NA and S10), session and trial index significant
 # beta1 and v1 not significant
 # NA for S15-20 in v0, S2 and S20 in v1
 p <- predict(ols_wdBlk)
@@ -268,7 +286,7 @@ cor(p,wdBlk_data$V1) #0.38
 
 ##### TODO #####
 #3 trial index/session index ergänzen? bräuchten noch FE und RE (könnte systematischen einfluss haben der unterschiedlich stark in jedem probandinnen)
-#4 gamlss
+#4 gamlss (wollen mean und variance fitten von dev)
 #5 gamlss und regression vergleiche, das gleiche nochmal für wbre und wdblk zusammen 
 # (wenn unterschied nicht groß vllt nur regression)
 
