@@ -294,7 +294,6 @@ cor(p,wdBlk_data$V1) #0.38
 ##### notes #####
 # snare_deviation contains nan which are not corresponding to Inlier... keep for now, take care with mean!
 # explanatory variables: type_index, subject_ID, music_z_score, addInfo$LQ
-#mod<-gamlss(behavior_df$absDev~pb(x),sigma.fo=~pb(x), family=Normal, data=data, method=mixed(1,20))
 
 #R cheatsheet
 # first array slice: a[1, , ]
@@ -302,6 +301,7 @@ cor(p,wdBlk_data$V1) #0.38
 #  TypeError: 'BagObj' object is not subscriptable => falsche indizierung i.e. [[]] insteaf od [] (or set pickle to true)
 # NaN operations: add na.remove=T
 
+##### GAMLSS #####
 library(gamlss)
 # example
 data(abdom)
@@ -310,3 +310,21 @@ mod<-gamlss(y~pb(x),sigma.fo=~pb(x),family=BCT, data=abdom, method=mixed(1,20))
 plot(mod)
 summary(mod)
 rm(mod)
+
+# snare
+y = behavior_df_snare$dev
+mu = mean(y, na.rm = T)
+sigma = sd(y, na.rm = T)
+family_obj = dNO(x=y, mu=mu, sigma=sigma)
+mod_snare<-gamlss(formula_snare, sigma.fo=formula_snare, family=NO, data=snare_data, method=mixed(1,20))
+# family: d, p, q and r functions for density (pdf), distribution function (cdf), quantile function and random generation function
+# todo: change family to family_obj (error: invalid object argument), NO length 26, family_obj 1259
+# what are the link functions?
+plot(mod_snare)
+summary(mod_snare)
+
+# wdBlk
+y = behavior_df_wdBlk$dev
+mod_wdBlk<-gamlss(formula_wdBlk, sigma.fo=formula_wdBlk, family=NO, data=wdBlk_data, method=mixed(1,100))
+plot(mod_wdBlk)
+summary(mod_wdBlk)
