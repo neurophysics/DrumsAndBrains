@@ -43,7 +43,6 @@ for (subject in 1:N_subjects){
 }
 # calculate mean and sd over all subjects
 ## concatenate to one big array
-library(abind)
 F_SSD_concat <- abind(F_SSD, along = 3)
 #F_SSD_concat <- array(F_SSD, dim=c(2,2,sum(N_trials)))
 F_SSD_mean <- apply(F_SSD_concat, c(1,2), mean)
@@ -192,7 +191,7 @@ beta1 <- matrix(nrow=N_comp_ssd*N_comp_freq, ncol=sum(N_trials_sn))
 beta2 <- matrix(nrow=N_comp_ssd*N_comp_freq, ncol=sum(N_trials_sn))
 beta3 <- c()
 ypsilon0 <- matrix(nrow=N_subjects, ncol=sum(N_trials_sn))
-ypsilon1 <- matrix(0L, nrow=N_subjects*N_comp_ssd*N_comp_freq, ncol=sum(N_trials_sn))
+ypsilon1 <- matrix(0L,nrow=N_subjects*N_comp_ssd*N_comp_freq, ncol=sum(N_trials_sn)) #init with 0s
 trial_index <- c(0,cumsum(N_trials_sn))
 for (i in 1:N_subjects) {
   ## calculate needed indices
@@ -221,6 +220,11 @@ for (i in 1:N_subjects) {
   ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,1,] - snare_Tmean[,1]
   ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2]
 }
+# weirdly, this has to be repeated for i <- 2 and ypsilon1:
+i <- 2
+ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,1,] - snare_Tmean[,1]
+ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2]
+
 colnames_dm <- c(paste0(rep('beta', 4), seq(1.1,1.4,length=4)), 
                  paste0(rep('beta', 4), seq(2.1,2.4,length=4)), 'beta3', 
                  paste0(rep('v',20), seq(0.01, 0.20, length=20)), 
@@ -228,8 +232,7 @@ colnames_dm <- c(paste0(rep('beta', 4), seq(1.1,1.4,length=4)),
 design_mat_snare <- rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_snare$session, behavior_df_snare$trial)
 rownames(design_mat_snare) <- colnames_dm
 dim(design_mat_snare)
-snare_data <- data.frame(t(rbind(behavior_df_snare$dev, design_mat_snare))) #dont need intercept for its added automatically
-colnames(snare_data) <- c('dev',colnames_dm)
+
 
 ##### create design matrix for wdBlk #####
 #intercept <- rep(1,sum(N_trials_wb))
@@ -266,19 +269,22 @@ for (i in 1:N_subjects) {
   ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
   ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
 }
+# weirdly, this has to be repeated for i <- 2 and ypsilon1:
+i <- 2
+ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
+ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
+
 design_mat_wdBlk <- rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_wdBlk$session, behavior_df_wdBlk$trial)
 rownames(design_mat_wdBlk) <- colnames_dm #see snare for colnames_dm
-wdBlk_data <- data.frame(t(rbind(behavior_df_wdBlk$dev, design_mat_wdBlk))) #dont need intercept for its added automatically
-colnames(wdBlk_data) <- c('dev',colnames_dm)
 dim(design_mat_wdBlk)
 
 
 ##### OLS ######
 # scale is in sec
-formula_snare <- as.formula(snare_data)
-snare_data$dev <- abs(snare_data$dev) #use abs deviation here
-formula_snare_abs <- as.formula(snare_data)
-ols_snare <- lm(formula_snare_abs, data = snare_data)
+snare_data <- data.frame(t(rbind(behavior_df_snare$dev, design_mat_snare))) #dont need intercept for its added automatically
+colnames(snare_data) <- c('dev',colnames_dm)
+snare_data_abs <- cbind('dev'=abs(snare_data$dev), snare_data[-1]) #use abs deviation here
+ols_snare <- lm(as.formula(snare_data), data = snare_data_abs) #note that as.formula(snare_data)==as.formula(snare_data_abs) bc we only care about the names
 summary(ols_snare) #NA? sum(is.na.data.frame(snare_data))=0, 
 # intercept, beta2, beta3, session and trial index some v0 and one v1 significant
 # beta1  not significant
@@ -290,10 +296,10 @@ summary(ols_snare) #NA? sum(is.na.data.frame(snare_data))=0,
 # strongest component: V8 (SSD1 WdBlk freq)
 # wenn abs(dev): negative komponente heißt besser (zweite ssd bei snare größer => reduziert abweichung)
 
-formula_wdBlk <- as.formula(wdBlk_data)
-wdBlk_data$dev <- abs(wdBlk_data$dev) #use abs deviation here
-formula_wdBlk_abs <- as.formula(wdBlk_data)
-ols_wdBlk <- lm(formula_wdBlk_abs, data = wdBlk_data, na.action=na.exclude)
+wdBlk_data <- data.frame(t(rbind(behavior_df_wdBlk$dev, design_mat_wdBlk))) #dont need intercept for its added automatically
+colnames(wdBlk_data) <- c('dev',colnames_dm)
+wdBlk_data_abs <- cbind('dev'=abs(wdBlk_data$dev), wdBlk_data[-1]) #use abs deviation here
+ols_wdBlk <- lm(as.formula(wdBlk_data), data = wdBlk_data_abs, na.action=na.exclude)
 summary(ols_wdBlk)
 # Intercept, beta2, beta3 (musician perform better), v0 (except NA and S10), session and trial index significant
 # beta1 (cannot singel-trial predict) and v1 not significant
@@ -304,20 +310,20 @@ summary(ols_wdBlk)
 
 ##### regularized OLS (elastic net) ######
 # we have many correlated parameters => OLS has large variance
-# repeat with elastic net (0.5 for l1 (ridge, tries to make coef 0 => chooses needed coef) and l2 (coef not too large)) => regularize 
+# repeat with elastic net (alpha=0.5 for l1 (ridge, tries to make coef 0 => chooses needed coef) and l2 (coef not too large)) => regularize 
 # do CV 5-fold to get best lambda 
 # see https://www.datacamp.com/community/tutorials/tutorial-ridge-lasso-elastic-net?utm_source=adwords_ppc&utm_campaignid=898687156&utm_adgroupid=48947256715&utm_device=c&utm_keyword=&utm_matchtype=b&utm_network=g&utm_adpostion=&utm_creative=229765585183&utm_targetid=aud-299261629574:dsa-429603003980&utm_loc_interest_ms=&utm_loc_physical_ms=9061140&gclid=Cj0KCQiA6Or_BRC_ARIsAPzuer_W4tuR1ZHvgX_XJTOYHr8AjBZ6i5NTVwTw0oxf-ZJRbb-uNjLvCKIaArbAEALw_wcB 
 
 lambdas_to_try <- 10^seq(-6, 4, length.out = 100)
 # TDOO: grid search for lambda and alpha combi
 #snare
-regOLS_cv_snare <- cv.glmnet(t(design_mat_snare), abs(snare_data$dev), alpha = 0.5, 
+regOLS_cv_snare <- cv.glmnet(t(design_mat_snare), abs(snare_data$dev), alpha = 0.5,
                              lambda = lambdas_to_try, nfolds = 5, standardize = T) #does 5 fold Cv to get best lambda
 plot(regOLS_cv_snare) #cv results
 lambda_snare <- regOLS_cv_snare$lambda.min
 regOLS_snare <- glmnet(t(design_mat_snare), abs(snare_data$dev), alpha = 0.5, 
                        lambda = lambda_snare, standardize = T)
-coef(regOLS_snare)
+coef.glmnet(regOLS_snare)
 coefplot(regOLS_snare)# , sort='magnitude')
 
 
@@ -331,14 +337,17 @@ coef(regOLS_wdBlk)
 coefplot(regOLS_wdBlk)# , sort='magnitude')
 
 # compare OLS, pseudoinverse and regOLS with lambda=0 for snare
-ols_snare <- lm(formula_snare_abs, data = snare_data)
+# tried to scale y
+dev_snare_abs_scaled <- scale(snare_data_abs$dev)
+
+ols_snare <- lm(as.formula(snare_data), data = cbind('dev'=dev_snare_abs_scaled,snare_data_abs[-1]))
 coef_OLS <- ols_snare$coefficients
 
-regOLS_snare <- glmnet(t(design_mat_snare), abs(snare_data$dev), alpha = 0.5, 
-                       lambda = 0, standardize = T)
-coef_regOLS <- coef(regOLS_snare)
-
+regOLS_snare <- glmnet(t(design_mat_snare), dev_snare_abs_scaled, alpha = 0.5, lambda = 0)
+coef_regOLS <- as.numeric(coef.glmnet(regOLS_snare)) #coef.glmnet function checked. gives same as c(regOLS_snare$a0,as.numeric(regOLS_snare$beta))
+## check different families for glmnet?
 plot(coef_OLS, coef_regOLS) #should give a y=x line :/
+coef_df <- data.frame(cbind(coef_OLS, coef_regOLS, 'diff'=coef_OLS-coef_regOLS))
 
 design_mat_snare_intercept <- rbind(rep(1, dim(design_mat_snare)[2]), design_mat_snare)
 design_mat_snare_inv <- Ginv(design_mat_snare_intercept)
@@ -372,10 +381,9 @@ write.table(as.matrix(coef_regOLS), file=file.path(result_folder,'gamlss', 'coef
 # hard code number of components and frequencies
 
 ##### GAMLSS #####
-library(gamlss)
 # use deviation not absolute deviation
 # snare
-mod_snare<-gamlss(formula_snare, sigma.fo=formula_snare, family=NO, data=snare_data, method=mixed(1,50))
+mod_snare<-gamlss(as.formula(snare_data), sigma.fo=as.formula(snare_data), family=NO, data=snare_data, method=mixed(1,50))
 # family: d, p, q and r functions for density (pdf), distribution function (cdf), quantile function and random generation function
 # todo: change family to family_obj (error: invalid object argument), NO length 26, family_obj 1259
 # what are the link functions? log means how log sd changes
@@ -391,7 +399,7 @@ summary(mod_snare)
 # precision doesnt change for trial and session index
 
 # wdBlk
-mod_wdBlk<-gamlss(formula_wdBlk, sigma.fo=formula_wdBlk, family=NO, data=wdBlk_data, method=mixed(1,50))
+mod_wdBlk<-gamlss(as.formula(wdBlk_data), sigma.fo=as.formula(wdBlk_data), family=NO, data=wdBlk_data, method=mixed(1,50))
 plot(mod_wdBlk)
 summary(mod_wdBlk)
 # mu
@@ -409,7 +417,9 @@ gamlssNet_snare$df
 # penalized does the same as glmnet but I dont know how to tell them to compute shape as well or directly give the gamlss model...
 # only lasso for gamlss (because in OLS, lots of vars were eliminated)
 # lasso
-lasso_snare <- gamlss(abs(snare_data$dev)~ri(x.vars=names(snare_data)[-1], Lp=1), #names(snare_data)[-1] should be same as colnames_dm 
+lasso_snare <- gamlss(abs(snare_data$dev)~ri(x.vars=names(snare_data)[-1], Lp=1), #names(snare_data)[-1] is the same as colnames_dm 
             data=snare_data)
-#do i need zero mean everywhere? it doesnt say so in help
 plot(getSmo(lasso_snare))
+summary(lasso_snare)
+plot(lasso_snare)
+
