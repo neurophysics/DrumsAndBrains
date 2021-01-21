@@ -148,8 +148,8 @@ music_z_score <- (music_total_score - mean(music_total_score)) / sd(music_total_
 music_z_score <- c(music_z_score[1:10], music_z_score[12:21]) #del subject 11 for we dont have corresponding eeg data
 
 # remove unused objects
-rm('F_SSD_file','eeg_file','snareInlier','wdBlkInlier','F_SSD_subj','file','snareCue_times','wdBlkCue_times',
-   'type_df','type_df2','trial_type','behavior','snareDev','wdBlkDev','wdBlkDevToClock',
+rm('F_SSD_file','snareInlier','wdBlkInlier','F_SSD_subj','snareCue_times','wdBlkCue_times',
+   'type_df','type_df2','trial_type','snareDev','wdBlkDev','wdBlkDevToClock',
    'snareDevToClock','snare_df', 'wdBlk_df','behavior_subj','addInfo', 'music_total_score')
 
 ##### check normality of response variable #####
@@ -229,8 +229,8 @@ colnames_dm <- c(paste0(rep('beta', 4), seq(1.1,1.4,length=4)),
                  paste0(rep('beta', 4), seq(2.1,2.4,length=4)), 'beta3', 
                  paste0(rep('v',20), seq(0.01, 0.20, length=20)), 
                  paste0(rep('v',20*4), seq(1.01, 1.80, length=20*4)), 'session_ID', 'trial_ID')
-design_mat_snare <- rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_snare$session, behavior_df_snare$trial)
-rownames(design_mat_snare) <- colnames_dm
+design_mat_snare <- t(rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_snare$session, behavior_df_snare$trial))
+colnames(design_mat_snare) <- colnames_dm
 dim(design_mat_snare)
 
 
@@ -274,14 +274,14 @@ i <- 2
 ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
 ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
 
-design_mat_wdBlk <- rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_wdBlk$session, behavior_df_wdBlk$trial)
-rownames(design_mat_wdBlk) <- colnames_dm #see snare for colnames_dm
+design_mat_wdBlk <- t(rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_wdBlk$session, behavior_df_wdBlk$trial))
+colnames(design_mat_wdBlk) <- colnames_dm #see snare for colnames_dm
 dim(design_mat_wdBlk)
 
 
 ##### OLS ######
 # scale is in sec
-snare_data <- data.frame(t(rbind(behavior_df_snare$dev, design_mat_snare))) #dont need intercept for its added automatically
+snare_data <- data.frame(cbind(behavior_df_snare$dev, design_mat_snare)) #dont need intercept for its added automatically
 colnames(snare_data) <- c('dev',colnames_dm)
 snare_data_abs <- cbind('dev'=abs(snare_data$dev), snare_data[-1]) #use abs deviation here
 ols_snare <- lm(as.formula(snare_data), data = snare_data_abs) #note that as.formula(snare_data)==as.formula(snare_data_abs) bc we only care about the names
@@ -296,7 +296,7 @@ summary(ols_snare) #NA? sum(is.na.data.frame(snare_data))=0,
 # strongest component: V8 (SSD1 WdBlk freq)
 # wenn abs(dev): negative komponente heißt besser (zweite ssd bei snare größer => reduziert abweichung)
 
-wdBlk_data <- data.frame(t(rbind(behavior_df_wdBlk$dev, design_mat_wdBlk))) #dont need intercept for its added automatically
+wdBlk_data <- data.frame(cbind(behavior_df_wdBlk$dev, design_mat_wdBlk)) #dont need intercept for its added automatically
 colnames(wdBlk_data) <- c('dev',colnames_dm)
 wdBlk_data_abs <- cbind('dev'=abs(wdBlk_data$dev), wdBlk_data[-1]) #use abs deviation here
 ols_wdBlk <- lm(as.formula(wdBlk_data), data = wdBlk_data_abs, na.action=na.exclude)
@@ -317,22 +317,22 @@ summary(ols_wdBlk)
 lambdas_to_try <- 10^seq(-6, 4, length.out = 100)
 # TDOO: grid search for lambda and alpha combi
 #snare
-regOLS_cv_snare <- cv.glmnet(t(design_mat_snare), abs(snare_data$dev), alpha = 0.5,
+regOLS_cv_snare <- cv.glmnet(design_mat_snare, abs(snare_data$dev), alpha = 0.5,
                              lambda = lambdas_to_try, nfolds = 5, standardize = T) #does 5 fold Cv to get best lambda
 plot(regOLS_cv_snare) #cv results
 lambda_snare <- regOLS_cv_snare$lambda.min
-regOLS_snare <- glmnet(t(design_mat_snare), abs(snare_data$dev), alpha = 0.5, 
+regOLS_snare <- glmnet(design_mat_snare, abs(snare_data$dev), alpha = 0.5, 
                        lambda = lambda_snare, standardize = T)
 coef.glmnet(regOLS_snare)
 coefplot(regOLS_snare)# , sort='magnitude')
 
 
 #wdBlk
-regOLS_cv_wdBlk <- cv.glmnet(t(design_mat_wdBlk), abs(wdBlk_data$dev), alpha = 0.5, 
+regOLS_cv_wdBlk <- cv.glmnet(design_mat_wdBlk, abs(wdBlk_data$dev), alpha = 0.5, 
                              lambda = lambdas_to_try, nfolds = 5) #does 5 fold Cv to get best lambda
 plot(regOLS_cv_wdBlk) #cv results
 lambda_wdBlk <- regOLS_cv_wdBlk$lambda.min
-regOLS_wdBlk <- glmnet(t(design_mat_wdBlk), abs(wdBlk_data$dev), alpha = 0.5, lambda = lambda_wdBlk, standardize = T)
+regOLS_wdBlk <- glmnet(design_mat_wdBlk, abs(wdBlk_data$dev), alpha = 0.5, lambda = lambda_wdBlk, standardize = T)
 coef(regOLS_wdBlk)
 coefplot(regOLS_wdBlk)# , sort='magnitude')
 
@@ -343,20 +343,17 @@ dev_snare_abs_scaled <- scale(snare_data_abs$dev)
 ols_snare <- lm(as.formula(snare_data), data = cbind('dev'=dev_snare_abs_scaled,snare_data_abs[-1]))
 coef_OLS <- ols_snare$coefficients
 
-regOLS_snare <- glmnet(t(design_mat_snare), dev_snare_abs_scaled, alpha = 0.5, lambda = 0)
+regOLS_snare <- glmnet(design_mat_snare, dev_snare_abs_scaled, alpha = 0.5, lambda = 0)
 coef_regOLS <- as.numeric(coef.glmnet(regOLS_snare)) #coef.glmnet function checked. gives same as c(regOLS_snare$a0,as.numeric(regOLS_snare$beta))
 ## check different families for glmnet?
-plot(coef_OLS, coef_regOLS) #should give a y=x line :/
-coef_df <- data.frame(cbind(coef_OLS, coef_regOLS, 'diff'=coef_OLS-coef_regOLS))
 
-design_mat_snare_intercept <- rbind(rep(1, dim(design_mat_snare)[2]), design_mat_snare)
-design_mat_snare_inv <- Ginv(design_mat_snare_intercept)
-# compute pesudoinverse using R's built in svd (otherwise session aborts because of memory)
-SVD <- svd(design_mat_snare_intercept);
-DDD <- rep(0, length(SVD$d));
-for (i in 1:length(DDD)) { DDD[i] <- ifelse(SVD$d[i] == 0, 0, 1/SVD$d[i]);  }
-design_mat_snare_inv <- SVD$v %*% diag(DDD) %*% t(SVD$u)
-coef_pinv <- abs(snare_data$dev)%*%design_mat_snare_inv
+# compute coefficients manually: coef = (Xt*X)^-1 * Xt * Y
+design_mat_snare_intercept <- cbind(rep(1, dim(design_mat_snare)[1]), design_mat_snare)
+coef_man <- Ginv(t(design_mat_snare_intercept)%*%design_mat_snare_intercept)%*%t(design_mat_snare_intercept)%*%abs(snare_data$dev)
+coef_df <- data.frame(cbind(coef_man, coef_man-coef_OLS, coef_OLS, coef_OLS-coef_regOLS, coef_regOLS, coef_man-coef_regOLS))
+plot(coef_OLS, coef_regOLS) #should give a y=x line :/
+plot(coef_OLS, coef_man)
+plot(coef_regOLS, coef_man)
 
 ##### store coef, matrix and beta for numpy analysis #####
 write.table(design_mat_snare_intercept, file=file.path(result_folder,'gamlss', 'design_mat_snare_intercept.txt'), row.names=F, sep=",")
@@ -410,7 +407,7 @@ summary(mod_wdBlk)
 ## need to regularize that: gamboostlss package doesnt seem to do that (rather it provides faster algorithms to fit imu). use gcdnet
 # either lasso or ridge: https://rdrr.io/cran/gamlss/man/ri.html
 lambdas_to_try <- 10^seq(-3, 5, length.out = 100)
-gamlssNet_snare <- glmnet(t(design_mat_snare), abs(snare_data$dev), family='gaussian', alpha=0.5, lambda=lambdas_to_try)
+gamlssNet_snare <- glmnet(design_mat_snare, abs(snare_data$dev), family='gaussian', alpha=0.5, lambda=lambdas_to_try)
 plot(gamlssNet_snare)
 gamlssNet_snare$df
 
