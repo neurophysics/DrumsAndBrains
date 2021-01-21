@@ -118,10 +118,13 @@ correlation with `N=1000` permutations.
 Result is plotted as `SNNR_exp.pdf` and `png`.
 
 ### Within-between random effects (REWB) model
-The 
+A regression model is used to link EEG power at different frequencies/components, musical experience, session/trial index etc. to drumming performance.
+If responses of subject i in trial t are given as `y_it` and EEG power of component/frequency `k` in that subject and trial as `x_kit`, the regression is discribed by the formula:
 
 <img src="https://render.githubusercontent.com/render/math?math=y_{it} = \beta_0 %2B \sum_{k=0}^{K-1}\beta_{1Wk}(x_{kit} - \overline{x}_{ki}) %2B \sum_{k=0}^{K-1}\beta_{2Bk}\overline{x}_{ki} %2B \beta_3 z_i %2B \upsilon_{i0} %2B \sum_{k=0}^{K-1}\upsilon_{ki1}(x_{kit} - \overline{x}_{ki}) %2B \epsilon_{kit0}">
 
+where `z_i` is the musical performance of that subject, all betas are coefficients and all upsilons are random effects. Subscripts W denote within-subjects and subscripts B denote between-subjects effects. Epsilon is an error term.
+Additionally, trial-index and session-index are fed as independent variables into the design matrix of the regression problem.
 
 ## GAMLSS
 Best two SSD Filters applied to EEG, additional subject information and behavioral data is read and divided into snare and wdBlk trials. Behavioral data is normalized by rejecting data outside median ± 1.5 IQR, resulting histograms and qqplots over all subjects are stored in the result folder under `gamlss_NormalityDev.pdf`.
