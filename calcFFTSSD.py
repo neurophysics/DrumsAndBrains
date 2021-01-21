@@ -163,7 +163,8 @@ for i in range(len(F_SSD)):
     arr = F_SSD_sorted[i]
     arr[0,0,0,0]=i
 F_SSD_zip = zip(F_SSD,range(len(F_SSD)))
-np.savez(os.path.join(result_folder, 'F_SSD.npz'), *F_SSD_sorted)
+np.savez(os.path.join(result_folder, 'F_SSD.npz'), *F_SSD_sorted,
+        f=f)
 
 ## save SSG eigenvalues, filters and patterns in a.npz
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),

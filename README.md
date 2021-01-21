@@ -117,7 +117,7 @@ Significance testing is done as one-tailed permutation testing of the
 correlation with `N=1000` permutations.
 Result is plotted as `SNNR_exp.pdf` and `png`.
 
-### Within-between random effects (REWB) model
+## Within-between random effects (REWB) model
 A regression model is used to link EEG power at different frequencies/components, musical experience, session/trial index etc. to drumming performance.
 If responses of subject i in trial t are given as `y_it` and EEG power of component/frequency `k` in that subject and trial as `x_kit`, the regression is discribed by the formula:
 
