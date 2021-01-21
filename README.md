@@ -117,6 +117,11 @@ Significance testing is done as one-tailed permutation testing of the
 correlation with `N=1000` permutations.
 Result is plotted as `SNNR_exp.pdf` and `png`.
 
+### Within-between random effects (REWB) model
+The 
+
+<img src="https://render.githubusercontent.com/render/math?math=y_{it} = \beta_0 + \sum_{k=0}{K-1}\beta_{1Wk}">
+
 
 ## GAMLSS
 Best two SSD Filters applied to EEG, additional subject information and behavioral data is read and divided into snare and wdBlk trials. Behavioral data is normalized by rejecting data outside median ± 1.5 IQR, resulting histograms and qqplots over all subjects are stored in the result folder under `gamlss_NormalityDev.pdf`.
