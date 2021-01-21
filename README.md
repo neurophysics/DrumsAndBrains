@@ -120,7 +120,7 @@ Result is plotted as `SNNR_exp.pdf` and `png`.
 ### Within-between random effects (REWB) model
 The 
 
-<img src="https://render.githubusercontent.com/render/math?math=y_{it} = \beta_0 \plus \sum_{k=0}^{K-1}\beta_{1Wk}(x_{kit} - \overline{x}_{ki}) + \sum_{k=0}^{K-1}\beta_{2Bk}\overline{x}_{ki} + \beta_3 z_i + \upsilon_{i0} + \sum_{k=0}^{K-1}\upsilon_{ki1}(x_{kit} - \overline{x}_{ki}) + \epsilon_{kit0}">
+<img src="https://render.githubusercontent.com/render/math?math=y_{it} = \beta_0 %2B \sum_{k=0}^{K-1}\beta_{1Wk}(x_{kit} - \overline{x}_{ki}) %2B \sum_{k=0}^{K-1}\beta_{2Bk}\overline{x}_{ki} %2B \beta_3 z_i %2B \upsilon_{i0} %2B \sum_{k=0}^{K-1}\upsilon_{ki1}(x_{kit} - \overline{x}_{ki}) %2B \epsilon_{kit0}">
 
 
 ## GAMLSS
