@@ -67,14 +67,19 @@ labels.append('intercept')
 X.append(np.ones((1, N_trials)))
 
 # add within-subjects coefficient
-labels.extend(['W1Snare', 'W2Snare', 'W1WdBlk', 'W2WdBlk'])
+labels.extend(['WSnare1', 'WSnare2', 'WWdBlk1', 'WWdBlk2'])
 X.append(np.hstack([zscore(np.abs(SSD_now), -1) for SSD_now in F_SSD]))
 
+# get mean and std of between subjects effect
+B_mean = np.mean([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
+B_std = np.std([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
+
 # add between subjects coefficient
-labels.extend(['B1Snare', 'B2Snare', 'B1WdBlk', 'B2WdBlk'])
-X.append(zscore(
-    np.hstack([np.abs(SSD_now).mean(-1)[:, np.newaxis]*np.ones(
-        SSD_now.shape) for SSD_now in F_SSD]), -1))
+labels.extend(['BSnare1', 'BSnare2', 'BWdBlk1', 'BWdBlk2'])
+X.append(
+        np.hstack(
+            [((np.abs(SSD_now).mean(-1) - B_mean)/B_std)[:, np.newaxis] * 
+                np.ones(SSD_now.shape) for SSD_now in F_SSD]))
 
 # add musicality score
 labels.extend(['musicality'])
@@ -92,4 +97,43 @@ for SSD_now in F_SSD:
     subj += 1
 X.append(RE0)
 
+# add random effect for the within-subjects effect
+labels.extend([
+    ['REWSnare1_{:02d}'.format(i),
+    'REWSnare2_{:02d}'.format(i),
+    'REWWdBlk1_{:02d}'.format(i),
+    'REWWdBlk2_{:02d}'.format(i)]
+    for i in range(N_subjects)])
+
+REW = np.zeros([4*N_subjects, N_trials])
+subj = 0
+tr = 0
+for SSD_now in F_SSD:
+    REW[subj*N_SSD*2:(subj + 1)*N_SSD*2, tr:tr + SSD_now.shape[-1]] = zscore(
+            np.abs(SSD_now) - np.abs(SSD_now).mean(-1)[:,np.newaxis], axis=-1)
+    tr += SSD_now.shape[-1]
+    subj += 1
+X.append(REW)
+
+# add random effect for the betweem-subjects effect
+labels.extend([
+    ['REBSnare1_{:02d}'.format(i),
+    'REBSnare2_{:02d}'.format(i),
+    'REBWdBlk1_{:02d}'.format(i),
+    'REBWdBlk2_{:02d}'.format(i)]
+    for i in range(N_subjects)])
+
+
+REB = np.zeros([4*N_subjects, N_trials])
+subj = 0
+tr = 0
+for SSD_now in F_SSD:
+    REB[subj*N_SSD*2:(subj + 1)*N_SSD*2, tr:tr + SSD_now.shape[-1]] = (
+            (np.abs(SSD_now).mean(-1) - B_mean)/B_std)[:,np.newaxis]
+    tr += SSD_now.shape[-1]
+    subj += 1
+X.append(REB)
+
 # TODO: add all other rows of the matrix
+# add trial index and session index
+# read behavioural data
