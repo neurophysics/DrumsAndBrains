@@ -87,7 +87,6 @@ with np.load(os.path.join(save_folder, 'behavioural_results.npz'),
     snare_deviation = f['snare_deviation']
     wdBlk_deviation = f['wdBlk_deviation']
 
-
 # data preprocesing
 ## find the sample of each Cue
 snareCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
@@ -125,7 +124,6 @@ all_trials = meet.epochEEG(EEG,
             wdBlkListenMarker[wdBlkInlier]],
         all_win)
 
-
 # DFFT
 ## get frequency resolution of 1/6 Hz
 nperseg = 12*s_rate
@@ -154,12 +152,10 @@ target_F[:,~target_mask] = 0
 contrast_F = np.copy(F)
 contrast_F[:,~contrast_mask] = 0
 
-
 # inverse FFT
 ## signal not periodic but good filter for magnitude response
 target_trials = np.fft.irfft(target_F, n=nperseg, axis=1)
 contrast_trials = np.fft.irfft(contrast_F, n=nperseg, axis=1)
-
 
 # calculate the covariance matrix of every single trial (shape (32,32,147))
 target_cov = np.einsum('ijk, ljk -> ilk', target_trials, target_trials)
@@ -169,5 +165,7 @@ contrast_cov = np.einsum('ijk, ljk -> ilk', contrast_trials, contrast_trials)
 np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
         target_cov = target_cov,
         contrast_cov = contrast_cov,
+        snareInlier = snareInlier,
+        wdBlkInlier = wdBlkInlier,
         F = F,
         f = f)
