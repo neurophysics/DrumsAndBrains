@@ -156,14 +156,12 @@ ax.plot(f[f_plot_mask], 20*np.log10(F_subj_mean_norm[:,f_plot_mask].T),
 ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
     f_plot_mask].T))
 
-1/0
-
-save_results = {}:
-    for i, (F_SSD_now, snareInlier_now, wdBlkInlier_now) in enumerate(zip(
-        F_SSD, snareInlier, wdBlkInlier)):
-        save_results{'snareInlier_{:02d}.format(i)'} = snareInlier_now
-        save_results{'wdBlkInlier_{:02d}.format(i)'} = wdBlkInlier_now
-        save_results{'F_SSD_{:02d}.format(i)'} = F_SSD_now
+save_results = {}
+for i, (F_SSD_now, snareInlier_now, wdBlkInlier_now) in enumerate(zip(
+    F_SSD, snareInlier, wdBlkInlier)):
+    save_results['snareInlier_{:02d}'.format(i)] = snareInlier_now
+    save_results['wdBlkInlier_{:02d}'.format(i)] = wdBlkInlier_now
+    save_results['F_SSD_{:02d}'.format(i)] = F_SSD_now
 
 
 # save the results
@@ -178,7 +176,7 @@ save_results = {}:
 
 np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
 
-## save SSG eigenvalues, filters and patterns in a.npz
+## save SSD eigenvalues, filters and patterns in a.npz
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_eigvals = SSD_eigvals,
         SSD_filters = SSD_filters,
