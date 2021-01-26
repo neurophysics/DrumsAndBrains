@@ -7,6 +7,7 @@ import os.path
 from scipy.stats import zscore
 import csv
 import sklearn
+import matplotlib.pyplot as plt
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -202,6 +203,10 @@ from rpy2.robjects.packages import importr
 from rpy2.robjects import numpy2ri
 numpy2ri.activate()
 
+
+###########################################################
+# fit the models with R's glmnet and extract coefficients #
+###########################################################
 # import R's "glmnet"
 glmnet = importr('glmnet')
 from rpy2.robjects.functions import SignatureTranslatedFunction as STM
@@ -209,15 +214,52 @@ from rpy2.robjects.functions import SignatureTranslatedFunction as STM
 glmnet.cv_glmnet = STM(glmnet.cv_glmnet,
         init_prm_translate = {'penalty_factor': 'penalty.factor'})
 
-# TODO
-# check for the validity of the model in the original literature
-
 snare_cv_model = glmnet.cv_glmnet(
         snare_design[1:].T, np.abs(snareY.reshape(-1,1)),
-        alpha = 0.9,
+        alpha = 1,
         family = 'gaussian',
         intercept=True,
         standardize=False,
         nlambda = 500,
         nfolds = 20
         )
+
+snare_coefs = np.ravel(robjects.r['as'](coef(snare_cv_model.rx2['glmnet.fit'],
+        s=snare_cv_model.rx2['lambda.min']), 'matrix'))
+
+wdBlk_cv_model = glmnet.cv_glmnet(
+        wdBlk_design[1:].T, np.abs(wdBlkY.reshape(-1,1)),
+        alpha = 1,
+        family = 'gaussian',
+        intercept=True,
+        standardize=False,
+        nlambda = 500,
+        nfolds = 20
+        )
+
+wdBlk_coefs = np.ravel(robjects.r['as'](coef(wdBlk_cv_model.rx2['glmnet.fit'],
+        s=wdBlk_cv_model.rx2['lambda.min']), 'matrix'))
+
+# plot the model coefficients
+fig, ax = plt.subplots(ncols=2)
+
+ax[0].barh(range(12), snare_coefs[:12],
+           color=np.where(snare_coefs[:12]>0, 'r', 'b'))
+ax[0].set_xlim([-0.12, 0.12])
+ax[0].axvline(0, c='k')
+ax[0].set_yticks(range(12))
+ax[0].set_yticklabels([s.replace('_', '\_') for s in snare_labels[:12]])
+ax[0].set_xlabel('coefficient')
+ax[0].set_title('snare vs. absolute deviation')
+
+ax[1].barh(range(12), wdBlk_coefs[:12],
+          color=np.where(wdBlk_coefs[:12]>0, 'r', 'b'))
+ax[1].set_xlim([-0.12, 0.12])
+ax[1].axvline(0, c='k')
+ax[1].set_yticks(range(12))
+ax[1].set_yticklabels([s.replace('_', '\_') for s in wdBlk_labels[:12]])
+ax[1].set_xlabel('coefficient')
+ax[1].set_title('wdBlk vs. absolute deviation')
+
+fig.tight_layout()
+fig.savefig(os.path.join(result_folder, 'glmnet_result.pdf'))
