@@ -190,16 +190,10 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx):
 snare_design, snare_labels = design_matrix(
         snare_F_SSD, musicscore, snare_trial_idx, snare_session_idx)
 snareY = np.hstack(snare_deviation)
-# for ridge regression, we dont want to regularite the intercepts
-snare_alphas = np.array([0. if (l.startswith('RE0') or l == 'intercept')
-    else 1. for l in snare_labels])
 
 wdBlk_design, wdBlk_labels = design_matrix(
         wdBlk_F_SSD, musicscore, wdBlk_trial_idx, wdBlk_session_idx)
 wdBlkY = np.hstack(wdBlk_deviation)
-# for ridge regression, we dont want to regularite the intercepts
-wdBlk_alphas = np.array([0. if (l.startswith('RE0') or l == 'intercept')
-    else 1. for l in wdBlk_labels])
 
 # start interface to R
 import rpy2.robjects as robjects
@@ -219,12 +213,11 @@ glmnet.cv_glmnet = STM(glmnet.cv_glmnet,
 # check for the validity of the model in the original literature
 
 snare_cv_model = glmnet.cv_glmnet(
-        snare_design[1:].T, snareY.reshape(-1,1),
-        alpha = 0.5,
+        snare_design[1:].T, np.abs(snareY.reshape(-1,1)),
+        alpha = 0.9,
         family = 'gaussian',
         intercept=True,
         standardize=False,
-        penalty_factor=snare_alphas[1:],
         nlambda = 500,
         nfolds = 20
         )
