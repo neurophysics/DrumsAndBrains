@@ -201,8 +201,8 @@ import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 # activate automatic conversion of numpy arrays to R
 from rpy2.robjects import numpy2ri
+coef = robjects.r.coef
 numpy2ri.activate()
-
 
 ###########################################################
 # fit the models with R's glmnet and extract coefficients #
