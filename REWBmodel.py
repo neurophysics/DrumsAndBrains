@@ -4,7 +4,7 @@ Create the design matrix of the Within-Between Random Effects model
 import numpy as np
 import sys
 import os.path
-from scipy.stats import zscore
+from scipy.stats import zscore, iqr
 import csv
 import sklearn
 import matplotlib.pyplot as plt
@@ -49,7 +49,7 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
             i += 1
         except KeyError:
             break
-
+# snare_F_SSD[1].shape: (4, 73)
 N_subjects = len(snare_F_SSD)
 
 # read the musicality scores of all subjects
@@ -92,20 +92,40 @@ while True:
         with np.load(os.path.join(result_folder,'S{:02d}'.format(subj),
             'behavioural_results.npz'), allow_pickle=True,
             encoding='bytes') as fi:
+            snare_deviation_now = fi['snare_deviation']
+            wdBlk_deviation_now = fi['wdBlk_deviation']
+
             # take only the trials where performance is not nan
-            snare_finite = np.isfinite(fi['snare_deviation'])
-            wdBlk_finite = np.isfinite(fi['wdBlk_deviation'])
+            snare_finite = np.isfinite(snare_deviation_now)
+            wdBlk_finite = np.isfinite(wdBlk_deviation_now)
             snare_F_SSD[idx] = snare_F_SSD[idx][:,
                     snare_finite[snareInlier[idx]]]
             wdBlk_F_SSD[idx] = wdBlk_F_SSD[idx][:,
                     wdBlk_finite[wdBlkInlier[idx]]]
             snare_inlier_now = np.all([snare_finite, snareInlier[idx]], 0)
             wdBlk_inlier_now = np.all([wdBlk_finite, wdBlkInlier[idx]], 0)
-            # load data
+
+            # take only the trials in range median ± 1.5*IQR
+            lb_snare = np.median(snare_deviation_now) - 1.5*iqr(
+                snare_deviation_now)
+            ub_snare = np.median(snare_deviation_now) + 1.5*iqr(
+                snare_deviation_now)
+            idx_iqr_snare = np.logical_and(
+                snare_deviation_now>lb_snare, snare_deviation_now<ub_snare)
+            snare_inlier_now = np.logical_and(snare_inlier_now, idx_iqr_snare)
+            lb_wdBlk = np.median(wdBlk_deviation_now) - 1.5*iqr(
+                wdBlk_deviation_now)
+            ub_wdBlk = np.median(wdBlk_deviation_now) + 1.5*iqr(
+                wdBlk_deviation_now)
+            idx_iqr_wdBlk = np.logical_and(
+                wdBlk_deviation_now>lb_wdBlk, wdBlk_deviation_now<ub_wdBlk)
+            wdBlk_inlier_now = np.logical_and(wdBlk_inlier_now, idx_iqr_wdBlk)
+
             snare_deviation.append(
-                    fi['snare_deviation'][snare_inlier_now])
+                    snare_deviation_now[snare_inlier_now])
             wdBlk_deviation.append(
-                    fi['wdBlk_deviation'][wdBlk_inlier_now])
+                    wdBlk_deviation_now[wdBlk_inlier_now])
+
             # get the trial indices
             snare_times = fi['snareCue_times']
             wdBlk_times = fi['wdBlkCue_times']
@@ -185,6 +205,7 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx):
         tr += SSD_now.shape[-1]
         subj += 1
     X.append(REW)
+    print([x.shape for x in X])
     return np.vstack(X), labels
 
 # finally, get the design matrices
