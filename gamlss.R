@@ -22,21 +22,19 @@ N_comp_freq = 2 #snare and wdblk
 ##### read our data #####
 np <- import("numpy") # use python in R
 # read F_SSD, the SSD for each subject and sort by subject
-## get freq bins und snare/wdBlk freq indices (same for all subjects)
-f <- np$load(file.path(result_folder, 'S01', 'prepared_FFTSSD.npz')) [['f']] 
-i_sn_freq <- which(abs(f-7/6)<0.000001)
-i_wb_freq <- which(abs(f-7/4)<0.000001)
 ## load file and initialize F_SSD list
 F_SSD_file <- np$load(file.path(result_folder, 'F_SSD.npz')) 
 F_SSD <- vector("list", length(N_subjects))
 N_trials <- c()
+## get freq bins und snare/wdBlk freq indices (same for all subjects)
+f <- F_SSD_file$f[['f']]
+i_sn_freq <- which(abs(f-7/6)<0.000001)
+i_wb_freq <- which(abs(f-7/4)<0.000001)
 ## loop over subjects, sort and store needed F_SSD parts in list
 for (subject in 1:N_subjects){
-  arr <- F_SSD_file$f[[sprintf('arr_%d', subject-1)]]
-  s <- abs(arr[1,1,1,1])+1 #4th dim is coded to give subject/sort number, python indices start with 0
-  arr <- drop(arr) #deletes 4th dimension
-  arr <- arr[1:2,c(i_sn_freq,i_wb_freq),] #only need first two SSD components and two relevant frequencies
-  F_SSD[[s]] <- abs(arr) #eeg is complex
+  arr <- F_SSD_file$f[[sprintf('F_SSD_%02d', subject-1)]]
+  arr <- arr[1:N_comp_ssd,c(i_sn_freq,i_wb_freq),] #only need first N_comp_ssd components and two relevant frequencies
+  F_SSD[[subject]] <- abs(arr) #eeg is complex
   #print(sum(is.nan(F_SSD[[s]])))
   #print(is.numeric(F_SSD[[s]]))
   N_trials <- c(N_trials, dim(arr)[3])
@@ -59,11 +57,11 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   if (subject==11) next 
   else if (subject<11) i_subject <- subject
   else i_subject <- subject-1 
+  #print(sprintf('Reading Subject %02d',i_subject))
   
   ## get valid EEG trials in listening window (not noisy)
-  inlier_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'eeg_results.npz'))
-  snareInlier <- inlier_file$f[['snareInlier']]
-  wdBlkInlier <- inlier_file$f[['wdBlkInlier']]
+  snareInlier <- F_SSD_file$f[[sprintf('snareInlier_%02d', i_subject-1)]]
+  wdBlkInlier <- F_SSD_file$f[[sprintf('wdBlkInlier_%02d', i_subject-1)]]
 
   ### read, calculate z-score and divide F_SSD into snare and woodblock,reject invalid trials
   F_SSD_subj <- sweep(sweep(F_SSD[[i_subject]], MARGIN=c(1,2), F_SSD_mean, FUN="-"), MARGIN=c(1,2), F_SSD_sd, FUN="/")
@@ -123,7 +121,7 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   wdBlk_df <- wdBlk_df[ind_wb,]
   F_SSD_wdBlk[[i_subject]] <- F_SSD_wdBlk[[i_subject]][,,ind_wb]
   N_trials_wb <- c(N_trials_wb, length(ind_wb))
-  
+
   ### combine to single data frame with index 0 for snare and 1 for wdBlk (type_index)
   type_index <- c(rep(0,length(snare_df[,1])),rep(1,length(wdBlk_df[,2])))
   behavior_subj <- data.frame(type_index, rbind(snare_df, wdBlk_df))
@@ -225,11 +223,12 @@ i <- 2
 ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,1,] - snare_Tmean[,1]
 ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2]
 
-colnames_dm <- c(paste0(rep('beta', 4), seq(1.1,1.4,length=4)), 
-                 paste0(rep('beta', 4), seq(2.1,2.4,length=4)), 'beta3', 
-                 paste0(rep('v',20), seq(0.01, 0.20, length=20)), 
-                 paste0(rep('v',20*4), seq(1.01, 1.80, length=20*4)), 'session_ID', 'trial_ID')
-design_mat_snare <- t(rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_snare$session, behavior_df_snare$trial))
+colnames_dm <- c('WSnare1', 'WSnare2', 'WWdBlk1', 'WWdBlk2',
+                 'BSnare1', 'BSnare2', 'BWdBlk1', 'BWdBlk2',
+                 'musicality', 'trial_ID', 'session_ID', 
+                 paste0(rep('RE',20), seq(0.00, 0.19, length=20)), 
+                 paste0(rep('REW',20*4), seq(1.00, 1.79, length=20*4)))
+design_mat_snare <- t(rbind(beta1, beta2, beta3, behavior_df_snare$trial, behavior_df_snare$session, ypsilon0, ypsilon1))
 colnames(design_mat_snare) <- colnames_dm
 dim(design_mat_snare)
 
@@ -274,7 +273,7 @@ i <- 2
 ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
 ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
 
-design_mat_wdBlk <- t(rbind(beta1, beta2, beta3, ypsilon0, ypsilon1, behavior_df_wdBlk$session, behavior_df_wdBlk$trial))
+design_mat_wdBlk <- t(rbind(beta1, beta2, beta3, behavior_df_wdBlk$trial, behavior_df_wdBlk$session, ypsilon0, ypsilon1))
 colnames(design_mat_wdBlk) <- colnames_dm #see snare for colnames_dm
 dim(design_mat_wdBlk)
 
@@ -360,7 +359,7 @@ write.table(design_mat_snare_intercept, file=file.path(result_folder,'gamlss', '
 write.table(snare_data$dev, file=file.path(result_folder,'gamlss', 'snare_dev.txt'), row.names=F, sep=",")
 write.table(coef_OLS, file=file.path(result_folder,'gamlss', 'coef_OLS.txt'), row.names=F, sep=",")
 write.table(as.matrix(coef_regOLS), file=file.path(result_folder,'gamlss', 'coef_regOLS.txt'), row.names=F, sep=",")
-
+# load in python with: dev = np.loadtxt('snare_dev.txt', comments="#", delimiter=",", skiprows=1)
 
 ##### notes #####
 # snare_deviation contains nan which are not corresponding to Inlier... keep for now, take care with mean!
@@ -374,6 +373,7 @@ write.table(as.matrix(coef_regOLS), file=file.path(result_folder,'gamlss', 'coef
 
 #Todo someday
 # check data: sumary(snare_data) gives all 0 for v1.05 to 1.08 - why? also, v0. have non zero means
+  # somehow in ypsilon1[5:8,] so for the second subject, there were only 0s in the matrix. Weirdly this happens in the calculation loop. If i set the loop parameter (subject nr) to i=2 and do it for that subject manually it does not produce 0s. Without the 0s, gamlss lasso works and I updated the matrices text files. I still dont know why i=2 is jumped over for the calculation of ypsilon1 in the loop while it doesnt for the other parts of the design matrix...
 # use sparse matrix
 # hard code number of components and frequencies
 
