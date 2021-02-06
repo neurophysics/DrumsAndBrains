@@ -79,6 +79,7 @@ wdBlk_session_idx = []
 
 subj = 0
 idx = 0
+iqr = True
 while True:
     subj += 1
     if not os.path.exists(os.path.join(
@@ -98,34 +99,33 @@ while True:
             # take only the trials where performance is not nan
             snare_finite = np.isfinite(snare_deviation_now)
             wdBlk_finite = np.isfinite(wdBlk_deviation_now)
-            snare_F_SSD[idx] = snare_F_SSD[idx][:,
-                    snare_finite[snareInlier[idx]]]
-            wdBlk_F_SSD[idx] = wdBlk_F_SSD[idx][:,
-                    wdBlk_finite[wdBlkInlier[idx]]]
             snare_inlier_now = np.all([snare_finite, snareInlier[idx]], 0)
             wdBlk_inlier_now = np.all([wdBlk_finite, wdBlkInlier[idx]], 0)
-
             # take only the trials in range median ± 1.5*IQR
-            lb_snare = np.median(snare_deviation_now) - 1.5*iqr(
-                snare_deviation_now)
-            ub_snare = np.median(snare_deviation_now) + 1.5*iqr(
-                snare_deviation_now)
-            idx_iqr_snare = np.logical_and(
-                snare_deviation_now>lb_snare, snare_deviation_now<ub_snare)
-            snare_inlier_now = np.logical_and(snare_inlier_now, idx_iqr_snare)
-            lb_wdBlk = np.median(wdBlk_deviation_now) - 1.5*iqr(
-                wdBlk_deviation_now)
-            ub_wdBlk = np.median(wdBlk_deviation_now) + 1.5*iqr(
-                wdBlk_deviation_now)
-            idx_iqr_wdBlk = np.logical_and(
-                wdBlk_deviation_now>lb_wdBlk, wdBlk_deviation_now<ub_wdBlk)
-            wdBlk_inlier_now = np.logical_and(wdBlk_inlier_now, idx_iqr_wdBlk)
+            if iqr:
+                lb_snare = np.median(snare_deviation_now[snare_finite]) - 1.5*iqr(
+                    snare_deviation_now[snare_finite])
+                ub_snare = np.median(snare_deviation_now[snare_finite]) + 1.5*iqr(
+                    snare_deviation_now[snare_finite])
+                idx_iqr_snare = np.logical_and(
+                    snare_deviation_now>lb_snare, snare_deviation_now<ub_snare)
+                snare_inlier_now = np.logical_and(snare_inlier_now, idx_iqr_snare)
+                lb_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]) - 1.5*iqr(
+                    wdBlk_deviation_now[wdBlk_finite])
+                ub_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]) + 1.5*iqr(
+                    wdBlk_deviation_now[wdBlk_finite])
+                idx_iqr_wdBlk = np.logical_and(
+                    wdBlk_deviation_now>lb_wdBlk, wdBlk_deviation_now<ub_wdBlk)
+                wdBlk_inlier_now = np.logical_and(wdBlk_inlier_now, idx_iqr_wdBlk)
 
             snare_deviation.append(
                     snare_deviation_now[snare_inlier_now])
             wdBlk_deviation.append(
                     wdBlk_deviation_now[wdBlk_inlier_now])
-
+            snare_F_SSD[idx] = snare_F_SSD[idx][:,
+                    snare_inlier_now[snareInlier[idx]]]
+            wdBlk_F_SSD[idx] = wdBlk_F_SSD[idx][:,
+                    wdBlk_inlier_now[wdBlkInlier[idx]]]
             # get the trial indices
             snare_times = fi['snareCue_times']
             wdBlk_times = fi['wdBlkCue_times']
