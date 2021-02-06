@@ -79,7 +79,7 @@ wdBlk_session_idx = []
 
 subj = 0
 idx = 0
-iqr = True
+iqr_rejection = True
 while True:
     subj += 1
     if not os.path.exists(os.path.join(
@@ -102,7 +102,7 @@ while True:
             snare_inlier_now = np.all([snare_finite, snareInlier[idx]], 0)
             wdBlk_inlier_now = np.all([wdBlk_finite, wdBlkInlier[idx]], 0)
             # take only the trials in range median ± 1.5*IQR
-            if iqr:
+            if iqr_rejection:
                 lb_snare = np.median(snare_deviation_now[snare_finite]) - 1.5*iqr(
                     snare_deviation_now[snare_finite])
                 ub_snare = np.median(snare_deviation_now[snare_finite]) + 1.5*iqr(
