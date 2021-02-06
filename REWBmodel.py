@@ -103,20 +103,22 @@ while True:
             wdBlk_inlier_now = np.all([wdBlk_finite, wdBlkInlier[idx]], 0)
             # take only the trials in range median ± 1.5*IQR
             if iqr_rejection:
-                lb_snare = np.median(snare_deviation_now[snare_finite]) - 1.5*iqr(
-                    snare_deviation_now[snare_finite])
-                ub_snare = np.median(snare_deviation_now[snare_finite]) + 1.5*iqr(
-                    snare_deviation_now[snare_finite])
+                lb_snare = np.median(snare_deviation_now[snare_finite]
+                    ) - 1.5*iqr(snare_deviation_now[snare_finite])
+                ub_snare = np.median(snare_deviation_now[snare_finite]
+                    ) + 1.5*iqr(snare_deviation_now[snare_finite])
                 idx_iqr_snare = np.logical_and(
                     snare_deviation_now>lb_snare, snare_deviation_now<ub_snare)
-                snare_inlier_now = np.logical_and(snare_inlier_now, idx_iqr_snare)
-                lb_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]) - 1.5*iqr(
-                    wdBlk_deviation_now[wdBlk_finite])
-                ub_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]) + 1.5*iqr(
-                    wdBlk_deviation_now[wdBlk_finite])
+                snare_inlier_now = np.logical_and(
+                    snare_inlier_now, idx_iqr_snare)
+                lb_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]
+                    ) - 1.5*iqr(wdBlk_deviation_now[wdBlk_finite])
+                ub_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]
+                    ) + 1.5*iqr(wdBlk_deviation_now[wdBlk_finite])
                 idx_iqr_wdBlk = np.logical_and(
                     wdBlk_deviation_now>lb_wdBlk, wdBlk_deviation_now<ub_wdBlk)
-                wdBlk_inlier_now = np.logical_and(wdBlk_inlier_now, idx_iqr_wdBlk)
+                wdBlk_inlier_now = np.logical_and(
+                    wdBlk_inlier_now, idx_iqr_wdBlk)
 
             snare_deviation.append(
                     snare_deviation_now[snare_inlier_now])
@@ -205,7 +207,6 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx):
         tr += SSD_now.shape[-1]
         subj += 1
     X.append(REW)
-    print([x.shape for x in X])
     return np.vstack(X), labels
 
 # finally, get the design matrices
