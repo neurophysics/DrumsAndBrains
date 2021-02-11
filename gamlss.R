@@ -2,7 +2,7 @@
 # install.packages('reticulate')
 # install.packages('abind)
 # install.packages('glmnet')
-# install.packages('coefplot') #not necessary but ncie visualization
+# install.packages('coefplot') #not necessary but nice visualization
 # install.packages('matlib') #for pseudoinverse
 library(gamlss)
 library(reticulate)
@@ -20,7 +20,9 @@ N_comp_freq = 2 #snare and wdblk
 
 
 ##### read our data #####
+Sys.setenv('RETICULATE_PYTHON' = '/usr/local/opt/python@3.8/bin/python3')
 np <- import("numpy") # use python in R
+#np <- import_from_path("numpy", path = "/usr/local/lib/python3.8/site-packages/numpy/__init__.py")
 # read F_SSD, the SSD for each subject and sort by subject
 ## load file and initialize F_SSD list
 F_SSD_file <- np$load(file.path(result_folder, 'F_SSD.npz')) 
@@ -64,11 +66,11 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   wdBlkInlier <- F_SSD_file$f[[sprintf('wdBlkInlier_%02d', i_subject-1)]]
 
   ### read, calculate z-score and divide F_SSD into snare and woodblock,reject invalid trials
-  F_SSD_subj <- sweep(sweep(F_SSD[[i_subject]], MARGIN=c(1,2), F_SSD_mean, FUN="-"), MARGIN=c(1,2), F_SSD_sd, FUN="/")
+  F_SSD_subj <- sweep(sweep(F_SSD[[i_subject]], MARGIN=c(1,2), F_SSD_mean, FUN="-"), MARGIN=c(1,2), F_SSD_sd, FUN="/") #z-score
   behavior_file <- np$load(file.path(result_folder, sprintf('S%02d', subject), 'behavioural_results.npz'),
                            allow_pickle = T, encoding='latin1') 
   snareCue_times <- behavior_file$f[['snareCue_times']]
-  snareCue_times <- snareCue_times[snareInlier]
+  snareCue_times <- snareCue_times[snareInlier] #need that here because read in SSD is already filtered by Inlier
   wdBlkCue_times <- behavior_file$f[['wdBlkCue_times']]
   wdBlkCue_times <- wdBlkCue_times[wdBlkInlier]
   type_df <- data.frame(rep(FALSE,length(snareCue_times)),snareCue_times)
@@ -82,9 +84,7 @@ for (subject in 1:(N_subjects+1)){ # +1 for originally we had 21 subjects
   
   ## read behavioral data
   snareDev <- behavior_file$f[["snare_deviation"]] #deviation
-  #snareDev <- snareDev[snareInlier]
   wdBlkDev <- behavior_file$f[["wdBlk_deviation"]]
-  #wdBlkDev <- wdBlkDev[wdBlkInlier]
   wdBlkDevToClock <- behavior_file$f[["wdBlkCue_DevToClock"]] #to get sessions
   snareDevToClock <- behavior_file$f[["snareCue_DevToClock"]]
 
@@ -141,10 +141,9 @@ behavior_df_wdBlk <- split(behavior_df, behavior_df$type_index)[[2]]
 
 # read additional subject info (handedness and musical score)
 addInfo <- read.csv(file.path(data_folder,'additionalSubjectInfo.csv'), sep=';')
-music_total_score <- addInfo$MusicQualification + addInfo$MusicianshipLevel + addInfo$TrainingYears
-music_z_score <- (music_total_score - mean(music_total_score)) / sd(music_total_score)
-music_z_score <- c(music_z_score[1:10], music_z_score[12:21]) #del subject 11 for we dont have corresponding eeg data
-
+music_total_score <- scale(addInfo$MusicQualification[-11]) + #del subject 11 and scale (same contribution)
+  scale(addInfo$MusicianshipLevel[-11]) + scale(addInfo$TrainingYears[-11])
+music_z_score <- scale(music_total_score) #zscore over all 3
 # remove unused objects
 rm('F_SSD_file','snareInlier','wdBlkInlier','F_SSD_subj','snareCue_times','wdBlkCue_times',
    'type_df','type_df2','trial_type','snareDev','wdBlkDev','wdBlkDevToClock',
@@ -222,6 +221,7 @@ for (i in 1:N_subjects) {
 i <- 2
 ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,1,] - snare_Tmean[,1]
 ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_snare[[i]][,2,] - snare_Tmean[,2]
+beta3 <- as.vector(scale(beta3)) #zscore again because of different trial numbers
 
 colnames_dm <- c('WSnare1', 'WSnare2', 'WWdBlk1', 'WWdBlk2',
                  'BSnare1', 'BSnare2', 'BWdBlk1', 'BWdBlk2',
@@ -272,6 +272,7 @@ for (i in 1:N_subjects) {
 i <- 2
 ypsilon1[(1+(i-1)*i4):(2+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,1,] - wdBlk_Tmean[,1]
 ypsilon1[(3+(i-1)*i4):(4+(i-1)*i4), (trial_index[i]+1):trial_index[i+1]] <- F_SSD_wdBlk[[i]][,2,] - wdBlk_Tmean[,2]
+beta3 <- as.vector(scale(beta3)) #zscore again because of different trial numbers
 
 design_mat_wdBlk <- t(rbind(beta1, beta2, beta3, behavior_df_wdBlk$trial, behavior_df_wdBlk$session, ypsilon0, ypsilon1))
 colnames(design_mat_wdBlk) <- colnames_dm #see snare for colnames_dm
@@ -313,27 +314,58 @@ summary(ols_wdBlk)
 # do CV 5-fold to get best lambda 
 # see https://www.datacamp.com/community/tutorials/tutorial-ridge-lasso-elastic-net?utm_source=adwords_ppc&utm_campaignid=898687156&utm_adgroupid=48947256715&utm_device=c&utm_keyword=&utm_matchtype=b&utm_network=g&utm_adpostion=&utm_creative=229765585183&utm_targetid=aud-299261629574:dsa-429603003980&utm_loc_interest_ms=&utm_loc_physical_ms=9061140&gclid=Cj0KCQiA6Or_BRC_ARIsAPzuer_W4tuR1ZHvgX_XJTOYHr8AjBZ6i5NTVwTw0oxf-ZJRbb-uNjLvCKIaArbAEALw_wcB 
 
-lambdas_to_try <- 10^seq(-6, 4, length.out = 100)
 # TDOO: grid search for lambda and alpha combi
 #snare
-regOLS_cv_snare <- cv.glmnet(design_mat_snare, abs(snare_data$dev), alpha = 0.5,
-                             lambda = lambdas_to_try, nfolds = 5, standardize = T) #does 5 fold Cv to get best lambda
+regOLS_cv_snare = cv.glmnet(design_mat_snare, abs(snare_data$dev),
+                                   alpha = 1,
+                                   family = 'gaussian',
+                                   intercept=T,
+                                   standardize=F,
+                                   nlambda = 500,
+                                   nfolds = 20)
 plot(regOLS_cv_snare) #cv results
 lambda_snare <- regOLS_cv_snare$lambda.min
-regOLS_snare <- glmnet(design_mat_snare, abs(snare_data$dev), alpha = 0.5, 
-                       lambda = lambda_snare, standardize = T)
+regOLS_snare <- glmnet(design_mat_snare, 
+                       abs(snare_data$dev), 
+                       alpha = 1, 
+                       family= 'gaussian',
+                       intercept = T, 
+                       standardize = F, 
+                       lambda = lambda_snare)
 coef.glmnet(regOLS_snare)
 coefplot(regOLS_snare)# , sort='magnitude')
 
-
 #wdBlk
-regOLS_cv_wdBlk <- cv.glmnet(design_mat_wdBlk, abs(wdBlk_data$dev), alpha = 0.5, 
-                             lambda = lambdas_to_try, nfolds = 5) #does 5 fold Cv to get best lambda
+# as in wdBlk_cv_model in REWBmodel.py 252
+regOLS_cv_wdBlk <- cv.glmnet(design_mat_wdBlk, 
+                             abs(wdBlk_data$dev), 
+                             alpha = 1, 
+                             family= 'gaussian',
+                             intercept = T, 
+                             standardize = F, 
+                             nlambda = 500, 
+                             nfolds = 20) #does 20 fold Cv to get best lambda
 plot(regOLS_cv_wdBlk) #cv results
 lambda_wdBlk <- regOLS_cv_wdBlk$lambda.min
-regOLS_wdBlk <- glmnet(design_mat_wdBlk, abs(wdBlk_data$dev), alpha = 0.5, lambda = lambda_wdBlk, standardize = T)
+regOLS_wdBlk <- glmnet(design_mat_wdBlk, 
+                       abs(wdBlk_data$dev), 
+                       alpha = 1, 
+                       family= 'gaussian',
+                       intercept = T, 
+                       standardize = F, 
+                       lambda = lambda_wdBlk)
 coef(regOLS_wdBlk)
 coefplot(regOLS_wdBlk)# , sort='magnitude')
+
+##### store coef, matrix and beta for numpy analysis #####
+# load in python with: np.loadtxt('Results/gamlss/wdBlk_design.txt', comments="#", delimiter=",", skiprows=1)
+write.table(design_mat_snare, file=file.path(result_folder,'gamlss', 'snare_design.txt'), row.names=F, sep=",")
+write.table(abs(snare_data$dev), file=file.path(result_folder,'gamlss', 'snareY.txt'), row.names=F, sep=",")
+write.table(as.array(coef(regOLS_snare)), file=file.path(result_folder,'gamlss', 'snare_coefs.txt'), row.names=F, sep=",")
+
+write.table(design_mat_wdBlk, file=file.path(result_folder,'gamlss', 'wdBlk_design.txt'), row.names=F, sep=",")
+write.table(abs(wdBlk_data$dev), file=file.path(result_folder,'gamlss', 'wdBlkY.txt'), row.names=F, sep=",")
+write.table(as.array(coef(regOLS_wdBlk)), file=file.path(result_folder,'gamlss', 'wdBlk_coefs.txt'), row.names=F, sep=",")
 
 # compare OLS, pseudoinverse and regOLS with lambda=0 for snare
 # tried to scale y
@@ -354,12 +386,7 @@ plot(coef_OLS, coef_regOLS) #should give a y=x line :/
 plot(coef_OLS, coef_man)
 plot(coef_regOLS, coef_man)
 
-##### store coef, matrix and beta for numpy analysis #####
-write.table(design_mat_snare_intercept, file=file.path(result_folder,'gamlss', 'design_mat_snare_intercept.txt'), row.names=F, sep=",")
-write.table(snare_data$dev, file=file.path(result_folder,'gamlss', 'snare_dev.txt'), row.names=F, sep=",")
-write.table(coef_OLS, file=file.path(result_folder,'gamlss', 'coef_OLS.txt'), row.names=F, sep=",")
-write.table(as.matrix(coef_regOLS), file=file.path(result_folder,'gamlss', 'coef_regOLS.txt'), row.names=F, sep=",")
-# load in python with: dev = np.loadtxt('snare_dev.txt', comments="#", delimiter=",", skiprows=1)
+
 
 ##### notes #####
 # snare_deviation contains nan which are not corresponding to Inlier... keep for now, take care with mean!
