@@ -63,7 +63,7 @@ with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'r') as infile:
         background[key] = value
 
 raw_musicscores = np.array([background['%s' % i]
-    for i in list(range(1,11,1)) + list(range(12, 22, 1))])
+    for i in list(range(1,11,1)) + list(range(12, 22, 1))]) #exclude subject 11
 
 z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
         )/raw_musicscores.std(0)
@@ -93,14 +93,15 @@ while True:
         with np.load(os.path.join(result_folder,'S{:02d}'.format(subj),
             'behavioural_results.npz'), allow_pickle=True,
             encoding='bytes') as fi:
-            snare_deviation_now = fi['snare_deviation']
-            wdBlk_deviation_now = fi['wdBlk_deviation']
+            snare_deviation_now = fi['snare_deviation'][snareInlier[idx]]
+            wdBlk_deviation_now = fi['wdBlk_deviation'][wdBlkInlier[idx]]
 
             # take only the trials where performance is not nan
             snare_finite = np.isfinite(snare_deviation_now)
             wdBlk_finite = np.isfinite(wdBlk_deviation_now)
-            snare_inlier_now = np.all([snare_finite, snareInlier[idx]], 0)
-            wdBlk_inlier_now = np.all([wdBlk_finite, wdBlkInlier[idx]], 0)
+            snare_inlier_now = snare_finite #already filtered for snareInlier in line 41 and 96
+            wdBlk_inlier_now = wdBlk_finite
+
             # take only the trials in range median ± 1.5*IQR
             if iqr_rejection:
                 lb_snare = np.median(snare_deviation_now[snare_finite]
@@ -110,7 +111,7 @@ while True:
                 idx_iqr_snare = np.logical_and(
                     snare_deviation_now>lb_snare, snare_deviation_now<ub_snare)
                 snare_inlier_now = np.logical_and(
-                    snare_inlier_now, idx_iqr_snare)
+                    snare_finite, idx_iqr_snare)
                 lb_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]
                     ) - 1.5*iqr(wdBlk_deviation_now[wdBlk_finite])
                 ub_wdBlk = np.median(wdBlk_deviation_now[wdBlk_finite]
@@ -118,19 +119,17 @@ while True:
                 idx_iqr_wdBlk = np.logical_and(
                     wdBlk_deviation_now>lb_wdBlk, wdBlk_deviation_now<ub_wdBlk)
                 wdBlk_inlier_now = np.logical_and(
-                    wdBlk_inlier_now, idx_iqr_wdBlk)
+                    wdBlk_finite, idx_iqr_wdBlk)
 
             snare_deviation.append(
                     snare_deviation_now[snare_inlier_now])
             wdBlk_deviation.append(
                     wdBlk_deviation_now[wdBlk_inlier_now])
-            snare_F_SSD[idx] = snare_F_SSD[idx][:,
-                    snare_inlier_now[snareInlier[idx]]]
-            wdBlk_F_SSD[idx] = wdBlk_F_SSD[idx][:,
-                    wdBlk_inlier_now[wdBlkInlier[idx]]]
+            snare_F_SSD[idx] = snare_F_SSD[idx][:, snare_inlier_now]
+            wdBlk_F_SSD[idx] = wdBlk_F_SSD[idx][:, wdBlk_inlier_now]
             # get the trial indices
-            snare_times = fi['snareCue_times']
-            wdBlk_times = fi['wdBlkCue_times']
+            snare_times = fi['snareCue_times'][snareInlier[idx]]
+            wdBlk_times = fi['wdBlkCue_times'][wdBlkInlier[idx]]
             all_trial_idx = zscore(np.argsort(np.argsort(
                 np.r_[snare_times, wdBlk_times])))
             snare_trial_idx.append(
@@ -142,12 +141,12 @@ while True:
                     zscore(np.hstack([i*np.ones_like(session)
                         for i, session in enumerate(
                             fi['snareCue_nearestClock'])])
-                        )[snare_inlier_now])
+                        )[snareInlier[idx]][snare_inlier_now])
             wdBlk_session_idx.append(
                     zscore(np.hstack([i*np.ones_like(session)
                         for i, session in enumerate(
                             fi['wdBlkCue_nearestClock'])])
-                        )[wdBlk_inlier_now])
+                        )[wdBlkInlier[idx]][wdBlk_inlier_now])
             idx += 1
 
 def design_matrix(F_SSD, musicscore, trial_idx, session_idx):
