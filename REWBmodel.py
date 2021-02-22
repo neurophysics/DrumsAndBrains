@@ -225,7 +225,7 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
 # finally, get the design matrices
 # data splitting using N_SPLIT subjects for selection
 N_SPLIT = 15
-random.seed(55)
+random.seed(42) # actually makes a difference for the chosen coefs
 select_idx = sorted(random.sample(range(len(snare_F_SSD)), N_SPLIT))
 infer_idx = [i for i in range(len(snare_F_SSD)) if i not in select_idx]
 
@@ -319,9 +319,13 @@ wdBlkY_infer = np.hstack([wdBlk_deviation[i] for i in infer_idx])
     snare_design[np.where(snare_coefs)].T, snareY_infer)
 snare_ols.coef_'''
 # sklearn package doesnt give p value, use statsmodels package
-# statsmodels does not automatically generate intercept
-snare_df = pd.DataFrame(snare_design_infer[np.where(snare_coefs)].T,
-    columns = [snare_labels[i] for i in np.where(snare_coefs)[0]])
+# take coefficients from selection model, take all v0 and v1
+snare_coef_list = [i for i in np.where(snare_coefs)[0] if i<12] + list(range(
+    12, snare_design_infer.shape[0])) #snare_labels[12] = 'RE0_00'
+# store in data frame to keep coef names
+snare_df = pd.DataFrame(snare_design_infer[snare_coef_list].T,
+    columns = [snare_labels[i] for i in snare_coef_list])
+# statsmodels does not automatically generate intercept (keep it)
 snare_ols = sm.OLS(snareY_infer, snare_df)
 snare_ols_fit = snare_ols.fit()
 print(snare_ols_fit.summary())
