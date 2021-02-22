@@ -7,7 +7,11 @@ import os.path
 from scipy.stats import zscore, iqr
 import csv
 import sklearn
+from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
+import random
+import statsmodels.api as sm
+import pandas as pd
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -50,7 +54,7 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
         except KeyError:
             break
 # snare_F_SSD[1].shape: (4, 73)
-N_subjects = len(snare_F_SSD)
+
 
 # read the musicality scores of all subjects
 background = {}
@@ -121,35 +125,45 @@ while True:
                 wdBlk_inlier_now = np.logical_and(
                     wdBlk_finite, idx_iqr_wdBlk)
 
+            # (normalize subjects' deviation to have zero mean each) and append
+            # w/o mean for now, want to induce precision not subjects consistency
+            dev_mean = np.mean(np.hstack([
+                snare_deviation_now[snare_inlier_now],
+                wdBlk_deviation_now[wdBlk_inlier_now]]))
             snare_deviation.append(
-                    snare_deviation_now[snare_inlier_now])
+                snare_deviation_now[snare_inlier_now])#-dev_mean)
             wdBlk_deviation.append(
-                    wdBlk_deviation_now[wdBlk_inlier_now])
+                wdBlk_deviation_now[wdBlk_inlier_now])#-dev_mean)
             snare_F_SSD[idx] = snare_F_SSD[idx][:, snare_inlier_now]
             wdBlk_F_SSD[idx] = wdBlk_F_SSD[idx][:, wdBlk_inlier_now]
+
             # get the trial indices
-            snare_times = fi['snareCue_times'][snareInlier[idx]]
-            wdBlk_times = fi['wdBlkCue_times'][wdBlkInlier[idx]]
-            all_trial_idx = zscore(np.argsort(np.argsort(
-                np.r_[snare_times, wdBlk_times])))
-            snare_trial_idx.append(
-                    all_trial_idx[:len(snare_times)][snare_inlier_now])
-            wdBlk_trial_idx.append(
-                    all_trial_idx[len(snare_times):][wdBlk_inlier_now])
+            snare_times = fi['snareCue_times']
+            wdBlk_times = fi['wdBlkCue_times']
+            all_trial_idx = np.argsort(np.argsort(
+                np.r_[snare_times, wdBlk_times]))
+            snare_trial_idx_now = zscore(all_trial_idx[:len(
+                snare_times)][snareInlier[idx]][snare_inlier_now])
+            snare_trial_idx.append(snare_trial_idx_now)
+            wdBlk_trial_idx_now = zscore(all_trial_idx[len(
+                snare_times):][wdBlkInlier[idx]][wdBlk_inlier_now])
+            wdBlk_trial_idx.append(wdBlk_trial_idx_now)
+
             # get the session indices
             snare_session_idx.append(
-                    zscore(np.hstack([i*np.ones_like(session)
-                        for i, session in enumerate(
-                            fi['snareCue_nearestClock'])])
-                        )[snareInlier[idx]][snare_inlier_now])
+                zscore(np.hstack([i*np.ones_like(session)
+                    for i, session in enumerate(
+                        fi['snareCue_nearestClock'])])
+                    )[snareInlier[idx]][snare_inlier_now])
             wdBlk_session_idx.append(
-                    zscore(np.hstack([i*np.ones_like(session)
-                        for i, session in enumerate(
-                            fi['wdBlkCue_nearestClock'])])
-                        )[wdBlkInlier[idx]][wdBlk_inlier_now])
+                zscore(np.hstack([i*np.ones_like(session)
+                    for i, session in enumerate(
+                        fi['wdBlkCue_nearestClock'])])
+                    )[wdBlkInlier[idx]][wdBlk_inlier_now])
             idx += 1
 
-def design_matrix(F_SSD, musicscore, trial_idx, session_idx):
+def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
+    F_SSD = [F_SSD[i] for i in subject_idx]
     N_trials = sum([SSD_now.shape[-1] for SSD_now in F_SSD])
     N_subjects = len(F_SSD)
     X = []
@@ -172,13 +186,13 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx):
     # add musicality score
     labels.append('musicality')
     X.append(zscore(np.hstack([m*np.ones(SSD_now.shape[-1])
-        for m, SSD_now in zip(musicscore, F_SSD)])))
+        for m, SSD_now in zip(musicscore[subject_idx], F_SSD)])))
     # add trial_idx
     labels.append('trial_idx')
-    X.append(np.hstack(trial_idx))
+    X.append(np.hstack([trial_idx[i] for i in subject_idx]))
     # add session_idx
     labels.append('session_idx')
-    X.append(np.hstack(session_idx))
+    X.append(np.hstack([session_idx[i] for i in subject_idx]))
     # add random effect for the intercept
     labels.extend(['RE0_{:02d}'.format(i) for i in range(N_subjects)])
     RE0 = np.zeros([N_subjects, N_trials])
@@ -209,13 +223,20 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx):
     return np.vstack(X), labels
 
 # finally, get the design matrices
-snare_design, snare_labels = design_matrix(
-        snare_F_SSD, musicscore, snare_trial_idx, snare_session_idx)
-snareY = np.hstack(snare_deviation)
+# data splitting using N_SPLIT subjects for selection
+N_SPLIT = 15
+random.seed(55)
+select_idx = sorted(random.sample(range(len(snare_F_SSD)), N_SPLIT))
+infer_idx = [i for i in range(len(snare_F_SSD)) if i not in select_idx]
 
-wdBlk_design, wdBlk_labels = design_matrix(
-        wdBlk_F_SSD, musicscore, wdBlk_trial_idx, wdBlk_session_idx)
-wdBlkY = np.hstack(wdBlk_deviation)
+# model selection
+snare_design_select, snare_labels = design_matrix(
+        snare_F_SSD, musicscore, snare_trial_idx, snare_session_idx, select_idx)
+snareY_select = np.hstack([snare_deviation[i] for i in select_idx])
+
+wdBlk_design_select, wdBlk_labels = design_matrix(
+        wdBlk_F_SSD, musicscore, wdBlk_trial_idx, wdBlk_session_idx, select_idx)
+wdBlkY_select = np.hstack([wdBlk_deviation[i] for i in select_idx])
 
 # start interface to R
 import rpy2.robjects as robjects
@@ -236,7 +257,7 @@ glmnet.cv_glmnet = STM(glmnet.cv_glmnet,
         init_prm_translate = {'penalty_factor': 'penalty.factor'})
 
 snare_cv_model = glmnet.cv_glmnet(
-        snare_design[1:].T, np.abs(snareY.reshape(-1,1)),
+        snare_design_select[1:].T, np.abs(snareY_select.reshape(-1,1)),
         alpha = 1,
         family = 'gaussian',
         intercept=True,
@@ -249,7 +270,7 @@ snare_coefs = np.ravel(robjects.r['as'](coef(snare_cv_model.rx2['glmnet.fit'],
         s=snare_cv_model.rx2['lambda.min']), 'matrix'))
 
 wdBlk_cv_model = glmnet.cv_glmnet(
-        wdBlk_design[1:].T, np.abs(wdBlkY.reshape(-1,1)),
+        wdBlk_design_select[1:].T, np.abs(wdBlkY_select.reshape(-1,1)),
         alpha = 1,
         family = 'gaussian',
         intercept=True,
@@ -261,7 +282,7 @@ wdBlk_cv_model = glmnet.cv_glmnet(
 wdBlk_coefs = np.ravel(robjects.r['as'](coef(wdBlk_cv_model.rx2['glmnet.fit'],
         s=wdBlk_cv_model.rx2['lambda.min']), 'matrix'))
 
-# plot the model coefficients
+# plot the select model coefficients
 fig, ax = plt.subplots(ncols=2)
 
 ax[0].barh(range(12), snare_coefs[:12],
@@ -284,3 +305,23 @@ ax[1].set_title('wdBlk vs. absolute deviation')
 
 fig.tight_layout()
 fig.savefig(os.path.join(result_folder, 'glmnet_result.pdf'))
+
+# model inference: use selected model and other subjects to get p value
+snare_design_infer, snare_labels = design_matrix(
+        snare_F_SSD, musicscore, snare_trial_idx, snare_session_idx, infer_idx)
+snareY_infer = np.hstack([snare_deviation[i] for i in infer_idx])
+
+wdBlk_design_infer, wdBlk_labels = design_matrix(
+        wdBlk_F_SSD, musicscore, wdBlk_trial_idx, wdBlk_session_idx, infer_idx)
+wdBlkY_infer = np.hstack([wdBlk_deviation[i] for i in infer_idx])
+
+'''snare_ols = LinearRegression(fit_intercept=False).fit(
+    snare_design[np.where(snare_coefs)].T, snareY_infer)
+snare_ols.coef_'''
+# sklearn package doesnt give p value, use statsmodels package
+# statsmodels does not automatically generate intercept
+snare_df = pd.DataFrame(snare_design_infer[np.where(snare_coefs)].T,
+    columns = [snare_labels[i] for i in np.where(snare_coefs)[0]])
+snare_ols = sm.OLS(snareY_infer, snare_df)
+snare_ols_fit = snare_ols.fit()
+print(snare_ols_fit.summary())
