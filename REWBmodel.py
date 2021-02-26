@@ -260,10 +260,12 @@ snare_cv_model = glmnet.cv_glmnet(
         snare_design_select[1:].T, np.abs(snareY_select.reshape(-1,1)),
         alpha = 1,
         family = 'gaussian',
-        intercept=True,
-        standardize=False,
+        intercept = True,
+        standardize = False,
         nlambda = 500,
-        nfolds = 20
+        nfolds = 20,
+        penalty_factor = np.concatenate( #0 = no shrinkage, default 1
+            (np.ones(11), np.zeros(snare_design_select.shape[0]-11))) #11 bc. np intercept
         )
 
 snare_coefs = np.ravel(robjects.r['as'](coef(snare_cv_model.rx2['glmnet.fit'],
@@ -273,10 +275,12 @@ wdBlk_cv_model = glmnet.cv_glmnet(
         wdBlk_design_select[1:].T, np.abs(wdBlkY_select.reshape(-1,1)),
         alpha = 1,
         family = 'gaussian',
-        intercept=True,
-        standardize=False,
+        intercept = True,
+        standardize = False,
         nlambda = 500,
-        nfolds = 20
+        nfolds = 20,
+        penalty_factor = np.concatenate(
+            (np.ones(11), np.zeros(snare_design_select.shape[0]-11))) #11 bc. np intercept
         )
 
 wdBlk_coefs = np.ravel(robjects.r['as'](coef(wdBlk_cv_model.rx2['glmnet.fit'],
