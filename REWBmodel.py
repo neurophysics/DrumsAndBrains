@@ -16,6 +16,9 @@ import pandas as pd
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
 
+# reject behavioral outlier
+iqr_rejection = True
+
 # target frequencies
 snareFreq = 7./6
 wdBlkFreq = 7./4
@@ -24,8 +27,7 @@ wdBlkFreq = 7./4
 N_SSD = 2
 
 # load the SSD results from all subjects into a list
-snare_F_SSD = []
-wdBlk_F_SSD = []
+F_SSDs = []
 snareInlier = []
 wdBlkInlier = []
 
@@ -42,19 +44,17 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
         try:
             F_SSD = fi['F_SSD_{:02d}'.format(i)][:N_SSD,
                     (snare_idx, wdBlk_idx)]
+            F_SSDs.append(F_SSD)
             snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
             wdBlkInlier.append(fi['wdBlkInlier_{:02d}'.format(i)])
-            snare_temp = F_SSD[...,:snareInlier[-1].sum()]
-            wdBlk_temp = F_SSD[...,snareInlier[-1].sum():]
-            snare_F_SSD.append(snare_temp.reshape((-1, snare_temp.shape[-1]),
-                order='F'))
-            wdBlk_F_SSD.append(wdBlk_temp.reshape((-1, wdBlk_temp.shape[-1]),
-                order='F'))
             i += 1
         except KeyError:
             break
-# snare_F_SSD[1].shape: (4, 73)
 
+# scale F_SSD: concatenate along trial axis, calculate mean and sd, scale
+F_SSD_mean = np.mean(np.concatenate(F_SSDs, -1), 2)
+F_SSD_sd = np.std(np.concatenate(F_SSDs, -1), 2)
+F_SSDs = [(i - F_SSD_mean[:,:,np.newaxis]) / F_SSD_sd[:,:,np.newaxis] for i in F_SSDs]
 
 # read the musicality scores of all subjects
 background = {}
@@ -74,6 +74,8 @@ z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
 musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 
 # get the performance numbers
+snare_F_SSD = []
+wdBlk_F_SSD = []
 snare_deviation = []
 snare_trial_idx = []
 snare_session_idx = []
@@ -83,9 +85,16 @@ wdBlk_session_idx = []
 
 subj = 0
 idx = 0
-iqr_rejection = True
 while True:
     subj += 1
+    # divide scaled F_SSD in wdBlk and snare
+    F_SSD = F_SSDs[idx]
+    snare_temp = F_SSD[...,:snareInlier[idx].sum()]
+    wdBlk_temp = F_SSD[...,snareInlier[idx].sum():]
+    snare_F_SSD.append(snare_temp.reshape((-1, snare_temp.shape[-1]),
+        order='F'))
+    wdBlk_F_SSD.append(wdBlk_temp.reshape((-1, wdBlk_temp.shape[-1]),
+        order='F'))
     if not os.path.exists(os.path.join(
         result_folder, 'S{:02d}'.format(subj), 'behavioural_results.npz')):
         break
@@ -263,13 +272,13 @@ snare_cv_model = glmnet.cv_glmnet(
         intercept = True,
         standardize = False,
         nlambda = 500,
-        nfolds = 20,
-        penalty_factor = np.concatenate( #0 = no shrinkage, default 1
-            (np.ones(11), np.zeros(snare_design_select.shape[0]-11))) #11 bc. np intercept
+        nfolds = 20
+        #penalty_factor = np.concatenate( #0 = no shrinkage, default 1
+        #    (np.ones(11), np.zeros(snare_design_select.shape[0]-11))) #11 bc. np intercept
         )
 
 snare_coefs = np.ravel(robjects.r['as'](coef(snare_cv_model.rx2['glmnet.fit'],
-        s=snare_cv_model.rx2['lambda.min']), 'matrix'))
+        s=snare_cv_model.rx2['lambda.min']), 'matrix')) #change to lambda1se w/o penalty factor
 
 wdBlk_cv_model = glmnet.cv_glmnet(
         wdBlk_design_select[1:].T, np.abs(wdBlkY_select.reshape(-1,1)),
