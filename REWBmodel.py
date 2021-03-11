@@ -174,36 +174,40 @@ while True:
 def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
     F_SSD = [F_SSD[i] for i in subject_idx]
     N_trials = sum([SSD_now.shape[-1] for SSD_now in F_SSD])
+    subject = np.hstack([[i + 1] * SSD_now.shape[-1]
+        for i, SSD_now in enumerate(F_SSD)])
     N_subjects = len(F_SSD)
     X = []
-    labels = []
+    Z = []
+    labels_X = []
+    labels_Z = []
     # add intercept
-    labels.append('intercept')
+    labels_X.append('intercept')
     X.append(np.ones((1, N_trials)))
     # add within-subjects coefficient
-    labels.extend(['WSnare1', 'WSnare2', 'WWdBlk1', 'WWdBlk2'])
+    labels_X.extend(['WSnare1', 'WSnare2', 'WWdBlk1', 'WWdBlk2'])
     X.append(np.hstack([zscore(np.abs(SSD_now), -1) for SSD_now in F_SSD]))
     # get mean and std of between subjects effect
     B_mean = np.mean([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
     B_std = np.std([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
     # add between subjects coefficient
-    labels.extend(['BSnare1', 'BSnare2', 'BWdBlk1', 'BWdBlk2'])
+    labels_X.extend(['BSnare1', 'BSnare2', 'BWdBlk1', 'BWdBlk2'])
     X.append(
             np.hstack([((np.abs(SSD_now).mean(-1) - B_mean)/
                 B_std)[:, np.newaxis] * np.ones(SSD_now.shape)
                 for SSD_now in F_SSD]))
     # add musicality score
-    labels.append('musicality')
+    labels_X.append('musicality')
     X.append(zscore(np.hstack([m*np.ones(SSD_now.shape[-1])
         for m, SSD_now in zip(musicscore[subject_idx], F_SSD)])))
     # add trial_idx
-    labels.append('trial_idx')
+    labels_X.append('trial_idx')
     X.append(np.hstack([trial_idx[i] for i in subject_idx]))
     # add session_idx
-    labels.append('session_idx')
+    labels_X.append('session_idx')
     X.append(np.hstack([session_idx[i] for i in subject_idx]))
     # add random effect for the intercept
-    labels.extend(['RE0_{:02d}'.format(i) for i in range(N_subjects)])
+    labels_Z.extend(['RE0_{:02d}'.format(i) for i in range(N_subjects)])
     RE0 = np.zeros([N_subjects, N_trials])
     subj = 0
     tr = 0
@@ -211,9 +215,9 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
         RE0[subj, tr:tr + SSD_now.shape[-1]] = 1
         tr += SSD_now.shape[-1]
         subj += 1
-    X.append(RE0)
+    Z.append(RE0)
     # add random effect for the within-subjects (REW) effect
-    [labels.extend(
+    [labels_Z.extend(
         ['REWSnare1_{:02d}'.format(i),
         'REWSnare2_{:02d}'.format(i),
         'REWWdBlk1_{:02d}'.format(i),
@@ -228,18 +232,20 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
                     :,np.newaxis], axis=-1))
         tr += SSD_now.shape[-1]
         subj += 1
-    X.append(REW)
-    return np.vstack(X), labels
+    Z.append(REW)
+    return np.vstack(X), np.vstack(Z), labels_X, labels_Z, subject
+
+1/0
 
 # finally, get the design matrices
 # data splitting using N_SPLIT subjects for selection
-N_SPLIT = 15
+N_SPLIT = 20
 random.seed(42) # actually makes a difference for the chosen coefs
 select_idx = sorted(random.sample(range(len(snare_F_SSD)), N_SPLIT))
 infer_idx = [i for i in range(len(snare_F_SSD)) if i not in select_idx]
 
 # model selection
-snare_design_select, snare_labels = design_matrix(
+snare_X_select, snare_Z_select, snare_labels_X, snare_labels_Z, snare_subject = design_matrix(
         snare_F_SSD, musicscore, snare_trial_idx, snare_session_idx, select_idx)
 snareY_select = np.hstack([snare_deviation[i] for i in select_idx])
 
@@ -255,6 +261,11 @@ from rpy2.robjects import numpy2ri
 coef = robjects.r.coef
 numpy2ri.activate()
 
+# now, fit lmer model -> this should work like this:
+# snare_Y_select ~ snare_X_select + (snare_Z_select | subjects)
+
+# to run glmnet, X and Z need to be united
+# (unclear whether this makes sense)
 ###########################################################
 # fit the models with R's glmnet and extract coefficients #
 ###########################################################
