@@ -4,6 +4,7 @@ import os.path
 import matplotlib.pyplot as plt
 import meet
 import helper_functions
+import scipy as sp
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -36,8 +37,7 @@ chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
 chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
         projection='stereographic')
 
-# plot 2 sec preresponse for each channel (find response time 0)
-# ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
+##### plot 2 sec preresponse for each channel #####
 subj = 2 #later over all subjects
 eeg = eegs[subj]
 artifact_mask = artifact_masks[subj]
@@ -96,3 +96,14 @@ for c in range(Nc):
 plt.xticks(ticks=range(0,2501, 500), labels=range(-2000,501,500))
 #plt.show()
 fig.savefig(os.path.join(save_folder, 'motor_2000mspreresponse'))
+
+# ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
+fbands = [[1,4], [4,8], [8,12], [12,20], [20,40]]
+i=1 #later loop over all frequency bands
+# 1. band-pass filters with order 10
+Wn = np.array(fbands[i]) / s_rate * 2
+b, a = sp.signal.butter(5, Wn, btype='bandpass')
+Xf = sp.signal.lfilter(b, a, all_trials)
+#2. Hilbert-Transform, absolute value
+Xfh = np.abs(sp.signal.hilbert(Xf))
+#3. Normalisieren, so dass 2 sek prä-stimulus 100% sind und dann averagen
