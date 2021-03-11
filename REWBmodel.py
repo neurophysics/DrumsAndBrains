@@ -88,13 +88,6 @@ idx = 0
 while True:
     subj += 1
     # divide scaled F_SSD in wdBlk and snare
-    F_SSD = F_SSDs[idx]
-    snare_temp = F_SSD[...,:snareInlier[idx].sum()]
-    wdBlk_temp = F_SSD[...,snareInlier[idx].sum():]
-    snare_F_SSD.append(snare_temp.reshape((-1, snare_temp.shape[-1]),
-        order='F'))
-    wdBlk_F_SSD.append(wdBlk_temp.reshape((-1, wdBlk_temp.shape[-1]),
-        order='F'))
     if not os.path.exists(os.path.join(
         result_folder, 'S{:02d}'.format(subj), 'behavioural_results.npz')):
         break
@@ -103,6 +96,13 @@ while True:
         result_folder, 'S{:02d}'.format(subj), 'prepared_FFTSSD.npz')):
         continue
     else:
+        F_SSD = F_SSDs[idx]
+        snare_temp = F_SSD[...,:snareInlier[idx].sum()]
+        wdBlk_temp = F_SSD[...,snareInlier[idx].sum():]
+        snare_F_SSD.append(snare_temp.reshape((-1, snare_temp.shape[-1]),
+            order='F'))
+        wdBlk_F_SSD.append(wdBlk_temp.reshape((-1, wdBlk_temp.shape[-1]),
+            order='F'))
         with np.load(os.path.join(result_folder,'S{:02d}'.format(subj),
             'behavioural_results.npz'), allow_pickle=True,
             encoding='bytes') as fi:
