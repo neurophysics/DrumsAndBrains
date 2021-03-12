@@ -15,23 +15,9 @@ s_rate = 1000 # sampling rate of the EEG
 snareFreq = 7./6
 wdBlkFreq = 7./4
 
-# read raw EEG data
-eegs = []
-artifact_masks = []
-for i in range(1, N_subjects + 1, 1):
-    try:
-        with np.load(os.path.join(data_folder, 'S%02d' % i)
-                + '/clean_data.npz', 'r') as fi:
-            EEG = fi['clean_data'] # shape (32, 2901860)
-            EEG -= EEG.mean(0) # rereference to the average EEG amplitude
-            eegs.append(EEG)
-            artifact_masks.append(fi['artifact_mask'])
-    except:
-        print(('Warning: Subject %02d could not be loaded!' %i))
 
 # read the channel names
-channames = meet.sphere.getChannelNames(os.path.join(data_folder,
-    '../channels.txt'))
+channames = meet.sphere.getChannelNames(os.path.join(data_folder,'channels.txt'))
 chancoords = meet.sphere.getStandardCoordinates(channames)
 chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
 chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
@@ -47,8 +33,12 @@ while(subj <= N_subjects):
         subj += 1
         continue
     #print(idx, subj)
-    eeg = eegs[idx]
-    artifact_mask = artifact_masks[idx]
+# read raw EEG data
+    with np.load(os.path.join(data_folder, 'S%02d' % subj)
+            + '/clean_data.npz', 'r') as fi:
+        eeg = fi['clean_data'] # shape (32, 2901860)
+        artifact_mask = fi['artifact_mask']
+    eeg -= eeg.mean(0) # rereference to the average EEG amplitude
     save_folder = os.path.join(result_folder, 'S{:02d}'.format(subj))
     data_folder_subj = os.path.join(data_folder, 'S{:02d}'.format(subj))
     ## get session clocks
@@ -78,9 +68,14 @@ while(subj <= N_subjects):
             snareCue_nearestClock, snareCue_DevToClock)
     wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
             wdBlkCue_nearestClock, wdBlkCue_DevToClock)
-
-    snare_resp = snareCue_pos + int(0.5 * bar_duration * s_rate)
-    wdBlk_resp = wdBlkCue_pos + int(2./3 * bar_duration * s_rate)
+    snare_resp = snareCue_pos + ((0.5 * bar_duration + snare_deviation)
+                                  * s_rate)
+    wdBlk_resp = wdBlkCue_pos + ((0.5 * bar_duration + wdBlk_deviation)
+                                  * s_rate)
+    snare_resp_outlier = np.isnan(snare_resp)
+    wdBlk_resp_outlier = np.isnan(wdBlk_resp)
+    snare_resp = snare_resp[~snare_resp_outlier].astype(int)
+    wdBlk_resp = wdBlk_resp[~wdBlk_resp_outlier].astype(int)
 
     #plot 2000ms pre response for each channel
     win = [-2000, 500]
@@ -92,47 +87,57 @@ while(subj <= N_subjects):
             np.r_[snare_resp[snareInlier],
                 wdBlk_resp[wdBlkInlier]],
             win)
+    all_trials -= all_trials[:,-win[0]][:,np.newaxis]
     Nc = len(channames)
-    fig, axs = plt.subplots(Nc, figsize=(4,8), sharex=True)
+    fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
+            sharex=True, sharey=True)
     fig.subplots_adjust(top=0.95, bottom=0.05)
-    axs[0].set_title('2000 ms preresponse')
+    axs[0,0].set_title('2000 ms preresponse')
+    axs[0,1].set_title('2000 ms preresponse')
+    axs[0,2].set_title('2000 ms preresponse')
+    axs[0,3].set_title('2000 ms preresponse')
     for c in range(Nc):
-        axs[c].plot(range(*win), all_trials.mean(-1)[c])
-        axs[c].set_ylabel(channames[c], fontsize=8)
-        axs[c].set_yticks([])
+        axs[c//4, c%4].plot(range(*win), all_trials.mean(-1)[c])
+        axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
+        axs[c//4, c%4].set_yticks([])
+        axs[c//4, c%4].axvline(0, lw=0.5, c='k')
     #plt.show()
-    fig.savefig(os.path.join(save_folder, 'motor_2000mspreresponse'))
+    fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse'))
 
     # ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
     fbands = [[1,4], [4,8], [8,12], [12,20], [20,40]]
-    i=1 #later loop over all frequency bands
-    # 1. band-pass filters with order 10
+    i=3 #later loop over all frequency bands
+    # 1. band-pass filters with order 6 (3 into each direction)
     Wn = np.array(fbands[i]) / s_rate * 2
-    b, a = sp.signal.butter(5, Wn, btype='bandpass')
-    eeg_filt = sp.signal.lfilter(b, a, eeg)
+    b, a = sp.signal.butter(3, Wn, btype='bandpass')
+    eeg_filt = sp.signal.filtfilt(b, a, eeg)
     #2. Hilbert-Transform, absolute value
-    eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filt))
+    eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filt, axis=-1))
     #3. Normalisieren, so dass 2 sek prä-stimulus 100% sind und dann averagen
-    win = [-2000, 0] # window is smaller than abvove => all that are Inlier above, will now be as well
     all_trials_filt = meet.epochEEG(eeg_filtHil,
             np.r_[snare_resp[snareInlier],
                 wdBlk_resp[wdBlkInlier]],
             win)
-    all_trials_filt = (all_trials_filt - all_trials_filt.mean(-1)[:,:,np.newaxis]
-        ) / np.std(all_trials_filt,-1)[:,:,np.newaxis]
-    # plot
-    fig, axs = plt.subplots(Nc, figsize=(4,8), sharex=True)
+    ERD = all_trials_filt.mean(-1)
+    ERD /= ERD[:,0][:,np.newaxis]
+    ERD *= 100
+    fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
+            sharex=True, sharey=True)
     fig.subplots_adjust(top=0.95, bottom=0.05)
-    axs[0].set_title('ERD band' + str(fbands[i][0]) + '-' + str(fbands[i][1])))
+    axs[0,0].set_title('2000 ms preresponse')
+    axs[0,1].set_title('2000 ms preresponse')
+    axs[0,2].set_title('2000 ms preresponse')
+    axs[0,3].set_title('2000 ms preresponse')
     for c in range(Nc):
-        axs[c].plot(range(*win), all_trials_filt.mean(-1)[c])
-        axs[c].set_ylabel(channames[c], fontsize=8)
-        axs[c].set_yticks([])
+        axs[c//4, c%4].plot(range(*win), ERD[c])
+        axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
+        #if c%4 != 0:
+        #    axs[c//4, c%4].set_yticks([])
+        axs[c//4, c%4].axvline(0, lw=0.5, c='k')
+        axs[c//4, c%4].axhline(100, lw=0.5, c='r', ls=':')
     #plt.show()
-    fig.savefig(os.path.join(save_folder, 'motor_ERD_band'
-        + str(fbands[i][0]) + '-' + str(fbands[i][1])))
-
-
+    fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse'))
     idx += 1
     subj += 1
+
 plt.close('all')
