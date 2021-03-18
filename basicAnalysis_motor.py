@@ -147,7 +147,6 @@ while(subj <= N_subjects):
     subj += 1
     plt.close('all')
 
-1/0
 # plot BP for all subjects
 all_BP_avg = np.mean(all_BP, axis=0)
 fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,7),
