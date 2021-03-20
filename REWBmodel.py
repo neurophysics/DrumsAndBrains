@@ -235,8 +235,6 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
     Z.append(REW)
     return np.vstack(X), np.vstack(Z), labels_X, labels_Z, subject
 
-1/0
-
 # finally, get the design matrices
 # data splitting using N_SPLIT subjects for selection
 N_SPLIT = 20
@@ -245,24 +243,36 @@ select_idx = sorted(random.sample(range(len(snare_F_SSD)), N_SPLIT))
 infer_idx = [i for i in range(len(snare_F_SSD)) if i not in select_idx]
 
 # model selection
-snare_X_select, snare_Z_select, snare_labels_X, snare_labels_Z, snare_subject = design_matrix(
+snareX_select, snareZ_select, snare_labelsX, snare_labelsZ, snare_subject = design_matrix(
         snare_F_SSD, musicscore, snare_trial_idx, snare_session_idx, select_idx)
 snareY_select = np.hstack([snare_deviation[i] for i in select_idx])
+snare_subjects = np.hstack(
+    [(i+1)*np.ones(s.shape[1]) if i<10 else (i+2)*np.ones(s.shape[1])
+    for i,s in enumerate(snare_F_SSD)])
 
-wdBlk_design_select, wdBlk_labels = design_matrix(
+wdBlkX_select, wdBlkZ_select, wdBlk_labelsX, wdBlk_labelsZ, wdBlk_subject = design_matrix(
         wdBlk_F_SSD, musicscore, wdBlk_trial_idx, wdBlk_session_idx, select_idx)
 wdBlkY_select = np.hstack([wdBlk_deviation[i] for i in select_idx])
+wdBlk_subjects = np.hstack(
+    [(i+1)*np.ones(s.shape[1]) if i<10 else (i+2)*np.ones(s.shape[1])
+    for i,s in enumerate(wdBlk_F_SSD)])
 
 # start interface to R
 import rpy2.robjects as robjects
 from rpy2.robjects.packages import importr
 # activate automatic conversion of numpy arrays to R
-from rpy2.robjects import numpy2ri
+from rpy2.robjects import numpy2ri, IntVector, Formula
 coef = robjects.r.coef
 numpy2ri.activate()
 
 # now, fit lmer model -> this should work like this:
-# snare_Y_select ~ snare_X_select + (snare_Z_select | subjects)
+lme4 = importr('lme4')
+fmla = Formula('y ~ 0 + x + (0 + z | g)')
+fmla.environment['y'] = np.abs(snareY_select.reshape(-1,1))
+fmla.environment['x'] = snareX_select.T
+fmla.environment['z'] = snareZ_select.T
+fmla.environment['g'] = snare_subjects.T[:,np.newaxis]
+snare_lme_model = lme4.lmer(fmla)
 
 # to run glmnet, X and Z need to be united
 # (unclear whether this makes sense)
