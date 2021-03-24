@@ -207,7 +207,7 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
     labels_X.append('session_idx')
     X.append(np.hstack([session_idx[i] for i in subject_idx]))
     # add random effect for the intercept
-    '''labels_Z.extend(['RE0_{:02d}'.format(i) for i in range(N_subjects)])
+    labels_Z.extend(['RE0_{:02d}'.format(i) for i in range(N_subjects)])
     RE0 = np.zeros([N_subjects, N_trials])
     subj = 0
     tr = 0
@@ -215,7 +215,7 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
         RE0[subj, tr:tr + SSD_now.shape[-1]] = 1
         tr += SSD_now.shape[-1]
         subj += 1
-    Z.append(RE0)'''
+    Z.append(RE0)
     # add random effect for the within-subjects (REW) effect
     [labels_Z.extend(
         ['REWSnare1_{:02d}'.format(i),
@@ -274,14 +274,13 @@ fmla = Formula('y ~ 0 + x + (0 + z | g)')
 fmla.environment['y'] = np.abs(snareY_select.reshape(-1,1))
 fmla.environment['x'] = snareX_select.T
 fmla.environment['z'] = snareZ_select[snareZ_select!=0].reshape(
-    4,sum(N_trials_snare)).T
+    5,sum(N_trials_snare)).T
 fmla.environment['g'] = snare_subjects.T[:,np.newaxis]
 snare_lme_model = lme4.lmer(fmla)
 lme4.REMLcrit(snare_lme_model)
 #quantile(lme4.residuals(snare_lme_model, 'pearson', scaled=True))
-summary(snare_lme_model)
 # get 12FE+4RE coefs for each subject
-np.ravel(coef(snare_lme_model)) #shape 20, each tupel of length 16 (12 FE + 4 RE)
+np.ravel(coef(snare_lme_model)) #shape 20, each tupel of length 17 (12 FE + 5 RE)
 
 1/0
 # to run glmnet, X and Z need to be united
