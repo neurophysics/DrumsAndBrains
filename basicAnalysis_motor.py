@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import csv
 import os.path
 import matplotlib.pyplot as plt
 import meet
@@ -8,13 +9,12 @@ import scipy as sp
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
-N_subjects = 3 #21 later, for now bc of speed (10min per subject)
+N_subjects = 2 #21 later, for now bc of speed (10min per subject)
 s_rate = 1000 # sampling rate of the EEG
 
 # target frequencies
 snareFreq = 7./6
 wdBlkFreq = 7./4
-
 
 # read the channel names
 channames = meet.sphere.getChannelNames(os.path.join(data_folder,'channels.txt'))
@@ -22,6 +22,15 @@ chancoords = meet.sphere.getStandardCoordinates(channames)
 chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
 chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
         projection='stereographic')
+
+# get LQR data
+LQ = []
+with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'r') as infile:
+    reader = csv.DictReader(infile, fieldnames=None, delimiter=';')
+    for row in reader:
+        LQ.append(int(row['LQ']))
+# True if channels need to be reversed
+left_handed = [True if i<0 else False for i in LQ]
 
 ##### plot 2 sec preresponse for each channel #####
 all_BP = [] #avg over all subjects
@@ -38,12 +47,23 @@ while(subj <= N_subjects):
         subj += 1
         continue
     #print(idx, subj)
-# read raw EEG data
+
+    # read raw EEG data
     with np.load(os.path.join(data_folder, 'S%02d' % subj)
             + '/clean_data.npz', 'r') as fi:
         eeg = fi['clean_data'] # shape (32, 2901860)
         artifact_mask = fi['artifact_mask']
     eeg -= eeg.mean(0) # rereference to the average EEG amplitude
+    # for lefthanded subjects, switch electrodes
+    if left_handed[idx]:
+        #print('subject '+str(subj)+' is left-handed. Switching electrodes...')
+        # see list(enumerate(channames))
+        eeg = np.vstack([eeg[1,:], eeg[0,:], eeg[6,:], eeg[5,:], eeg[4,:],
+            eeg[3,:], eeg[2,:], eeg[10,:], eeg[9,:], eeg[8,:], eeg[7,:],
+            eeg[15,:], eeg[14,:], eeg[13,:], eeg[12,:], eeg[11,:], eeg[21,:],
+            eeg[20,:], eeg[19,:], eeg[18,:], eeg[17,:], eeg[16,:], eeg[26,:],
+            eeg[25,:], eeg[24,:], eeg[23,:], eeg[22,:], eeg[28,:], eeg[27,:],
+            eeg[31,:], eeg[30,:], eeg[29,:]])
     save_folder = os.path.join(result_folder, 'S{:02d}'.format(subj))
     data_folder_subj = os.path.join(data_folder, 'S{:02d}'.format(subj))
     ## get session clocks
@@ -92,6 +112,7 @@ while(subj <= N_subjects):
                 wdBlk_resp[wdBlkInlier]],
             win)
     all_trials -= all_trials[:,-win[0]][:,np.newaxis]
+
     Nc = len(channames)
     fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
             sharex=True, sharey=True)
@@ -103,7 +124,7 @@ while(subj <= N_subjects):
         axs[c//4, c%4].set_yticks([])
         axs[c//4, c%4].axvline(0, lw=0.5, c='k')
     #plt.show()
-    fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse'))
+    fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse.pdf'))
     all_BP.append(all_trials.mean(-1))
 
     # ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
@@ -141,7 +162,7 @@ while(subj <= N_subjects):
         for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
         borderaxespad=1, fontsize=5)
     #plt.show()
-    fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse'))
+    fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse.pdf'))
     all_ERD.append(ERDs)
     idx += 1
     subj += 1
@@ -160,7 +181,7 @@ for c in range(Nc):
     axs[c//4, c%4].set_yticks([])
     axs[c//4, c%4].axvline(0, lw=0.5, c='k')
 #plt.show()
-fig.savefig(os.path.join(result_folder, 'motor_BP_2000mspreresponse'))
+fig.savefig(os.path.join(result_folder, 'motor_BP_2000mspreresponse.pdf'))
 
 # plot ERD for all subjects
 all_ERD_avg = [ np.mean([i[j] for i in all_ERD], axis=0)
@@ -176,6 +197,7 @@ for c in range(Nc):
         h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1)
         handels.append(h)
     axs[c//3, c%3].set_ylabel(channames[c], fontsize=8)
+    #axs[c//3, c%3].set_ylim([50,200])
     axs[c//3, c%3].axvline(0, lw=0.5, c='k')
     axs[c//3, c%3].axhline(100, lw=0.5, c='r', ls=':')
 fig.delaxes(axs[c//3, 2])
@@ -183,4 +205,6 @@ plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
     for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
     borderaxespad=1, fontsize=5)
 #plt.show()
-fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse'))
+fig.savefig(os.path.join(result_folder, 'motor_ERD_2000mspreresponse.pdf'))
+
+plt.close('all')
