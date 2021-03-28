@@ -9,7 +9,7 @@ import scipy as sp
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
-N_subjects = 1 #21 later, for now bc of speed (10min per subject)
+N_subjects = 21 #21 later, for now bc of speed (10min per subject)
 s_rate = 1000 # sampling rate of the EEG
 
 # color map
@@ -123,7 +123,7 @@ while(subj <= N_subjects):
     if subj==2:
         all_trials = np.concatenate([
             all_trials[:,:,:139], all_trials[:,:,141:]], axis=2)
-    if subj=12:
+    if subj==12:
         all_trials = np.concatenate([
             all_trials[:,:,:47], all_trials[:,:,71:]], axis=2)
     Nc = len(channames)
@@ -159,9 +159,9 @@ while(subj <= N_subjects):
         if subj==2:
             all_trials_filt = np.concatenate([
                 all_trials_filt[:,:,:139], all_trials_filt[:,:,141:]], axis=2)
-        if subj=12:
+        if subj==12:
             all_trials_filt = np.concatenate([
-                all_trials_filt[:,:,:47], all_trials_filt[:,:,71:]], axis=2)  
+                all_trials_filt[:,:,:47], all_trials_filt[:,:,71:]], axis=2)
         ERD = all_trials_filt.mean(-1)
         ERD /= ERD[:,0][:,np.newaxis]
         ERD *= 100
