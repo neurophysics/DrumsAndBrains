@@ -9,7 +9,7 @@ import meet
 import scipy.signal
 from sklearn.decomposition import PCA
 from sklearn.decomposition import FastICA
-from sklearn.externals import joblib
+import joblib
 from sklearn.pipeline import Pipeline
 
 mpl.rcParams['axes.labelsize'] = 7
@@ -73,7 +73,7 @@ else:
     with open(os.path.join(data_folder, 'S{:02d}_eeg_all_files.vmrk'.format(
         subject)), 'w') as csvfile:
         # write 12 empty lines
-        [csvfile.write('IGNORE\n') for _ in xrange(12)]
+        [csvfile.write('IGNORE\n') for _ in range(12)]
         [csvfile.write(' , ,{}\n'.format(m)) for m in np.hstack(markers)]
 
 # reference to the average of all electrodes
@@ -199,7 +199,7 @@ mixing_matrix = np.linalg.lstsq(sources_ds.T[artifact_mask_ds],
         data_ds.T[artifact_mask_ds])[0]
 
 # name the ica channels
-ica_channames = ['IC%02d' % i for i in xrange(len(sources_ds))]
+ica_channames = ['IC%02d' % i for i in range(len(sources_ds))]
 
 # plot the ICA  components scalp maps
 ic_potmaps = [meet.sphere.potMap(chancoords, ic,
