@@ -9,8 +9,16 @@ import scipy as sp
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
-N_subjects = 2 #21 later, for now bc of speed (10min per subject)
+N_subjects = 1 #21 later, for now bc of speed (10min per subject)
 s_rate = 1000 # sampling rate of the EEG
+
+# color map
+cmap = 'plasma'
+color4 = '#1f78b4'.upper()
+color3 = '#33a02c'.upper()
+color2 = '#b2df8a'.upper()
+color1 = '#a6cee3'.upper()
+colors = [color1, color2, color3, color4, 'grey']
 
 # target frequencies
 snareFreq = 7./6
@@ -112,17 +120,24 @@ while(subj <= N_subjects):
                 wdBlk_resp[wdBlkInlier]],
             win)
     all_trials -= all_trials[:,-win[0]][:,np.newaxis]
-
+    if subj==2:
+        all_trials = np.concatenate([
+            all_trials[:,:,:139], all_trials[:,:,141:]], axis=2)
+    if subj=12:
+        all_trials = np.concatenate([
+            all_trials[:,:,:47], all_trials[:,:,71:]], axis=2)
     Nc = len(channames)
     fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
             sharex=True, sharey=True)
     fig.subplots_adjust(top=0.95, bottom=0.05)
     fig.suptitle('BP: 2000 ms preresponse')
     for c in range(Nc):
-        axs[c//4, c%4].plot(range(*win), all_trials.mean(-1)[c], linewidth=1)
+        axs[c//4, c%4].plot(range(*win), all_trials.mean(-1)[c], linewidth=1, c='k')
         axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
         axs[c//4, c%4].set_yticks([])
         axs[c//4, c%4].axvline(0, lw=0.5, c='k')
+        axs[c//4, c%4].tick_params(axis='x', labelsize=8)
+        axs[c//4, c%4].tick_params(axis='y', labelsize=8)
     #plt.show()
     fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse.pdf'))
     all_BP.append(all_trials.mean(-1))
@@ -141,6 +156,12 @@ while(subj <= N_subjects):
                 np.r_[snare_resp[snareInlier],
                     wdBlk_resp[wdBlkInlier]],
                 win)
+        if subj==2:
+            all_trials_filt = np.concatenate([
+                all_trials_filt[:,:,:139], all_trials_filt[:,:,141:]], axis=2)
+        if subj=12:
+            all_trials_filt = np.concatenate([
+                all_trials_filt[:,:,:47], all_trials_filt[:,:,71:]], axis=2)  
         ERD = all_trials_filt.mean(-1)
         ERD /= ERD[:,0][:,np.newaxis]
         ERD *= 100
@@ -152,11 +173,14 @@ while(subj <= N_subjects):
     for c in range(Nc):
         handels = [] # for legend
         for i,ERD in enumerate(ERDs):
-            h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1)
+            h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1,
+                c=colors[i])
             handels.append(h)
         axs[c//3, c%3].set_ylabel(channames[c], fontsize=8)
         axs[c//3, c%3].axvline(0, lw=0.5, c='k')
         axs[c//3, c%3].axhline(100, lw=0.5, c='r', ls=':')
+        axs[c//3, c%3].tick_params(axis='x', labelsize=8)
+        axs[c//3, c%3].tick_params(axis='y', labelsize=8)
     fig.delaxes(axs[c//3, 2])
     plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
         for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
@@ -176,7 +200,7 @@ fig.tight_layout()
 fig.subplots_adjust(top=0.95, bottom=0.05)
 fig.suptitle('BP: 2000 ms preresponse, subject average')
 for c in range(Nc):
-    axs[c//4, c%4].plot(range(*win), all_BP_avg[c], linewidth=1)
+    axs[c//4, c%4].plot(range(*win), all_BP_avg[c], linewidth=1, c='k')
     axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
     axs[c//4, c%4].set_yticks([])
     axs[c//4, c%4].axvline(0, lw=0.5, c='k')
@@ -194,7 +218,7 @@ fig.suptitle('ERD: 2000 ms preresponse')
 for c in range(Nc):
     handels = [] # for legend
     for i,ERD in enumerate(all_ERD_avg):
-        h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1)
+        h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1, c=colors[i])
         handels.append(h)
     axs[c//3, c%3].set_ylabel(channames[c], fontsize=8)
     #axs[c//3, c%3].set_ylim([50,200])
@@ -206,5 +230,3 @@ plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
     borderaxespad=1, fontsize=5)
 #plt.show()
 fig.savefig(os.path.join(result_folder, 'motor_ERD_2000mspreresponse.pdf'))
-
-plt.close('all')
