@@ -236,7 +236,7 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
     return np.vstack(X), np.vstack(Z), labels_X, labels_Z, subject
 
 # finally, get the design matrices
-# data splitting using N_SPLIT subjects for selection
+# data splitting using N_SPLIT subjects out of 20 for selection
 N_SPLIT = 20
 random.seed(42) # actually makes a difference for the chosen coefs
 select_idx = sorted(random.sample(range(len(snare_F_SSD)), N_SPLIT))
@@ -266,22 +266,87 @@ from rpy2.robjects.packages import importr
 # activate automatic conversion of numpy arrays to R
 from rpy2.robjects import numpy2ri, IntVector, Formula
 coef = robjects.r.coef
+confint = robjects.r.confint
+residuals = robjects.r.residuals
+quantile = robjects.r.quantile
 numpy2ri.activate()
-
-# now, fit lmer model -> this should work like this:
 lme4 = importr('lme4')
-fmla = Formula('y ~ 0 + x + (0 + z | g)')
-fmla.environment['y'] = np.abs(snareY_select.reshape(-1,1))
-fmla.environment['x'] = snareX_select.T
-fmla.environment['z'] = snareZ_select[snareZ_select!=0].reshape(
-    5,sum(N_trials_snare)).T
-fmla.environment['g'] = snare_subjects.T[:,np.newaxis]
-snare_lme_model = lme4.lmer(fmla)
-lme4.REMLcrit(snare_lme_model)
-#quantile(lme4.residuals(snare_lme_model, 'pearson', scaled=True))
-# get 12FE+4RE coefs for each subject
-np.ravel(coef(snare_lme_model)) #shape 20, each tupel of length 17 (12 FE + 5 RE)
 
+# fit lmer model for snare
+snare_fmla = Formula('y ~ 0 + x + (0 + z | g)')
+snare_fmla.environment['y'] = np.abs(snareY_select.reshape(-1,1))
+snare_fmla.environment['x'] = snareX_select.T
+snare_fmla.environment['z'] = snareZ_select[snareZ_select!=0].reshape(
+    5,sum(N_trials_snare)).T
+snare_fmla.environment['g'] = snare_subjects.T[:,np.newaxis]
+snare_lme_model = lme4.lmer(snare_fmla)
+
+# get coefficients and CI
+nsim = 1000 # number of bootstrap iterations
+snare_FEcoef = np.ravel(fixef(snare_lme_model))
+#snare_FEcovmat = np.ravel(vcov(snare_lme_model)) #want this for RE!!
+# get confidence intervals for FE with bootstrap (this takes about 1,5*nsim sec)
+# see also: https://rdrr.io/cran/lme4/man/confint.merMod.html
+snare_confint = np.ravel(confint(snare_lme_model, parm = IntVector(range(1,13)),
+    level=0.95, method='boot', nsim=nsim)) #[0.25 for parm1, 0.75 fpr parm2, 0.25 for parm1,...]
+# transform to error bars: first line + values, second line - values for coef
+snare_errbar = np.transpose(np.array([
+    [np.abs(snare_confint[i] - snare_FEcoef[int(i/2)]),
+    np.abs(snare_confint[i+1] - snare_FEcoef[int(i/2)])]
+    for i in range(0, len(snare_confint), 2)]))
+# I still dont get the error why profiling dpoes not work:
+# error: Profiling over both the residual variance and
+# fixed effects is not numerically consistent with
+# profiling over the fixed effects only
+
+# not skewed, good sign that we have all relevant variables (and possibly more):
+# plt.hist(residuals(snare_lme_model, 'pearson', scaled=True), 100)
+
+# if package doesnt give p value:
+# permute Y 1000x => get coef distribution under H0 (no relation between input and output),
+# compute p by prob of coefficients we got in permutations
+
+# computer for wdBlk
+wdBlk_fmla = Formula('y ~ 0 + x + (0 + z | g)')
+wdBlk_fmla.environment['y'] = np.abs(wdBlkY_select.reshape(-1,1))
+wdBlk_fmla.environment['x'] = wdBlkX_select.T
+wdBlk_fmla.environment['z'] = wdBlkZ_select[wdBlkZ_select!=0].reshape(
+    5,sum(N_trials_wdBlk)).T
+wdBlk_fmla.environment['g'] = wdBlk_subjects.T[:,np.newaxis]
+wdBlk_lme_model = lme4.lmer(wdBlk_fmla)
+
+wdBlk_FEcoef = np.ravel(fixef(wdBlk_lme_model)) # stronger wdBlk power, musicality => better accuracy
+# get confidence intervals for FE with bootstrap (this takes about 1,5*nsim sec)
+wdBlk_confint = np.ravel(confint(wdBlk_lme_model, parm = IntVector(range(1,13)),
+    level=0.95, method='boot', nsim=nsim))
+# transform to error bars: first line + values, second line - values for coef
+wdBlk_errbar = np.transpose(np.array([
+    [np.abs(wdBlk_confint[i] - wdBlk_FEcoef[int(i/2)]),
+    np.abs(wdBlk_confint[i+1] - wdBlk_FEcoef[int(i/2)])]
+    for i in range(0, len(wdBlk_confint), 2)]))
+
+# plot FE coefficients
+fig, ax = plt.subplots(ncols=2)
+ax[0].barh(range(12), snare_FEcoef, xerr=snare_errbar,
+           color=np.where(snare_FEcoef>0, 'r', 'b'))
+#ax[0].set_xlim([-0.15, 0.15])
+ax[0].axvline(0, c='k')
+ax[0].set_yticks(range(12))
+ax[0].set_yticklabels([s.replace('_', ' ') for s in snare_labelsX])
+ax[0].set_xlabel('coefficient')
+ax[0].set_title('snare vs. absolute deviation')
+
+ax[1].barh(range(12), wdBlk_FEcoef, xerr=wdBlk_errbar,
+          color=np.where(wdBlk_FEcoef>0, 'r', 'b'))
+#ax[1].set_xlim([-0.15, 0.15])
+ax[1].axvline(0, c='k')
+ax[1].set_yticks(range(12))
+ax[1].set_yticklabels([s.replace('_', ' ') for s in wdBlk_labelsX])
+ax[1].set_xlabel('coefficient')
+ax[1].set_title('wdBlk vs. absolute deviation')
+
+fig.tight_layout()
+fig.savefig(os.path.join(result_folder, 'lme_FEcoef.pdf'))
 1/0
 # to run glmnet, X and Z need to be united
 # (unclear whether this makes sense)
@@ -333,7 +398,7 @@ ax[0].barh(range(12), snare_coefs[:12],
 ax[0].set_xlim([-0.12, 0.12])
 ax[0].axvline(0, c='k')
 ax[0].set_yticks(range(12))
-ax[0].set_yticklabels([s.replace('_', '\_') for s in snare_labels[:12]])
+ax[0].set_yticklabels([s.replace('_', ' ') for s in snare_labels[:12]])
 ax[0].set_xlabel('coefficient')
 ax[0].set_title('snare vs. absolute deviation')
 
@@ -342,7 +407,7 @@ ax[1].barh(range(12), wdBlk_coefs[:12],
 ax[1].set_xlim([-0.12, 0.12])
 ax[1].axvline(0, c='k')
 ax[1].set_yticks(range(12))
-ax[1].set_yticklabels([s.replace('_', '\_') for s in wdBlk_labels[:12]])
+ax[1].set_yticklabels([s.replace('_', ' ') for s in wdBlk_labels[:12]])
 ax[1].set_xlabel('coefficient')
 ax[1].set_title('wdBlk vs. absolute deviation')
 
