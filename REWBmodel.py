@@ -269,8 +269,11 @@ coef = robjects.r.coef
 confint = robjects.r.confint
 residuals = robjects.r.residuals
 quantile = robjects.r.quantile
+
 numpy2ri.activate()
 lme4 = importr('lme4')
+fixef = robjects.r.fixef
+
 
 # fit lmer model for snare
 snare_fmla = Formula('y ~ 0 + x + (0 + z | g)')
@@ -282,23 +285,31 @@ snare_fmla.environment['g'] = snare_subjects.T[:,np.newaxis]
 snare_lme_model = lme4.lmer(snare_fmla)
 
 # get coefficients and CI
-nsim = 1000 # number of bootstrap iterations
+nsim = 100
 snare_FEcoef = np.ravel(fixef(snare_lme_model))
 #snare_FEcovmat = np.ravel(vcov(snare_lme_model)) #want this for RE!!
 # get confidence intervals for FE with bootstrap (this takes about 1,5*nsim sec)
 # see also: https://rdrr.io/cran/lme4/man/confint.merMod.html
-snare_confint = np.ravel(confint(snare_lme_model, parm = IntVector(range(1,13)),
+# alternatively use wald and afterwards delete nans:
+#snare_confint_wald = np.ravel(confint(snare_lme_model,level=0.95,method='Wald'))
+
+snare_confint = np.ravel(confint(snare_lme_model, parm = 'beta_', #beta means only FE
     level=0.95, method='boot', nsim=nsim)) #[0.25 for parm1, 0.75 fpr parm2, 0.25 for parm1,...]
 # transform to error bars: first line + values, second line - values for coef
-snare_errbar = np.transpose(np.array([
-    [np.abs(snare_confint[i] - snare_FEcoef[int(i/2)]),
-    np.abs(snare_confint[i+1] - snare_FEcoef[int(i/2)])]
-    for i in range(0, len(snare_confint), 2)]))
+snare_confint = [(snare_confint[i], snare_confint[i+1])
+    for i in range(0, len(snare_confint), 2)]
+snare_errbar = np.transpose(np.array([[np.abs(l - snare_FEcoef[int(i/2)]),
+    np.abs(u - snare_FEcoef[int(i/2)])] for l,u in snare_confint]))
 # I still dont get the error why profiling dpoes not work:
 # error: Profiling over both the residual variance and
 # fixed effects is not numerically consistent with
 # profiling over the fixed effects only
 
+#calculate p-value from CI
+se = [(u-l)/(2*1.96) for l,u in snare_confint]
+z_values = [e/s for e,s in zip(snare_FEcoef, se)]
+snare_FEp = [np.exp(-0.717*z - 0.416*z**2) for z in z_values]
+snare_FEp_str = [str(round(p,3)) if p>0.0001 else '<0.0001' for p in snare_FEp]
 # not skewed, good sign that we have all relevant variables (and possibly more):
 # plt.hist(residuals(snare_lme_model, 'pearson', scaled=True), 100)
 
@@ -317,19 +328,27 @@ wdBlk_lme_model = lme4.lmer(wdBlk_fmla)
 
 wdBlk_FEcoef = np.ravel(fixef(wdBlk_lme_model)) # stronger wdBlk power, musicality => better accuracy
 # get confidence intervals for FE with bootstrap (this takes about 1,5*nsim sec)
-wdBlk_confint = np.ravel(confint(wdBlk_lme_model, parm = IntVector(range(1,13)),
+wdBlk_confint = np.ravel(confint(wdBlk_lme_model, parm = 'beta_',
     level=0.95, method='boot', nsim=nsim))
+wdBlk_confint = [(wdBlk_confint[i], wdBlk_confint[i+1])
+    for i in range(0, len(wdBlk_confint), 2)]
 # transform to error bars: first line + values, second line - values for coef
 wdBlk_errbar = np.transpose(np.array([
     [np.abs(wdBlk_confint[i] - wdBlk_FEcoef[int(i/2)]),
     np.abs(wdBlk_confint[i+1] - wdBlk_FEcoef[int(i/2)])]
     for i in range(0, len(wdBlk_confint), 2)]))
 
+#calculate p-value from CI
+se = [(u-l)/(2*1.96) for l,u in wdBlk_confint]
+z_values = [e/s for e,s in zip(wdBlk_FEcoef, se)]
+wdBlk_FEp = [np.exp(-0.717*z - 0.416*z**2) for z in z_values]
+wdBlk_FEp_str = [str(round(p,3)) if p>0.0001 else '<0.0001' for p in wdBlk_FEp]
+
 # plot FE coefficients
 fig, ax = plt.subplots(ncols=2)
 ax[0].barh(range(12), snare_FEcoef, xerr=snare_errbar,
            color=np.where(snare_FEcoef>0, 'r', 'b'))
-#ax[0].set_xlim([-0.15, 0.15])
+ax[0].set_xlim([-0.2, 0.2])
 ax[0].axvline(0, c='k')
 ax[0].set_yticks(range(12))
 ax[0].set_yticklabels([s.replace('_', ' ') for s in snare_labelsX])
@@ -338,7 +357,7 @@ ax[0].set_title('snare vs. absolute deviation')
 
 ax[1].barh(range(12), wdBlk_FEcoef, xerr=wdBlk_errbar,
           color=np.where(wdBlk_FEcoef>0, 'r', 'b'))
-#ax[1].set_xlim([-0.15, 0.15])
+ax[1].set_xlim([-0.2, 0.2])
 ax[1].axvline(0, c='k')
 ax[1].set_yticks(range(12))
 ax[1].set_yticklabels([s.replace('_', ' ') for s in wdBlk_labelsX])
