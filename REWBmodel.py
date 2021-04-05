@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import random
 import statsmodels.api as sm
 import pandas as pd
+import itertools
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -24,7 +25,7 @@ snareFreq = 7./6
 wdBlkFreq = 7./4
 
 # number of SSD_components to use
-N_SSD = 2
+N_SSD = 1
 
 # load the SSD results from all subjects into a list
 F_SSDs = []
@@ -174,24 +175,22 @@ while True:
 def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
     F_SSD = [F_SSD[i] for i in subject_idx]
     N_trials = sum([SSD_now.shape[-1] for SSD_now in F_SSD])
-    subject = np.hstack([[i + 1] * SSD_now.shape[-1]
-        for i, SSD_now in enumerate(F_SSD)])
     N_subjects = len(F_SSD)
     X = []
-    Z = []
     labels_X = []
-    labels_Z = []
     # add intercept
     labels_X.append('intercept')
     X.append(np.ones((1, N_trials)))
     # add within-subjects coefficient
-    labels_X.extend(['WSnare1', 'WSnare2', 'WWdBlk1', 'WWdBlk2'])
+    labels_X.extend(['WSnare{}'.format(i + 1) for i in range(N_SSD)] +
+                    ['WWdblk{}'.format(i + 1) for i in range(N_SSD)])
     X.append(np.hstack([zscore(np.abs(SSD_now), -1) for SSD_now in F_SSD]))
     # get mean and std of between subjects effect
     B_mean = np.mean([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
     B_std = np.std([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
     # add between subjects coefficient
-    labels_X.extend(['BSnare1', 'BSnare2', 'BWdBlk1', 'BWdBlk2'])
+    labels_X.extend(['BSnare{}'.format(i + 1) for i in range(N_SSD)] +
+                    ['BWdblk{}'.format(i + 1) for i in range(N_SSD)])
     X.append(
             np.hstack([((np.abs(SSD_now).mean(-1) - B_mean)/
                 B_std)[:, np.newaxis] * np.ones(SSD_now.shape)
@@ -206,34 +205,33 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
     # add session_idx
     labels_X.append('session_idx')
     X.append(np.hstack([session_idx[i] for i in subject_idx]))
+    return np.vstack(X), labels_X
+
+def single_REMatrix(F_SSD_now, idx=0):
+    """calculate REMatrix for a single subject"""
+    Z = []
+    N_trials = F_SSD_now.shape[-1]
     # add random effect for the intercept
-    labels_Z.extend(['RE0_{:02d}'.format(i) for i in range(N_subjects)])
-    RE0 = np.zeros([N_subjects, N_trials])
-    subj = 0
-    tr = 0
-    for SSD_now in F_SSD:
-        RE0[subj, tr:tr + SSD_now.shape[-1]] = 1
-        tr += SSD_now.shape[-1]
-        subj += 1
+    RE0 = np.ones([1, N_trials])
     Z.append(RE0)
     # add random effect for the within-subjects (REW) effect
-    [labels_Z.extend(
-        ['REWSnare1_{:02d}'.format(i),
-        'REWSnare2_{:02d}'.format(i),
-        'REWWdBlk1_{:02d}'.format(i),
-        'REWWdBlk2_{:02d}'.format(i)])
-        for i in range(N_subjects)]
-    REW = np.zeros([N_SSD*2*N_subjects, N_trials])
-    subj = 0
-    tr = 0
-    for SSD_now in F_SSD:
-        REW[subj*N_SSD*2:(subj + 1)*N_SSD*2, tr:tr + SSD_now.shape[-1]] =(
-                zscore(np.abs(SSD_now) - np.abs(SSD_now).mean(-1)[
-                    :,np.newaxis], axis=-1))
-        tr += SSD_now.shape[-1]
-        subj += 1
+    REW = zscore((np.abs(F_SSD_now) - np.abs(F_SSD_now).mean(-1)[
+        :,np.newaxis]), axis=-1)
     Z.append(REW)
-    return np.vstack(X), np.vstack(Z), labels_X, labels_Z, subject
+    return np.vstack(Z)
+
+def REMatrix(F_SSD, subject_idx):
+    labels = []
+    F_SSD = [F_SSD[i] for i in subject_idx]
+    Z = np.hstack([single_REMatrix(F_SSD_now, i)
+        for i,F_SSD_now in enumerate(F_SSD)])
+    labels.append('RE0')
+    labels.extend(
+        ['REWSnare{:d}'.format(i + 1) for i in range(N_SSD)] +
+        ['REWWdblk{:d}'.format(i + 1) for i in range(N_SSD)])
+    subject = np.hstack([np.ones(F_SSD_now.shape[-1], int)*(i + 1)
+        for i, F_SSD_now in enumerate(F_SSD)])
+    return Z, labels, subject
 
 # finally, get the design matrices
 # data splitting using N_SPLIT subjects out of 20 for selection
@@ -242,20 +240,23 @@ random.seed(42) # actually makes a difference for the chosen coefs
 select_idx = sorted(random.sample(range(len(snare_F_SSD)), N_SPLIT))
 infer_idx = [i for i in range(len(snare_F_SSD)) if i not in select_idx]
 
-# model selection
-snareX_select, snareZ_select, snare_labelsX, snare_labelsZ, snare_subject = design_matrix(
-        snare_F_SSD, musicscore, snare_trial_idx, snare_session_idx, select_idx)
-snareY_select = np.hstack([snare_deviation[i] for i in select_idx])
-snare_subjects = np.hstack(
-    [(i+1)*np.ones(s.shape[1]) if i<10 else (i+2)*np.ones(s.shape[1])
-    for i,s in enumerate(snare_F_SSD)])
 
-wdBlkX_select, wdBlkZ_select, wdBlk_labelsX, wdBlk_labelsZ, wdBlk_subject = design_matrix(
-        wdBlk_F_SSD, musicscore, wdBlk_trial_idx, wdBlk_session_idx, select_idx)
+# model selection
+snareX_select, snare_labelsX = design_matrix(snare_F_SSD,
+                                             musicscore,
+                                             snare_trial_idx,
+                                             snare_session_idx,
+                                             select_idx)
+snareY_select = np.hstack([snare_deviation[i] for i in select_idx])
+snareZ_select, snare_labelsZ, snare_subject = REMatrix(snare_F_SSD, select_idx)
+
+wdBlkX_select, wdBlk_labelsX = design_matrix(wdBlk_F_SSD,
+                                             musicscore,
+                                             wdBlk_trial_idx,
+                                             wdBlk_session_idx,
+                                             select_idx)
 wdBlkY_select = np.hstack([wdBlk_deviation[i] for i in select_idx])
-wdBlk_subjects = np.hstack(
-    [(i+1)*np.ones(s.shape[1]) if i<10 else (i+2)*np.ones(s.shape[1])
-    for i,s in enumerate(wdBlk_F_SSD)])
+wdBlkZ_select, wdBlk_labelsZ, wdBlk_subject = REMatrix(wdBlk_F_SSD, select_idx)
 
 N_trials_snare = [SSD_now.shape[-1] for SSD_now in snare_F_SSD]
 N_trials_wdBlk = [SSD_now.shape[-1] for SSD_now in wdBlk_F_SSD]
@@ -276,16 +277,15 @@ fixef = robjects.r.fixef
 
 
 # fit lmer model for snare
-snare_fmla = Formula('y ~ 0 + x + (0 + z | g)')
+snare_fmla = Formula('y ~ 0 + x + (1 + z | g)')
 snare_fmla.environment['y'] = np.abs(snareY_select.reshape(-1,1))
-snare_fmla.environment['x'] = snareX_select.T
-snare_fmla.environment['z'] = snareZ_select[snareZ_select!=0].reshape(
-    5,sum(N_trials_snare)).T
-snare_fmla.environment['g'] = snare_subjects.T[:,np.newaxis]
+snare_fmla.environment['x'] = snareX_select[1:].T
+snare_fmla.environment['z'] = snareZ_select[1:].T
+snare_fmla.environment['g'] = snare_subject[:,np.newaxis]
 snare_lme_model = lme4.lmer(snare_fmla)
 
 # get coefficients and CI
-nsim = 100
+nsim = 500
 snare_FEcoef = np.ravel(fixef(snare_lme_model))
 #snare_FEcovmat = np.ravel(vcov(snare_lme_model)) #want this for RE!!
 # get confidence intervals for FE with bootstrap (this takes about 1,5*nsim sec)
@@ -298,6 +298,10 @@ snare_confint = np.ravel(confint(snare_lme_model, parm = 'beta_', #beta means on
 # transform to error bars: first line + values, second line - values for coef
 snare_confint = [(snare_confint[i], snare_confint[i+1])
     for i in range(0, len(snare_confint), 2)]
+
+1/0
+
+
 snare_errbar = np.transpose(np.array([[np.abs(l - snare_FEcoef[int(i/2)]),
     np.abs(u - snare_FEcoef[int(i/2)])] for l,u in snare_confint]))
 # I still dont get the error why profiling dpoes not work:
@@ -316,6 +320,9 @@ snare_FEp_str = [str(round(p,3)) if p>0.0001 else '<0.0001' for p in snare_FEp]
 # if package doesnt give p value:
 # permute Y 1000x => get coef distribution under H0 (no relation between input and output),
 # compute p by prob of coefficients we got in permutations
+
+1/0
+
 
 # computer for wdBlk
 wdBlk_fmla = Formula('y ~ 0 + x + (0 + z | g)')
