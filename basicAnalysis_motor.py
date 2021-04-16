@@ -107,6 +107,7 @@ while(subj <= N_subjects):
     wdBlk_cueHitdiff = ((2./3 * bar_duration + wdBlk_deviation) * s_rate)
     snareHit_times = snareCue_pos + snare_cueHitdiff
     wdBlkHit_times = wdBlkCue_pos + wdBlk_cueHitdiff
+
     # store time difference between Cues and response for plot
     cueHit_diff.append(np.hstack([snare_cueHitdiff, wdBlk_cueHitdiff]))
 
@@ -115,8 +116,8 @@ while(subj <= N_subjects):
     snareHit_times = snareHit_times[~snareHit_times_outlier].astype(int)
     wdBlkHit_times = wdBlkHit_times[~wdBlkHit_times_outlier].astype(int)
 
-
-
+    cueHit_diff_mean = np.nanmean(cueHit_diff[-1])
+    cueHit_diff_sd = np.nanstd(cueHit_diff[-1])
     #plot 2000ms pre response for each channel
     snareInlier = np.all(meet.epochEEG(artifact_mask, snareHit_times,
         win), 0)
@@ -127,12 +128,6 @@ while(subj <= N_subjects):
                 wdBlkHit_times[wdBlkInlier]],
             win)
     all_trials -= all_trials[:,-win[0]][:,np.newaxis]
-    if subj==2:
-        all_trials = np.concatenate([
-            all_trials[:,:,:139], all_trials[:,:,141:]], axis=2)
-    if subj==12:
-        all_trials = np.concatenate([
-            all_trials[:,:,:47], all_trials[:,:,71:]], axis=2)
     Nc = len(channames)
     fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
             sharex=True, sharey=True)
@@ -143,6 +138,9 @@ while(subj <= N_subjects):
         axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
         axs[c//4, c%4].axvline(0, lw=0.5, c='k')
         axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
+        axs[c//4, c%4].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
+            -(cueHit_diff_mean+cueHit_diff_sd),
+            alpha=0.3, color='red')
         axs[c//4, c%4].tick_params(axis='x', labelsize=8)
         axs[c//4, c%4].tick_params(axis='y', labelsize=8)
     #plt.show()
@@ -163,18 +161,11 @@ while(subj <= N_subjects):
                 np.r_[snareHit_times[snareInlier],
                     wdBlkHit_times[wdBlkInlier]],
                 win)
-        if subj==2:
-            all_trials_filt = np.concatenate([
-                all_trials_filt[:,:,:139], all_trials_filt[:,:,141:]], axis=2)
-        if subj==12:
-            all_trials_filt = np.concatenate([
-                all_trials_filt[:,:,:47], all_trials_filt[:,:,71:]], axis=2)
         ERD = all_trials_filt.mean(-1)
         ERD /= ERD[:,0][:,np.newaxis]
         ERD *= 100
         ERDs.append(ERD)
-    cueHit_diff_mean = np.nanmean(cueHit_diff[-1])
-    cueHit_diff_sd = np.nanstd(cueHit_diff[-1])
+
     fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,7),
             sharex=True, sharey=True)
     fig.subplots_adjust(top=0.95, bottom=0.05)
@@ -204,7 +195,9 @@ while(subj <= N_subjects):
     subj += 1
     plt.close('all')
 
-
+## plot for all subjects
+cueHit_diff_mean = np.nanmean(np.hstack(cueHit_diff))
+cueHit_diff_sd = np.nanstd(np.hstack(cueHit_diff))
 # plot BP for all subjects
 all_BP_avg = np.mean(all_BP, axis=0)
 fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,7),
@@ -217,15 +210,15 @@ for c in range(Nc):
     axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
     axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
     axs[c//4, c%4].axvline(0, lw=0.5, c='k')
+    axs[c//4, c%4].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
+        -(cueHit_diff_mean+cueHit_diff_sd),
+        alpha=0.3, color='red')
 #plt.show()
 fig.savefig(os.path.join(result_folder, 'motor_BP_2000mspreresponse.pdf'))
 
 # plot ERD for all subjects
 all_ERD_avg = [ np.mean([i[j] for i in all_ERD], axis=0)
     for j in range(len(fbands))] # for each band, average over subjects
-cueHit_diff_mean = np.mean(np.hstack(cueHit_diff))
-cueHit_diff_sd = np.std(np.hstack(cueHit_diff))
-#[for i in all_ERD]
 fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,7),
         sharex=True, sharey=True)
 fig.subplots_adjust(top=0.95, bottom=0.05)
