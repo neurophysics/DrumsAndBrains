@@ -45,6 +45,7 @@ all_BP = [] #avg over all subjects
 all_ERD = [] #avg over all subjects
 fbands = [[1,4], [4,8], [8,12], [12,20], [20,40]]
 win = [-2000, 500]
+cueHit_diff = []
 idx = 0 #index to asses eeg (0 to 19)
 subj = 1 #index for subject number (1 to 10, 12 to 21)
 while(subj <= N_subjects):
@@ -91,33 +92,39 @@ while(subj <= N_subjects):
         snareCue_DevToClock = f['snareCue_DevToClock']
         wdBlkCue_nearestClock = f['wdBlkCue_nearestClock']
         wdBlkCue_DevToClock = f['wdBlkCue_DevToClock']
-        #snareCue_times = f['snareCue_times']
-        #wdBlkCue_times = f['wdBlkCue_times']
+        snareCue_times = f['snareCue_times']
+        wdBlkCue_times = f['wdBlkCue_times']
         bar_duration = f['bar_duration']
         snare_deviation = f['snare_deviation']
         wdBlk_deviation = f['wdBlk_deviation']
 
+    # store times of Cue, Hit(response) and their time difference in sample
     snareCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
             snareCue_nearestClock, snareCue_DevToClock)
     wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
             wdBlkCue_nearestClock, wdBlkCue_DevToClock)
-    snare_resp = snareCue_pos + ((0.5 * bar_duration + snare_deviation)
-                                  * s_rate)
-    wdBlk_resp = wdBlkCue_pos + ((0.5 * bar_duration + wdBlk_deviation)
-                                  * s_rate)
-    snare_resp_outlier = np.isnan(snare_resp)
-    wdBlk_resp_outlier = np.isnan(wdBlk_resp)
-    snare_resp = snare_resp[~snare_resp_outlier].astype(int)
-    wdBlk_resp = wdBlk_resp[~wdBlk_resp_outlier].astype(int)
+    snare_cueHitdiff = ((0.5 * bar_duration + snare_deviation) * s_rate)
+    wdBlk_cueHitdiff = ((2./3 * bar_duration + wdBlk_deviation) * s_rate)
+    snareHit_times = snareCue_pos + snare_cueHitdiff
+    wdBlkHit_times = wdBlkCue_pos + wdBlk_cueHitdiff
+    # store time difference between Cues and response for plot
+    cueHit_diff.append(np.hstack([snare_cueHitdiff, wdBlk_cueHitdiff]))
+
+    snareHit_times_outlier = np.isnan(snareHit_times)
+    wdBlkHit_times_outlier = np.isnan(wdBlkHit_times)
+    snareHit_times = snareHit_times[~snareHit_times_outlier].astype(int)
+    wdBlkHit_times = wdBlkHit_times[~wdBlkHit_times_outlier].astype(int)
+
+
 
     #plot 2000ms pre response for each channel
-    snareInlier = np.all(meet.epochEEG(artifact_mask, snare_resp,
+    snareInlier = np.all(meet.epochEEG(artifact_mask, snareHit_times,
         win), 0)
-    wdBlkInlier = np.all(meet.epochEEG(artifact_mask, wdBlk_resp,
+    wdBlkInlier = np.all(meet.epochEEG(artifact_mask, wdBlkHit_times,
         win), 0)
     all_trials = meet.epochEEG(eeg,
-            np.r_[snare_resp[snareInlier],
-                wdBlk_resp[wdBlkInlier]],
+            np.r_[snareHit_times[snareInlier],
+                wdBlkHit_times[wdBlkInlier]],
             win)
     all_trials -= all_trials[:,-win[0]][:,np.newaxis]
     if subj==2:
@@ -134,8 +141,8 @@ while(subj <= N_subjects):
     for c in range(Nc):
         axs[c//4, c%4].plot(range(*win), all_trials.mean(-1)[c], linewidth=1, c='k')
         axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
-        axs[c//4, c%4].set_yticks([])
         axs[c//4, c%4].axvline(0, lw=0.5, c='k')
+        axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
         axs[c//4, c%4].tick_params(axis='x', labelsize=8)
         axs[c//4, c%4].tick_params(axis='y', labelsize=8)
     #plt.show()
@@ -153,8 +160,8 @@ while(subj <= N_subjects):
         eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filt, axis=-1))
         #3. Normalisieren, so dass 2 sek prä-stimulus 100% sind und dann averagen
         all_trials_filt = meet.epochEEG(eeg_filtHil,
-                np.r_[snare_resp[snareInlier],
-                    wdBlk_resp[wdBlkInlier]],
+                np.r_[snareHit_times[snareInlier],
+                    wdBlkHit_times[wdBlkInlier]],
                 win)
         if subj==2:
             all_trials_filt = np.concatenate([
@@ -166,6 +173,8 @@ while(subj <= N_subjects):
         ERD /= ERD[:,0][:,np.newaxis]
         ERD *= 100
         ERDs.append(ERD)
+    cueHit_diff_mean = np.nanmean(cueHit_diff[-1])
+    cueHit_diff_sd = np.nanstd(cueHit_diff[-1])
     fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,7),
             sharex=True, sharey=True)
     fig.subplots_adjust(top=0.95, bottom=0.05)
@@ -179,6 +188,9 @@ while(subj <= N_subjects):
         axs[c//3, c%3].set_ylabel(channames[c], fontsize=8)
         axs[c//3, c%3].axvline(0, lw=0.5, c='k')
         axs[c//3, c%3].axhline(100, lw=0.5, c='r', ls=':')
+        axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
+            -(cueHit_diff_mean+cueHit_diff_sd),
+            alpha=0.3, color='red')
         axs[c//3, c%3].tick_params(axis='x', labelsize=8)
         axs[c//3, c%3].tick_params(axis='y', labelsize=8)
     fig.delaxes(axs[c//3, 2])
@@ -192,6 +204,7 @@ while(subj <= N_subjects):
     subj += 1
     plt.close('all')
 
+
 # plot BP for all subjects
 all_BP_avg = np.mean(all_BP, axis=0)
 fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,7),
@@ -202,7 +215,7 @@ fig.suptitle('BP: 2000 ms preresponse, subject average')
 for c in range(Nc):
     axs[c//4, c%4].plot(range(*win), all_BP_avg[c], linewidth=1, c='k')
     axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
-    axs[c//4, c%4].set_yticks([])
+    axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
     axs[c//4, c%4].axvline(0, lw=0.5, c='k')
 #plt.show()
 fig.savefig(os.path.join(result_folder, 'motor_BP_2000mspreresponse.pdf'))
@@ -210,6 +223,8 @@ fig.savefig(os.path.join(result_folder, 'motor_BP_2000mspreresponse.pdf'))
 # plot ERD for all subjects
 all_ERD_avg = [ np.mean([i[j] for i in all_ERD], axis=0)
     for j in range(len(fbands))] # for each band, average over subjects
+cueHit_diff_mean = np.mean(np.hstack(cueHit_diff))
+cueHit_diff_sd = np.std(np.hstack(cueHit_diff))
 #[for i in all_ERD]
 fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,7),
         sharex=True, sharey=True)
@@ -224,6 +239,11 @@ for c in range(Nc):
     #axs[c//3, c%3].set_ylim([50,200])
     axs[c//3, c%3].axvline(0, lw=0.5, c='k')
     axs[c//3, c%3].axhline(100, lw=0.5, c='r', ls=':')
+    axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
+        -(cueHit_diff_mean+cueHit_diff_sd),
+        alpha=0.3, color='red')
+    axs[c//3, c%3].tick_params(axis='x', labelsize=8)
+    axs[c//3, c%3].tick_params(axis='y', labelsize=8)
 fig.delaxes(axs[c//3, 2])
 plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
     for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
