@@ -4,6 +4,7 @@ Create the design matrix of the Within-Between Random Effects model
 import numpy as np
 import sys
 import os.path
+import scipy
 from scipy.stats import zscore, iqr
 import csv
 import sklearn
@@ -11,8 +12,7 @@ from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
 import random
 import statsmodels.api as sm
-import pandas as pd
-import itertools
+import meet
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -25,7 +25,7 @@ snareFreq = 7./6
 wdBlkFreq = 7./4
 
 # number of SSD_components to use
-N_SSD = 1
+N_SSD = 2
 
 # load the SSD results from all subjects into a list
 F_SSDs = []
@@ -39,18 +39,27 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
     # frequency
     snare_idx = np.argmin((f - snareFreq)**2)
     wdBlk_idx = np.argmin((f - wdBlkFreq)**2)
+    harmo_idx = np.argmin((f - 2*wdBlkFreq)**2)
     # loop through all arrays
     i = 0
     while True:
         try:
-            F_SSD = fi['F_SSD_{:02d}'.format(i)][:N_SSD,
-                    (snare_idx, wdBlk_idx)]
+            F_SSD = fi['F_SSD_{:02d}'.format(i)]
+            F_SSD = np.abs(F_SSD)
+            ## subtract mean of neighbouring frequencies 
+            F_SSD = scipy.ndimage.convolve1d(
+                    np.abs(F_SSD)**2,
+                    np.r_[[-0.25]*2, 1, [-0.25]*2], axis=1)
+            F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs.append(F_SSD)
             snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
             wdBlkInlier.append(fi['wdBlkInlier_{:02d}'.format(i)])
             i += 1
         except KeyError:
             break
+
+# take power
+#F_SSDs = [np.abs(F_SSD_now) for F_SSD_now in F_SSDs]
 
 # scale F_SSD: concatenate along trial axis, calculate mean and sd, scale
 F_SSD_mean = np.mean(np.concatenate(F_SSDs, -1), 2)
@@ -183,14 +192,16 @@ def design_matrix(F_SSD, musicscore, trial_idx, session_idx, subject_idx):
     X.append(np.ones((1, N_trials)))
     # add within-subjects coefficient
     labels_X.extend(['WSnare{}'.format(i + 1) for i in range(N_SSD)] +
-                    ['WWdblk{}'.format(i + 1) for i in range(N_SSD)])
+                    ['WWdblk{}'.format(i + 1) for i in range(N_SSD)]) # +
+                    #['WHarmo{}'.format(i + 1) for i in range(N_SSD)])
     X.append(np.hstack([zscore(np.abs(SSD_now), -1) for SSD_now in F_SSD]))
     # get mean and std of between subjects effect
     B_mean = np.mean([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
     B_std = np.std([np.abs(SSD_now).mean(-1) for SSD_now in F_SSD], 0)
     # add between subjects coefficient
     labels_X.extend(['BSnare{}'.format(i + 1) for i in range(N_SSD)] +
-                    ['BWdblk{}'.format(i + 1) for i in range(N_SSD)])
+                    ['BWdblk{}'.format(i + 1) for i in range(N_SSD)]) # +
+                    #['BHarmo{}'.format(i + 1) for i in range(N_SSD)])
     X.append(
             np.hstack([((np.abs(SSD_now).mean(-1) - B_mean)/
                 B_std)[:, np.newaxis] * np.ones(SSD_now.shape)
@@ -229,6 +240,7 @@ def REMatrix(F_SSD, subject_idx):
     labels.extend(
         ['REWSnare{:d}'.format(i + 1) for i in range(N_SSD)] +
         ['REWWdblk{:d}'.format(i + 1) for i in range(N_SSD)])
+    #    ['REWHarmo{:d}'.format(i + 1) for i in range(N_SSD)])
     subject = np.hstack([np.ones(F_SSD_now.shape[-1], int)*(i + 1)
         for i, F_SSD_now in enumerate(F_SSD)])
     return Z, labels, subject
@@ -247,7 +259,7 @@ snareX_select, snare_labelsX = design_matrix(snare_F_SSD,
                                              snare_trial_idx,
                                              snare_session_idx,
                                              select_idx)
-snareY_select = np.hstack([snare_deviation[i] for i in select_idx])
+snareY_select = np.abs(np.hstack([snare_deviation[i] for i in select_idx]))
 snareZ_select, snare_labelsZ, snare_subject = REMatrix(snare_F_SSD, select_idx)
 
 wdBlkX_select, wdBlk_labelsX = design_matrix(wdBlk_F_SSD,
@@ -255,7 +267,7 @@ wdBlkX_select, wdBlk_labelsX = design_matrix(wdBlk_F_SSD,
                                              wdBlk_trial_idx,
                                              wdBlk_session_idx,
                                              select_idx)
-wdBlkY_select = np.hstack([wdBlk_deviation[i] for i in select_idx])
+wdBlkY_select = np.abs(np.hstack([wdBlk_deviation[i] for i in select_idx]))
 wdBlkZ_select, wdBlk_labelsZ, wdBlk_subject = REMatrix(wdBlk_F_SSD, select_idx)
 
 N_trials_snare = [SSD_now.shape[-1] for SSD_now in snare_F_SSD]
@@ -270,20 +282,62 @@ coef = robjects.r.coef
 confint = robjects.r.confint
 residuals = robjects.r.residuals
 quantile = robjects.r.quantile
+predict = robjects.r.predict
+lm = robjects.r.lm
 
 numpy2ri.activate()
 lme4 = importr('lme4')
 fixef = robjects.r.fixef
+base = importr('base')
+stats = importr('stats')
 
+# define a function for the residual sum of squares
+RSS = lambda model: np.sum(np.array(robjects.r.resid(model))**2)
+
+nfolds = 10
+snare_folds = meet.elm.ssk_cv(snareX_select.T, labels=snare_subject, folds=nfolds)
+
+# residual sum of squares of linear model
+lm_RSS = 0
+# residual sum of squares of linear mixed effects models
+lme_RSS1 = 0
+lme_RSS2 = 0
 
 # fit lmer model for snare
-snare_fmla = Formula('y ~ 0 + x + (1 + z | g)')
-snare_fmla.environment['y'] = np.abs(snareY_select.reshape(-1,1))
-snare_fmla.environment['x'] = snareX_select[1:].T
-snare_fmla.environment['z'] = snareZ_select[1:].T
-snare_fmla.environment['g'] = snare_subject[:,np.newaxis]
-snare_lme_model = lme4.lmer(snare_fmla)
+snare_lm_fmla = Formula('y ~ 1 + x')
+snare_lme_fmla1 = Formula('y ~ 1 + x + (1 | g)')
+snare_lme_fmla2 = Formula('y ~ 1 + x + (1 + z | g)')
 
+# loop through the folds
+for i in range(nfolds):
+    snare_test_idx = snare_folds[i]
+    snare_train_idx =  np.hstack([snare_folds[j]
+        for j in range(nfolds) if j != i])
+    # fit models
+    snare_lm_fmla.environment['y'] = np.abs(snareY_select[snare_train_idx]
+            ).reshape(-1,1)
+    snare_lm_fmla.environment['x'] = snareX_select[:,snare_train_idx][1:].T
+    snare_lm_model = lm(snare_lm_fmla)
+    # the predict function throws an error
+    lm_RSS += np.sum((np.abs(snareY_select[snare_test_idx]) -
+        np.array(predict(snare_lm_model, snareX_select[:,snare_test_idx][1:].T)))**2)
+    snare_lme_fmla1.environment['y'] = np.abs(snareY_select).reshape(-1,1)
+    snare_lme_fmla1.environment['x'] = snareX_select[1:].T
+    snare_lme_fmla1.environment['g'] = snare_subject[:,np.newaxis]
+    snare_lme_model1 = lme4.lmer(snare_lme_fmla1)
+    # the predict function throws an error
+    lme_RSS1 += np.sum((np.abs(snareY_select[snare_test_idx]) -
+        np.array(predict(snare_lme_model1, snareX_select[:,snare_test_idx][1:].T)))**2)
+    snare_lme_fmla2.environment['y'] = np.abs(snareY_select).reshape(-1,1)
+    snare_lme_fmla2.environment['x'] = snareX_select[1:].T
+    snare_lme_fmla2.environment['z'] = snareZ_select[1:].T
+    snare_lme_fmla2.environment['g'] = snare_subject[:,np.newaxis]
+    snare_lme_model2 = lme4.lmer(snare_lme_fmla2)
+    # the predict function throws an error
+    lme_RSS2 += np.sum((np.abs(snareY_select[snare_test_idx]) -
+        np.array(predict(snare_lme_model2, snareX_select[:,snare_test_idx][1:].T)))**2)
+
+1/0
 # get coefficients and CI
 nsim = 500
 snare_FEcoef = np.ravel(fixef(snare_lme_model))
