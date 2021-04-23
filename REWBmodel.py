@@ -46,7 +46,7 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
         try:
             F_SSD = fi['F_SSD_{:02d}'.format(i)]
             F_SSD = np.abs(F_SSD)
-            ## subtract mean of neighbouring frequencies 
+            ## subtract mean of neighbouring frequencies
             F_SSD = scipy.ndimage.convolve1d(
                     np.abs(F_SSD)**2,
                     np.r_[[-0.25]*2, 1, [-0.25]*2], axis=1)
@@ -304,23 +304,34 @@ lme_RSS1 = 0
 lme_RSS2 = 0
 
 # fit lmer model for snare
-snare_lm_fmla = Formula('y ~ 1 + x')
-snare_lme_fmla1 = Formula('y ~ 1 + x + (1 | g)')
-snare_lme_fmla2 = Formula('y ~ 1 + x + (1 + z | g)')
+x_string = (' + ').join(['X'+str(i) for i in range(1,12)])
+#g_string
+snare_lm_fmla = Formula('y ~ 1 + ' + x_string)
+snare_lme_fmla1 = Formula('y ~ 1 + ' + x_string + ' (1 | g)')
+snare_lme_fmla2 = Formula('y ~ 1 + ' + x_string + ' + (1 + z | g)')
 
+''' this works in r:
+x <- array(rnorm(40), dim=c(10,4))
+y <- 5 + rnorm(10)
+model <- lm(y ~ 1 + X1 + X2 + X3 + X4, data=data.frame(x))
+x_new <- array(seq(-3, 3, 0.25), dim=c(7,4))
+predict(model, newdata=data.frame(x_new))
+'''
 # loop through the folds
 for i in range(nfolds):
     snare_test_idx = snare_folds[i]
     snare_train_idx =  np.hstack([snare_folds[j]
         for j in range(nfolds) if j != i])
     # fit models
-    snare_lm_fmla.environment['y'] = np.abs(snareY_select[snare_train_idx]
-            ).reshape(-1,1)
-    snare_lm_fmla.environment['x'] = snareX_select[:,snare_train_idx][1:].T
-    snare_lm_model = lm(snare_lm_fmla)
-    # the predict function throws an error
-    lm_RSS += np.sum((np.abs(snareY_select[snare_test_idx]) -
-        np.array(predict(snare_lm_model, snareX_select[:,snare_test_idx][1:].T)))**2)
+    robjects.globalenv['x'] = snareX_select[:,snare_train_idx][1:].T #(1132, 11)
+    robjects.globalenv['y'] = np.abs(snareY_select[snare_train_idx]
+            ).reshape(-1,1) #(1132, 1)
+    snare_lm_model = lm(snare_lm_fmla, data=robjects.r('data.frame(x)'))
+    robjects.globalenv['x_new'] = snareX_select[:,snare_test_idx][1:].T #(127, 11)
+    lm_RSS += np.sum((np.abs(snareY_select[snare_test_idx]) - np.array(
+        predict(snare_lm_model, newdata=robjects.r('data.frame(x_new)')))
+        )**2)
+
     snare_lme_fmla1.environment['y'] = np.abs(snareY_select).reshape(-1,1)
     snare_lme_fmla1.environment['x'] = snareX_select[1:].T
     snare_lme_fmla1.environment['g'] = snare_subject[:,np.newaxis]
@@ -328,6 +339,7 @@ for i in range(nfolds):
     # the predict function throws an error
     lme_RSS1 += np.sum((np.abs(snareY_select[snare_test_idx]) -
         np.array(predict(snare_lme_model1, snareX_select[:,snare_test_idx][1:].T)))**2)
+
     snare_lme_fmla2.environment['y'] = np.abs(snareY_select).reshape(-1,1)
     snare_lme_fmla2.environment['x'] = snareX_select[1:].T
     snare_lme_fmla2.environment['z'] = snareZ_select[1:].T
