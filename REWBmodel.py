@@ -304,18 +304,21 @@ lme_RSS1 = 0
 lme_RSS2 = 0
 
 # fit lmer model for snare
-x_string = (' + ').join(['X'+str(i) for i in range(1,12)])
+# this needs to be this unelegant because of how the R constructs the data.frames
+x_string = (' + ').join(['X'+str(i) for i in range(1,snareX_select.shape[0])])
+z_string = (' + ').join(['X'+str(i)+'.1' for i in range(1,snareZ_select.shape[0])])
+
 #g_string
 snare_lm_fmla = Formula('y ~ 1 + ' + x_string)
-snare_lme_fmla1 = Formula('y ~ 1 + ' + x_string + ' (1 | g)')
-snare_lme_fmla2 = Formula('y ~ 1 + ' + x_string + ' + (1 + z | g)')
+snare_lme_fmla1 = Formula('y ~ 1 + ' + x_string + ' + (1 | g)')
+snare_lme_fmla2 = Formula('y ~ 1 + ' + x_string + ' + (1 + ' + z_string + ' | g)')
 
 ''' this works in r:
 x <- array(rnorm(40), dim=c(10,4))
 y <- 5 + rnorm(10)
 model <- lm(y ~ 1 + X1 + X2 + X3 + X4, data=data.frame(x))
-x_new <- array(seq(-3, 3, 0.25), dim=c(7,4))
-predict(model, newdata=data.frame(x_new))
+x_test <- array(seq(-3, 3, 0.25), dim=c(7,4))
+predict(model, newdata=data.frame(x_test))
 '''
 # loop through the folds
 for i in range(nfolds):
@@ -323,32 +326,29 @@ for i in range(nfolds):
     snare_train_idx =  np.hstack([snare_folds[j]
         for j in range(nfolds) if j != i])
     # fit models
-    robjects.globalenv['x'] = snareX_select[:,snare_train_idx][1:].T #(1132, 11)
     robjects.globalenv['y'] = np.abs(snareY_select[snare_train_idx]
             ).reshape(-1,1) #(1132, 1)
-    snare_lm_model = lm(snare_lm_fmla, data=robjects.r('data.frame(x)'))
-    robjects.globalenv['x_new'] = snareX_select[:,snare_test_idx][1:].T #(127, 11)
-    lm_RSS += np.sum((np.abs(snareY_select[snare_test_idx]) - np.array(
-        predict(snare_lm_model, newdata=robjects.r('data.frame(x_new)')))
-        )**2)
+    y_test = np.abs(snareY_select[snare_test_idx])
+    robjects.globalenv['x_train'] = snareX_select[:,snare_train_idx][1:].T #(1132, 11)
+    robjects.globalenv['g'] = snare_subject[snare_train_idx] #(1132,)
+    robjects.globalenv['z_train'] = snareZ_select[:,snare_train_idx][1:].T #(1132, 4)
+    snare_lm_model = lm(snare_lm_fmla,
+        data = robjects.r('data.frame(x_train)'))
+    snare_lme_model1 = lme4.lmer(snare_lme_fmla1,
+        data = robjects.r('data.frame(x_train,g)'))
+    snare_lme_model2 = lme4.lmer(snare_lme_fmla2,
+        data = robjects.r('data.frame(x_train,z_train,g)'))
 
-    snare_lme_fmla1.environment['y'] = np.abs(snareY_select).reshape(-1,1)
-    snare_lme_fmla1.environment['x'] = snareX_select[1:].T
-    snare_lme_fmla1.environment['g'] = snare_subject[:,np.newaxis]
-    snare_lme_model1 = lme4.lmer(snare_lme_fmla1)
-    # the predict function throws an error
-    lme_RSS1 += np.sum((np.abs(snareY_select[snare_test_idx]) -
-        np.array(predict(snare_lme_model1, snareX_select[:,snare_test_idx][1:].T)))**2)
-
-    snare_lme_fmla2.environment['y'] = np.abs(snareY_select).reshape(-1,1)
-    snare_lme_fmla2.environment['x'] = snareX_select[1:].T
-    snare_lme_fmla2.environment['z'] = snareZ_select[1:].T
-    snare_lme_fmla2.environment['g'] = snare_subject[:,np.newaxis]
-    snare_lme_model2 = lme4.lmer(snare_lme_fmla2)
-    # the predict function throws an error
-    lme_RSS2 += np.sum((np.abs(snareY_select[snare_test_idx]) -
-        np.array(predict(snare_lme_model2, snareX_select[:,snare_test_idx][1:].T)))**2)
-
+    # test models
+    robjects.globalenv['x_test'] = snareX_select[:,snare_test_idx][1:].T #(127, 11)
+    robjects.globalenv['g'] = snare_subject[snare_test_idx]
+    robjects.globalenv['z_test'] = snareZ_select[:,snare_test_idx][1:].T
+    lm_RSS += np.sum(y_test - np.array(predict(snare_lm_model,
+        newdata = robjects.r('data.frame(x_test)')))**2)
+    lme_RSS2 += np.sum(y_test - np.array(predict(snare_lme_model2,
+            newdata = robjects.r('data.frame(x_test,z_test,g)')))**2)
+    lme_RSS1 += np.sum(y_test - np.array(predict(snare_lme_model1,
+        newdata = robjects.r('data.frame(x_test,g)')))**2)
 1/0
 # get coefficients and CI
 nsim = 500
@@ -393,7 +393,7 @@ snare_FEp_str = [str(round(p,3)) if p>0.0001 else '<0.0001' for p in snare_FEp]
 # computer for wdBlk
 wdBlk_fmla = Formula('y ~ 0 + x + (0 + z | g)')
 wdBlk_fmla.environment['y'] = np.abs(wdBlkY_select.reshape(-1,1))
-wdBlk_fmla.environment['x'] = wdBlkX_select.T
+wdBlk_fmla.environment[x_train] = wdBlkX_select.T
 wdBlk_fmla.environment['z'] = wdBlkZ_select[wdBlkZ_select!=0].reshape(
     5,sum(N_trials_wdBlk)).T
 wdBlk_fmla.environment['g'] = wdBlk_subjects.T[:,np.newaxis]
