@@ -221,12 +221,14 @@ snare_data['precision'] = robjects.vectors.FloatVector(np.abs(np.hstack(snare_de
 Rsnare_data = base.data_frame(**snare_data)
 
 # add within and between variables to the data frame
-Rsnare_data = robjects.r.cbind(
+Rsnare_data = base.cbind(
         Rsnare_data,
         parameters.demean(
                 Rsnare_data,
-                select = robjects.r.c(*(EEG_labels + ['precision'])),
+                select = base.c(*(EEG_labels + ['precision'])),
                 group = 'subject'))
+
+1/0
 
 #################################
 # generate the necessary models #
@@ -357,7 +359,7 @@ best_snare_model = min(AIC, key=AIC.get)
 # to make the last step in R itself
 #######################################################################
 for key, value in snare_models.items():
-    robjects.r.assign(key, value)
+    base.assign(key, value)
     
 robjects.r("save({}, file='snare_models.rds')".format(
     ', '.join(snare_models.keys())))
