@@ -296,22 +296,25 @@ RSS = lambda model: np.sum(np.array(robjects.r.resid(model))**2)
 
 nfolds = 10
 snare_folds = meet.elm.ssk_cv(snareX_select.T, labels=snare_subject, folds=nfolds)
+wdBlk_folds = meet.elm.ssk_cv(wdBlkX_select.T, labels=wdBlk_subject, folds=nfolds)
 
 # residual sum of squares of linear model
-lm_RSS = 0
+snare_lm_RSS = 0
+wdBlk_lm_RSS = 0
 # residual sum of squares of linear mixed effects models
-lme_RSS1 = 0
-lme_RSS2 = 0
-
+snare_lme_RSS1 = 0
+snare_lme_RSS2 = 0
+wdBlk_lme_RSS1 = 0
+wdBlk_lme_RSS2 = 0
 # fit lmer model for snare
 # this needs to be this unelegant because of how the R constructs the data.frames
 x_string = (' + ').join(['X'+str(i) for i in range(1,snareX_select.shape[0])])
 z_string = (' + ').join(['X'+str(i)+'.1' for i in range(1,snareZ_select.shape[0])])
 
 #g_string
-snare_lm_fmla = Formula('y ~ 1 + ' + x_string)
-snare_lme_fmla1 = Formula('y ~ 1 + ' + x_string + ' + (1 | g)')
-snare_lme_fmla2 = Formula('y ~ 1 + ' + x_string + ' + (1 + ' + z_string + ' | g)')
+lm_fmla = Formula('y ~ 1 + ' + x_string)
+lme_fmla1 = Formula('y ~ 1 + ' + x_string + ' + (1 | g)')
+lme_fmla2 = Formula('y ~ 1 + ' + x_string + ' + (1 + ' + z_string + ' | g)')
 
 ''' this works in r:
 x <- array(rnorm(40), dim=c(10,4))
@@ -322,6 +325,7 @@ predict(model, newdata=data.frame(x_test))
 '''
 # loop through the folds
 for i in range(nfolds):
+    # snare
     snare_test_idx = snare_folds[i]
     snare_train_idx =  np.hstack([snare_folds[j]
         for j in range(nfolds) if j != i])
@@ -332,40 +336,78 @@ for i in range(nfolds):
     robjects.globalenv['x_train'] = snareX_select[:,snare_train_idx][1:].T #(1132, 11)
     robjects.globalenv['g'] = snare_subject[snare_train_idx] #(1132,)
     robjects.globalenv['z_train'] = snareZ_select[:,snare_train_idx][1:].T #(1132, 4)
-    snare_lm_model = lm(snare_lm_fmla,
+    snare_lm_model = lm(lm_fmla,
         data = robjects.r('data.frame(x_train)'))
-    snare_lme_model1 = lme4.lmer(snare_lme_fmla1,
+    snare_lme_model1 = lme4.lmer(lme_fmla1,
         data = robjects.r('data.frame(x_train,g)'))
-    snare_lme_model2 = lme4.lmer(snare_lme_fmla2,
+    snare_lme_model2 = lme4.lmer(lme_fmla2,
         data = robjects.r('data.frame(x_train,z_train,g)'))
 
     # test models
     robjects.globalenv['x_test'] = snareX_select[:,snare_test_idx][1:].T #(127, 11)
     robjects.globalenv['g'] = snare_subject[snare_test_idx]
     robjects.globalenv['z_test'] = snareZ_select[:,snare_test_idx][1:].T
-    lm_RSS += np.sum(y_test - np.array(predict(snare_lm_model,
+    snare_lm_RSS += np.sum(y_test - np.array(predict(snare_lm_model,
         newdata = robjects.r('data.frame(x_test)')))**2)
-    lme_RSS2 += np.sum(y_test - np.array(predict(snare_lme_model2,
-            newdata = robjects.r('data.frame(x_test,z_test,g)')))**2)
-    lme_RSS1 += np.sum(y_test - np.array(predict(snare_lme_model1,
+    snare_lme_RSS1 += np.sum(y_test - np.array(predict(snare_lme_model1,
         newdata = robjects.r('data.frame(x_test,g)')))**2)
+    snare_lme_RSS2 += np.sum(y_test - np.array(predict(snare_lme_model2,
+        newdata = robjects.r('data.frame(x_test,z_test,g)')))**2)
+
+    # woodblock
+    wdBlk_test_idx = wdBlk_folds[i]
+    wdBlk_train_idx =  np.hstack([wdBlk_folds[j]
+        for j in range(nfolds) if j != i])
+    # fit models
+    robjects.globalenv['y'] = np.abs(wdBlkY_select[wdBlk_train_idx]
+            ).reshape(-1,1) #(1132, 1)
+    y_test = np.abs(wdBlkY_select[wdBlk_test_idx])
+    robjects.globalenv['x_train'] = wdBlkX_select[:,wdBlk_train_idx][1:].T #(1132, 11)
+    robjects.globalenv['g'] = wdBlk_subject[wdBlk_train_idx] #(1132,)
+    robjects.globalenv['z_train'] = wdBlkZ_select[:,wdBlk_train_idx][1:].T #(1132, 4)
+    wdBlk_lm_model = lm(lm_fmla,
+        data = robjects.r('data.frame(x_train)'))
+    wdBlk_lme_model1 = lme4.lmer(lme_fmla1,
+        data = robjects.r('data.frame(x_train,g)'))
+    wdBlk_lme_model2 = lme4.lmer(lme_fmla2,
+        data = robjects.r('data.frame(x_train,z_train,g)'))
+
+    # test models
+    robjects.globalenv['x_test'] = wdBlkX_select[:,wdBlk_test_idx][1:].T #(127, 11)
+    robjects.globalenv['g'] = wdBlk_subject[wdBlk_test_idx]
+    robjects.globalenv['z_test'] = wdBlkZ_select[:,wdBlk_test_idx][1:].T
+    wdBlk_lm_RSS += np.sum(y_test - np.array(predict(wdBlk_lm_model,
+        newdata = robjects.r('data.frame(x_test)')))**2)
+    wdBlk_lme_RSS1 += np.sum(y_test - np.array(predict(wdBlk_lme_model1,
+        newdata = robjects.r('data.frame(x_test,g)')))**2)
+    wdBlk_lme_RSS2 += np.sum(y_test - np.array(predict(wdBlk_lme_model2,
+        newdata = robjects.r('data.frame(x_test,z_test,g)')))**2)
+
+print('RSS after CV\nSnare\nlm: \t', snare_lm_RSS, '\nlme1: \t',
+    snare_lme_RSS1, '\nlme2:\t', snare_lme_RSS2,'\nWoodblock\nlm: \t',
+    wdBlk_lm_RSS, '\nlme1: \t', wdBlk_lme_RSS1, '\nlme2:\t', wdBlk_lme_RSS2)
+
+# get coefficients
+snare_lm_FEcoef = np.ravel(coef(snare_lm_model))
+snare_lme1_FEcoef = np.ravel(fixef(snare_lme_model1))
+snare_lme2_FEcoef = np.ravel(fixef(snare_lme_model2))
+wdBlk_lm_FEcoef = np.ravel(coef(wdBlk_lm_model))
+wdBlk_lme1_FEcoef = np.ravel(fixef(wdBlk_lme_model1))
+wdBlk_lme2_FEcoef = np.ravel(fixef(wdBlk_lme_model2))
+
 1/0
-# get coefficients and CI
 nsim = 500
-snare_FEcoef = np.ravel(fixef(snare_lme_model))
-#snare_FEcovmat = np.ravel(vcov(snare_lme_model)) #want this for RE!!
 # get confidence intervals for FE with bootstrap (this takes about 1,5*nsim sec)
 # see also: https://rdrr.io/cran/lme4/man/confint.merMod.html
 # alternatively use wald and afterwards delete nans:
 #snare_confint_wald = np.ravel(confint(snare_lme_model,level=0.95,method='Wald'))
-
-snare_confint = np.ravel(confint(snare_lme_model, parm = 'beta_', #beta means only FE
+snare_lm_confint = np.ravel(confint(snare_lme_model, parm = 'beta_', #beta means only FE
     level=0.95, method='boot', nsim=nsim)) #[0.25 for parm1, 0.75 fpr parm2, 0.25 for parm1,...]
 # transform to error bars: first line + values, second line - values for coef
 snare_confint = [(snare_confint[i], snare_confint[i+1])
     for i in range(0, len(snare_confint), 2)]
 
-1/0
+
 
 
 snare_errbar = np.transpose(np.array([[np.abs(l - snare_FEcoef[int(i/2)]),
