@@ -45,11 +45,7 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
     while True:
         try:
             F_SSD = fi['F_SSD_{:02d}'.format(i)]
-            F_SSD = np.abs(F_SSD)
             ## subtract mean of neighbouring frequencies
-            F_SSD = scipy.ndimage.convolve1d(
-                    np.abs(F_SSD)**2,
-                    np.r_[[-0.25]*2, 1, [-0.25]*2], axis=1)
             F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs.append(F_SSD)
             snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
@@ -58,8 +54,9 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
         except KeyError:
             break
 
-# take power
-#F_SSDs = [np.abs(F_SSD_now) for F_SSD_now in F_SSDs]
+# take absolute value to get EEG amplitude and log to transform
+# to a linear scale
+F_SSDs = [np.log(np.abs(F_SSD_now)) for F_SSD_now in F_SSDs]
 
 # scale F_SSD: concatenate along trial axis, calculate mean and sd, scale
 F_SSD_mean = np.mean(np.concatenate(F_SSDs, -1), 2)
@@ -161,24 +158,24 @@ while True:
             wdBlk_times = fi['wdBlkCue_times']
             all_trial_idx = np.argsort(np.argsort(
                 np.r_[snare_times, wdBlk_times]))
-            snare_trial_idx_now = zscore(all_trial_idx[:len(
-                snare_times)][snareInlier[idx]][snare_inlier_now])
+            snare_trial_idx_now = all_trial_idx[:len(
+                snare_times)][snareInlier[idx]][snare_inlier_now]
             snare_trial_idx.append(snare_trial_idx_now)
-            wdBlk_trial_idx_now = zscore(all_trial_idx[len(
-                snare_times):][wdBlkInlier[idx]][wdBlk_inlier_now])
+            wdBlk_trial_idx_now = all_trial_idx[len(
+                snare_times):][wdBlkInlier[idx]][wdBlk_inlier_now]
             wdBlk_trial_idx.append(wdBlk_trial_idx_now)
 
             # get the session indices
             snare_session_idx.append(
-                zscore(np.hstack([i*np.ones_like(session)
+                np.hstack([i*np.ones_like(session)
                     for i, session in enumerate(
                         fi['snareCue_nearestClock'])])
-                    )[snareInlier[idx]][snare_inlier_now])
+                    [snareInlier[idx]][snare_inlier_now])
             wdBlk_session_idx.append(
-                zscore(np.hstack([i*np.ones_like(session)
+                np.hstack([i*np.ones_like(session)
                     for i, session in enumerate(
                         fi['wdBlkCue_nearestClock'])])
-                    )[wdBlkInlier[idx]][wdBlk_inlier_now])
+                    [wdBlkInlier[idx]][wdBlk_inlier_now])
             idx += 1
 
 # start interface to R
@@ -203,6 +200,7 @@ EEG_labels = (['Snare{}'.format(i+1) for i in range(N_SSD)] +
 ###########################################
 snare_data = {}
 # add EEG
+# absolute value and log have already been take above!
 for i,l in enumerate(EEG_labels):
     snare_data[l] = robjects.vectors.FloatVector(
             np.hstack([F_SSD_now[i] for F_SSD_now in snare_F_SSD]))
@@ -213,10 +211,10 @@ snare_data['subject'] = robjects.vectors.IntVector(
 snare_data['musicality'] = robjects.vectors.FloatVector(
         musicscore[snare_SubjToTrials])
 # add trial index
-snare_data['trial'] = robjects.vectors.FloatVector(np.hstack(snare_trial_idx))
+snare_data['trial'] = robjects.vectors.FloatVector(np.log(np.hstack(snare_trial_idx) + 1))
 # add session index
-snare_data['session'] = robjects.vectors.FloatVector(np.hstack(snare_session_idx))
-snare_data['precision'] = robjects.vectors.FloatVector(np.abs(np.hstack(snare_deviation)))
+snare_data['session'] = robjects.vectors.FloatVector(np.log(np.hstack(snare_session_idx) + 1))
+snare_data['precision'] = robjects.vectors.FloatVector(np.log(np.abs(np.hstack(snare_deviation))))
 
 Rsnare_data = base.data_frame(**snare_data)
 
@@ -227,8 +225,6 @@ Rsnare_data = base.cbind(
                 Rsnare_data,
                 select = base.c(*(EEG_labels + ['precision'])),
                 group = 'subject'))
-
-1/0
 
 #################################
 # generate the necessary models #
