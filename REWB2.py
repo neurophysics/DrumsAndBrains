@@ -226,40 +226,40 @@ Rsnare_data = effectsize.standardize(Rsnare_data)
 snare_models = {}
 
 snare_models['fe_b'] = stats.lm(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_between' for l in EEG_labels]) +
         ' + musicality + trial + session',
         data = Rsnare_data)
 
 snare_models['fe_b_onlysnare'] = stats.lm(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_between' for l in EEG_labels
             if l.startswith('Snare')]) +
         ' + musicality + trial + session',
         data = Rsnare_data)
 
 snare_models['fe_w'] = stats.lm(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels]) + 
         ' + musicality + trial + session',
         data = Rsnare_data)
 
 snare_models['fe_w_onlysnare'] = stats.lm(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels
             if l.startswith('Snare')]) + 
         ' + musicality + trial + session',
         data = Rsnare_data)
 
 snare_models['fe_wb'] = stats.lm(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' + 
         ' + '.join([l + '_between' for l in EEG_labels]) +
         ' + musicality + trial + session',
         data = Rsnare_data)
 
 snare_models['fe_wb_onlysnare'] = stats.lm(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels
             if l.startswith('Snare')]) + ' + ' + 
         ' + '.join([l + '_between' for l in EEG_labels
@@ -268,14 +268,14 @@ snare_models['fe_wb_onlysnare'] = stats.lm(
         data = Rsnare_data)
 
 snare_models['lme_b_i'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_between' for l in EEG_labels]) +
         ' + musicality + trial + session + ' +
         '(1 | subject)',
         data = Rsnare_data, REML=False)
 
 snare_models['lme_b_i_onlysnare'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_between' for l in EEG_labels
             if l.startswith('Snare')]) +
         ' + musicality + trial + session + ' +
@@ -283,14 +283,14 @@ snare_models['lme_b_i_onlysnare'] = lme4.lmer(
         data = Rsnare_data, REML=False)
 
 snare_models['lme_w_i'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels]) +
         ' + musicality + trial + session + ' +
         '(1 | subject)',
         data = Rsnare_data, REML=False)
 
 snare_models['lme_w_i_onlysnare'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels
             if l.startswith('Snare')]) +
         ' + musicality + trial + session + ' +
@@ -298,7 +298,7 @@ snare_models['lme_w_i_onlysnare'] = lme4.lmer(
         data = Rsnare_data, REML=False)
 
 snare_models['lme_wb_i'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' + 
         ' + '.join([l + '_between' for l in EEG_labels]) +
         ' + musicality + trial + session + ' +
@@ -306,7 +306,7 @@ snare_models['lme_wb_i'] = lme4.lmer(
         data = Rsnare_data, REML=False)
 
 snare_models['lme_wb_i_onlysnare'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels
             if l.startswith('Snare')]) + ' + ' + 
         ' + '.join([l + '_between' for l in EEG_labels
@@ -316,7 +316,7 @@ snare_models['lme_wb_i_onlysnare'] = lme4.lmer(
         data = Rsnare_data, REML=False)
 
 snare_models['lme_wb_is'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' + 
         ' + '.join([l + '_between' for l in EEG_labels]) +
         ' + musicality + trial + session + ' +
@@ -326,7 +326,7 @@ snare_models['lme_wb_is'] = lme4.lmer(
         data = Rsnare_data, REML=False)
 
 snare_models['lme_wb_is_onlysnare'] = lme4.lmer(
-        'precision ~ ' +
+        'precision ~ ' + '0 + ' +
         ' + '.join([l + '_within' for l in EEG_labels
             if l.startswith('Snare')]) + ' + ' + 
         ' + '.join([l + '_between' for l in EEG_labels
