@@ -45,7 +45,6 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
     while True:
         try:
             F_SSD = fi['F_SSD_{:02d}'.format(i)]
-            ## subtract mean of neighbouring frequencies
             F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs.append(F_SSD)
             snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
@@ -57,11 +56,6 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
 # take absolute value to get EEG amplitude and log to transform
 # to a linear scale
 F_SSDs = [np.log(np.abs(F_SSD_now)) for F_SSD_now in F_SSDs]
-
-# scale F_SSD: concatenate along trial axis, calculate mean and sd, scale
-F_SSD_mean = np.mean(np.concatenate(F_SSDs, -1), 2)
-F_SSD_sd = np.std(np.concatenate(F_SSDs, -1), 2)
-F_SSDs = [(i - F_SSD_mean[:,:,np.newaxis]) / F_SSD_sd[:,:,np.newaxis] for i in F_SSDs]
 
 # read the musicality scores of all subjects
 background = {}
@@ -141,15 +135,10 @@ while True:
                 wdBlk_inlier_now = np.logical_and(
                     wdBlk_finite, idx_iqr_wdBlk)
 
-            # (normalize subjects' deviation to have zero mean each) and append
-            # w/o mean for now, want to induce precision not subjects consistency
-            dev_mean = np.mean(np.hstack([
-                snare_deviation_now[snare_inlier_now],
-                wdBlk_deviation_now[wdBlk_inlier_now]]))
             snare_deviation.append(
-                snare_deviation_now[snare_inlier_now])#-dev_mean)
+                snare_deviation_now[snare_inlier_now])
             wdBlk_deviation.append(
-                wdBlk_deviation_now[wdBlk_inlier_now])#-dev_mean)
+                wdBlk_deviation_now[wdBlk_inlier_now])
             snare_F_SSD[idx] = snare_F_SSD[idx][:, snare_inlier_now]
             wdBlk_F_SSD[idx] = wdBlk_F_SSD[idx][:, wdBlk_inlier_now]
 
@@ -187,6 +176,7 @@ stats = importr('stats')
 parameters = importr('parameters')
 lme4 = importr('lme4')
 sjPlot = importr('sjPlot')
+effectsize = importr('effectsize')
 
 snare_subject = np.hstack([np.ones(F_SSD_now.shape[-1], int)*(i + 1)
     for i, F_SSD_now in enumerate(snare_F_SSD)])
@@ -225,6 +215,10 @@ Rsnare_data = base.cbind(
                 Rsnare_data,
                 select = base.c(*(EEG_labels + ['precision'])),
                 group = 'subject'))
+
+# standardize, this took some googling, since R's scale function from rpy2
+# returnd just a Matrix and not a data frame
+Rsnare_data = effectsize.standardize(Rsnare_data)
 
 #################################
 # generate the necessary models #
