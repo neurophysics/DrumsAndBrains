@@ -100,12 +100,22 @@ wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
 
 ## get the temporal window
 all_win = [0, int(4*bar_duration*s_rate)]
+listen_win = [0, int(3*bar_duration*s_rate)]
+silence_win = [int(3*bar_duration*s_rate), int(4*bar_duration*s_rate)]
 
 ## reject trials that contain rejected data segments
 snareInlier = np.all(meet.epochEEG(artifact_mask, snareListenMarker,
     all_win), 0)
 wdBlkInlier = np.all(meet.epochEEG(artifact_mask, wdBlkListenMarker,
     all_win), 0)
+snareInlier_listen = np.all(meet.epochEEG(artifact_mask, snareListenMarker,
+    listen_win), 0)
+wdBlkInlier_listen = np.all(meet.epochEEG(artifact_mask, wdBlkListenMarker,
+    listen_win), 0)
+snareInlier_silence = np.all(meet.epochEEG(artifact_mask, snareListenMarker,
+    silence_win), 0)
+wdBlkInlier_silence = np.all(meet.epochEEG(artifact_mask, wdBlkListenMarker,
+    silence_win), 0)
 
 ## get the frequencies of the snaredrum (duple) and woodblock (triple) beats
 snareFreq = 2./bar_duration
@@ -123,14 +133,23 @@ all_trials = meet.epochEEG(EEG,
         np.r_[snareListenMarker[snareInlier],
             wdBlkListenMarker[wdBlkInlier]],
         all_win)
-
+listen_trials = meet.epochEEG(EEG,
+        np.r_[snareListenMarker[snareInlier_listen],
+            wdBlkListenMarker[wdBlkInlier_listen]],
+        listen_win)
+silence_trials = meet.epochEEG(EEG,
+        np.r_[snareListenMarker[snareInlier_silence],
+            wdBlkListenMarker[wdBlkInlier_silence]],
+        silence_win)
 # DFFT
 ## get frequency resolution of 1/6 Hz
 nperseg = 12*s_rate
 f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
-## calculate the fourier transform of all listen trials
+## calculate the fourier transform of all trials
 F = np.fft.rfft(all_trials, n=nperseg, axis=1)
+F_listen = np.fft.rfft(listen_trials, n=nperseg, axis=1)
+F_silence = np.fft.rfft(silence_trials, n=nperseg, axis=1)
 
 ## apply a filter in the Fourier domain to extract only the frequencies
 ## of interest, i.e. 1-2 Hz (contrast) and snare + wdBlkFreq (target)
@@ -168,4 +187,6 @@ np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
         snareInlier = snareInlier,
         wdBlkInlier = wdBlkInlier,
         F = F,
+        F_listen = F_listen,
+        F_silence = F_silence,
         f = f)
