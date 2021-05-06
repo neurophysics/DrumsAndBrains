@@ -60,6 +60,8 @@ N_channels = len(channames)
 ## read the data of the single subjects
 f = [] #frequency bins
 F = [] #discrete Fourier transform
+F_listen = []
+F_silence = []
 target_cov = [] #covariance matrix of frequencies 1.16 and 1.75
 contrast_cov = [] #cov matrix of other frequencies in [1,2]
 snareInlier = [] # which trials are Inlier - this is needed to relate EEG to
@@ -73,6 +75,8 @@ for i in range(1, N_subjects + 1, 1):
             target_cov.append(fi['target_cov'])
             contrast_cov.append(fi['contrast_cov'])
             F.append(fi['F'])
+            F_listen.append(fi['F_listen'])
+            F_silence.append(fi['F_silence'])
             f.append(fi['f'])
             snareInlier.append(fi['snareInlier'])
             wdBlkInlier.append(fi['wdBlkInlier'])
@@ -113,8 +117,9 @@ SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
 
 # average and normalize to plot
 ## apply SSD to FFT
-F_SSD = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
-
+F_SSD_both = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
+F_SSD_listen = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F_listen]
+F_SSD_silence = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F_silence]
 ## average across trials
 F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD]
 F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
@@ -157,11 +162,14 @@ ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
     f_plot_mask].T))
 
 save_results = {}
-for i, (F_SSD_now, snareInlier_now, wdBlkInlier_now) in enumerate(zip(
-    F_SSD, snareInlier, wdBlkInlier)):
+for i, (snareInlier_now, wdBlkInlier_now,
+    F_SSD_both_now, F_SSD_listen_now, F_SSD_silence_now) in enumerate(zip(
+    snareInlier, wdBlkInlier, F_SSD_both, F_SSD_listen, F_SSD_silence)):
     save_results['snareInlier_{:02d}'.format(i)] = snareInlier_now
     save_results['wdBlkInlier_{:02d}'.format(i)] = wdBlkInlier_now
-    save_results['F_SSD_{:02d}'.format(i)] = F_SSD_now
+    save_results['F_SSD_both_{:02d}'.format(i)] = F_SSD_both_now
+    save_results['F_SSD_listen_{:02d}'.format(i)] = F_SSD_listen_now
+    save_results['F_SSD_silence_{:02d}'.format(i)] = F_SSD_silence_now
 
 
 # save the results
