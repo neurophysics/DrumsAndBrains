@@ -40,6 +40,8 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
     snare_idx = np.argmin((f - snareFreq)**2)
     wdBlk_idx = np.argmin((f - wdBlkFreq)**2)
     harmo_idx = np.argmin((f - 2*wdBlkFreq)**2)
+    delta_idx1 = np.argmin((f - 1)**2)
+    delta_idx4 = np.argmin((f - 4)**2)
     # loop through all arrays
     i = 0
     while True:
@@ -50,13 +52,19 @@ with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
             F_SSD = scipy.ndimage.convolve1d(
                     np.abs(F_SSD)**2,
                     np.r_[[-0.25]*2, 1, [-0.25]*2], axis=1)
-            F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
+            # take this and average over absolute delta frequencies =>
+            # s.t. we have snare, wdblk and delta = 3 different in the end
+            delta_F_SSD = np.mean(np.abs(F_SSD[:,delta_idx1:delta_idx4]),
+                axis=1)
+            F_SSD = np.hstack([F_SSD[:N_SSD, (snare_idx,wdBlk_idx)],
+                delta_F_SSD[:N_SSD, np.newaxis]])
             F_SSDs.append(F_SSD)
             snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
             wdBlkInlier.append(fi['wdBlkInlier_{:02d}'.format(i)])
             i += 1
         except KeyError:
             break
+
 
 # take power
 #F_SSDs = [np.abs(F_SSD_now) for F_SSD_now in F_SSDs]
