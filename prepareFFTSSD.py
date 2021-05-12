@@ -146,10 +146,35 @@ silence_trials = meet.epochEEG(EEG,
 nperseg = 12*s_rate
 f = np.fft.rfftfreq(nperseg, d=1./s_rate)
 
+def slepianFFT(x, nperseg, axis):
+    """
+    calculate FFT after multiplication with slepian window with highest
+    frequency resolution
+    """
+    N = x.shape[axis]
+    if N > nperseg:
+        # clip data > nperseg
+        sliceobj = [[None, None, None]] * x.ndim
+        sliceobj[axis] = [None, nperseg, None]
+        sliceobj = [slice(*sl) for sl in sliceobj]
+        x = x[sliceobj]
+    elif N < nperseg:
+        after = nperseg - N
+        padwidth = [[0, 0]] * x.ndim
+        padwidth[axis] = [0, after]
+        # zeropad
+        x = np.pad(x, pad_width=padwidth, constant_values=0)
+    # calculate slepian window which maximizes spectral concentration
+    taper = scipy.signal.windows.dpss(nperseg, NW=1, Kmax=1, sym=False)[0]
+    taper_shape = np.ones(x.ndim, int)
+    taper_shape[axis] = nperseg
+    taper.resize(taper_shape)
+    return np.fft.rfft(taper*x, axis=axis)
+
 ## calculate the fourier transform of all trials
-F = np.fft.rfft(all_trials, n=nperseg, axis=1)
-F_listen = np.fft.rfft(listen_trials, n=nperseg, axis=1)
-F_silence = np.fft.rfft(silence_trials, n=nperseg, axis=1)
+F = slepianFFT(all_trials, nperseg, axis=1)
+F_listen = slepianFFT(listen_trials, nperseg, axis=1)
+F_silence = slepianFFT(silence_trials, nperseg, axis=1)
 
 ## apply a filter in the Fourier domain to extract only the frequencies
 ## of interest, i.e. 1-2 Hz (contrast) and snare + wdBlkFreq (target)

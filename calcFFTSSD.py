@@ -47,7 +47,6 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
         labelbottom=False)
 
-
 # read data (from channels.txt and prepared_FFTSSD.npz)
 ## read the channel names
 channames = meet.sphere.getChannelNames('channels.txt')
@@ -60,8 +59,6 @@ N_channels = len(channames)
 ## read the data of the single subjects
 f = [] #frequency bins
 F = [] #discrete Fourier transform
-F_listen = []
-F_silence = []
 target_cov = [] #covariance matrix of frequencies 1.16 and 1.75
 contrast_cov = [] #cov matrix of other frequencies in [1,2]
 snareInlier = [] # which trials are Inlier - this is needed to relate EEG to
@@ -75,8 +72,6 @@ for i in range(1, N_subjects + 1, 1):
             target_cov.append(fi['target_cov'])
             contrast_cov.append(fi['contrast_cov'])
             F.append(fi['F'])
-            F_listen.append(fi['F_listen'])
-            F_silence.append(fi['F_silence'])
             f.append(fi['f'])
             snareInlier.append(fi['snareInlier'])
             wdBlkInlier.append(fi['wdBlkInlier'])
@@ -118,10 +113,9 @@ SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
 # average and normalize to plot
 ## apply SSD to FFT
 F_SSD_both = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
-F_SSD_listen = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F_listen]
-F_SSD_silence = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F_silence]
+
 ## average across trials
-F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD]
+F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD_both]
 F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 
 ## average across subjects
@@ -161,27 +155,15 @@ ax.plot(f[f_plot_mask], 20*np.log10(F_subj_mean_norm[:,f_plot_mask].T),
 ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
     f_plot_mask].T))
 
+# save the results
 save_results = {}
-for i, (snareInlier_now, wdBlkInlier_now,
-    F_SSD_both_now, F_SSD_listen_now, F_SSD_silence_now) in enumerate(zip(
-    snareInlier, wdBlkInlier, F_SSD_both, F_SSD_listen, F_SSD_silence)):
+for i, (snareInlier_now, wdBlkInlier_now, F_SSD_both_now) in enumerate(zip(
+    snareInlier, wdBlkInlier, F_SSD_both)):
     save_results['snareInlier_{:02d}'.format(i)] = snareInlier_now
     save_results['wdBlkInlier_{:02d}'.format(i)] = wdBlkInlier_now
     save_results['F_SSD_both_{:02d}'.format(i)] = F_SSD_both_now
-    save_results['F_SSD_listen_{:02d}'.format(i)] = F_SSD_listen_now
-    save_results['F_SSD_silence_{:02d}'.format(i)] = F_SSD_silence_now
-
-
-# save the results
-## save sorted F_SSD: add 4th dim that contains subject number to sort by
-
-# F_SSD sorted, arr, and F_SSD_zip are not used anywhere???
-#F_SSD_sorted = [F_now[:,:,:,np.newaxis] for F_now in F_SSD]
-#for i in range(len(F_SSD)):
-#    arr = F_SSD_sorted[i]
-#    arr[0,0,0,0]=i
-#F_SSD_zip = zip(F_SSD,range(len(F_SSD)))
-
+    #save_results['F_SSD_listen_{:02d}'.format(i)] = F_SSD_listen_now
+    #save_results['F_SSD_silence_{:02d}'.format(i)] = F_SSD_silence_now
 np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
 
 ## save SSD eigenvalues, filters and patterns in a.npz
@@ -190,3 +172,26 @@ np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_filters = SSD_filters,
         SSD_patterns = SSD_patterns
         )
+1/0
+
+# apply for F_listen and F_silence in REWB2.py
+
+del F, F_SSD_both
+
+with open(os.path.join(result_folder, 'F_SSD.npz'), 'ab') as f: # open in append mode
+    F_listen = []
+    # now, load F_listen and F_silence to continue
+    for i in range(1, N_subjects + 1, 1):
+        try:
+            with np.load(os.path.join(result_folder, 'S%02d' % i)
+                    + '/prepared_FFTSSD.npz', 'r') as fi:
+                F_listen.append(fi['F_listen'])
+        except:
+            print(('Warning: Subject %02d could not be loaded!' %i))
+    F_SSD_listen = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F_listen]
+    del F_listen
+    for i, F_now in enumerate(F_SSD_listen):
+        np.savez(f, **{'F_SSD_silence_{:02d}'.format(i): F_now})
+
+
+
