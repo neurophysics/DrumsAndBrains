@@ -157,13 +157,15 @@ ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
 
 # save the results
 save_results = {}
-for i, (snareInlier_now, wdBlkInlier_now, F_SSD_both_now) in enumerate(zip(
-    snareInlier, wdBlkInlier, F_SSD_both)):
+for i, (snareInlier_now, wdBlkInlier_now) in enumerate(zip(
+    snareInlier, wdBlkInlier)):
     save_results['snareInlier_{:02d}'.format(i)] = snareInlier_now
     save_results['wdBlkInlier_{:02d}'.format(i)] = wdBlkInlier_now
-    save_results['F_SSD_both_{:02d}'.format(i)] = F_SSD_both_now
+    # the following get now calculated in REWB2.py to solve memory issue
+    #save_results['F_SSD_both_{:02d}'.format(i)] = F_SSD_both_now
     #save_results['F_SSD_listen_{:02d}'.format(i)] = F_SSD_listen_now
     #save_results['F_SSD_silence_{:02d}'.format(i)] = F_SSD_silence_now
+
 np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
 
 ## save SSD eigenvalues, filters and patterns in a.npz
@@ -172,26 +174,3 @@ np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_filters = SSD_filters,
         SSD_patterns = SSD_patterns
         )
-1/0
-
-# apply for F_listen and F_silence in REWB2.py
-
-del F, F_SSD_both
-
-with open(os.path.join(result_folder, 'F_SSD.npz'), 'ab') as f: # open in append mode
-    F_listen = []
-    # now, load F_listen and F_silence to continue
-    for i in range(1, N_subjects + 1, 1):
-        try:
-            with np.load(os.path.join(result_folder, 'S%02d' % i)
-                    + '/prepared_FFTSSD.npz', 'r') as fi:
-                F_listen.append(fi['F_listen'])
-        except:
-            print(('Warning: Subject %02d could not be loaded!' %i))
-    F_SSD_listen = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F_listen]
-    del F_listen
-    for i, F_now in enumerate(F_SSD_listen):
-        np.savez(f, **{'F_SSD_silence_{:02d}'.format(i): F_now})
-
-
-

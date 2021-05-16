@@ -16,6 +16,7 @@ import meet
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
+N_subjects = 21
 
 # reject behavioral outlier
 iqr_rejection = True
@@ -27,36 +28,65 @@ wdBlkFreq = 7./4
 # number of SSD_components to use
 N_SSD = 2
 
-# load the SSD results from all subjects into a list
-F_SSDs = []
+# load the SSD results
+with np.load(os.path.join(result_folder, 'FFTSSD.npz')) as f:
+    SSD_eigvals = f['SSD_eigvals']
+    SSD_filters = f['SSD_filters']
+    SSD_patterns = f['SSD_patterns']
+
+# load the frequency array and inlier
 snareInlier = []
 wdBlkInlier = []
+i=0
+while True:
+    try:
+        with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
+            f = fi['f']
+            snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
+            wdBlkInlier.append(fi['wdBlkInlier_{:02d}'.format(i)])
+        # find the index of the frequency array refering to snare and woodblock
+        # frequency
+        snare_idx = np.argmin((f - snareFreq)**2)
+        wdBlk_idx = np.argmin((f - wdBlkFreq)**2)
+        harmo_idx = np.argmin((f - 2*wdBlkFreq)**2)
+        delta_idx1 = np.argmin((f - 1)**2)
+        delta_idx4 = np.argmin((f - 4)**2)
+        i+=1
+    except KeyError:
+        break
 
-with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as fi:
-    # load the frequency array
-    f = fi['f']
-    # find the index of the frequency array refering to snare and woodblock
-    # frequency
-    snare_idx = np.argmin((f - snareFreq)**2)
-    wdBlk_idx = np.argmin((f - wdBlkFreq)**2)
-    harmo_idx = np.argmin((f - 2*wdBlkFreq)**2)
-    delta_idx1 = np.argmin((f - 1)**2)
-    delta_idx4 = np.argmin((f - 4)**2)
-    # loop through all arrays
-    i = 0
-    while True:
-        try:
-            F_SSD = fi['F_SSD_{:02d}'.format(i)]
+# loop through subjects and calculate different SSDs
+F_SSDs = []
+F_SSDs_listen = []
+F_SSDs_silence = []
+for i in range(1, N_subjects + 1, 1):
+    try:
+        with np.load(os.path.join(result_folder, 'S%02d' % i)
+                + '/prepared_FFTSSD.npz', 'r') as fi:
+            # calculate and append SSD for both listening and silence
+            F_SSD = np.tensordot(SSD_filters, fi['F'], axes=(0,0))
             delta_F_SSD = np.mean(np.abs(F_SSD[:,delta_idx1:delta_idx4]),
                 axis=1)
             F_SSD = np.hstack([F_SSD[:N_SSD, (snare_idx,wdBlk_idx)],
                 delta_F_SSD[:N_SSD, np.newaxis]])
             F_SSDs.append(F_SSD)
-            snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
-            wdBlkInlier.append(fi['wdBlkInlier_{:02d}'.format(i)])
-            i += 1
-        except KeyError:
-            break
+            # calculate and append SSD for listening window
+            F_SSD_listen = np.tensordot(SSD_filters, fi['F_listen'], axes=(0,0))
+            delta_F_SSD = np.mean(np.abs(F_SSD_listen[:,delta_idx1:delta_idx4]),
+                axis=1)
+            F_SSD_listen = np.hstack([F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)],
+                delta_F_SSD[:N_SSD, np.newaxis]])
+            F_SSDs_listen.append(F_SSD_listen)
+
+            F_SSD_silence = np.tensordot(SSD_filters, fi['F_silence'], axes=(0,0))
+            delta_F_SSD = np.mean(np.abs(F_SSD_silence[:,delta_idx1:delta_idx4]),
+                axis=1)
+            F_SSD_silence = np.hstack([F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)],
+                delta_F_SSD[:N_SSD, np.newaxis]])
+            F_SSDs_silence.append(F_SSD_silence)
+
+    except:
+        print(('Warning: Subject %02d could not be loaded!' %i))
 
 # take absolute value to get EEG amplitude and log to transform
 # to a linear scale
@@ -234,7 +264,7 @@ snare_models['fe_b'] = stats.lm(
         'precision ~ ' + '0 + ' +
         ' + '.join([l + '_between' for l in EEG_labels]) +
         ' + musicality + trial + session',
-        data =  )
+        data = Rsnare_data)
 
 snare_models['fe_b_onlysnare'] = stats.lm(
         'precision ~ ' + '0 + ' +
