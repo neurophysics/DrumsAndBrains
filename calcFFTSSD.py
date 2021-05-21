@@ -64,6 +64,10 @@ contrast_cov = [] #cov matrix of other frequencies in [1,2]
 snareInlier = [] # which trials are Inlier - this is needed to relate EEG to
                  # behaviour
 wdBlkInlier = []
+snareInlier_listen = []
+wdBlkInlier_listen = []
+snareInlier_silence = []
+wdBlkInlier_silence = []
 
 for i in range(1, N_subjects + 1, 1):
     try:
@@ -75,6 +79,10 @@ for i in range(1, N_subjects + 1, 1):
             f.append(fi['f'])
             snareInlier.append(fi['snareInlier'])
             wdBlkInlier.append(fi['wdBlkInlier'])
+            snareInlier_listen.append(fi['snareInlier_listen'])
+            wdBlkInlier_listen.append(fi['wdBlkInlier_listen'])
+            snareInlier_silence.append(fi['snareInlier_silence'])
+            wdBlkInlier_silence.append(fi['wdBlkInlier_silence'])
     except:
         print(('Warning: Subject %02d could not be loaded!' %i))
 
@@ -157,10 +165,17 @@ ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
 
 # save the results
 save_results = {}
-for i, (snareInlier_now, wdBlkInlier_now) in enumerate(zip(
-    snareInlier, wdBlkInlier)):
+for i, (snareInlier_now, wdBlkInlier_now,
+    snareInlier_listen_now, wdBlkInlier_listen_now,
+    snareInlier_silence_now, wdBlkInlier_silence_now) in enumerate(zip(
+    snareInlier, wdBlkInlier, snareInlier_listen, 
+    wdBlkInlier_listen, snareInlier_silence, wdBlkInlier_silence)):
     save_results['snareInlier_{:02d}'.format(i)] = snareInlier_now
     save_results['wdBlkInlier_{:02d}'.format(i)] = wdBlkInlier_now
+    save_results['snareInlier_listen_{:02d}'.format(i)] = snareInlier_listen_now
+    save_results['wdBlkInlier_listen_{:02d}'.format(i)] = wdBlkInlier_listen_now
+    save_results['snareInlier_silence_{:02d}'.format(i)] = snareInlier_silence_now
+    save_results['wdBlkInlier_silence_{:02d}'.format(i)] = wdBlkInlier_silence_now
     # the following get now calculated in REWB2.py to solve memory issue
     #save_results['F_SSD_both_{:02d}'.format(i)] = F_SSD_both_now
     #save_results['F_SSD_listen_{:02d}'.format(i)] = F_SSD_listen_now
