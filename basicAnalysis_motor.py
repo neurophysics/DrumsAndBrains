@@ -1,3 +1,6 @@
+"""
+calculates BP an ERD
+"""
 import numpy as np
 import sys
 import csv
@@ -41,6 +44,8 @@ with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'r') as infile:
 left_handed = [True if i<0 else False for i in LQ]
 
 ##### plot 2 sec preresponse for each channel #####
+snareInliers = []
+wdBlkInliers = []
 all_BP = [] #avg over all subjects
 all_ERD = [] #avg over all subjects
 fbands = [[1,4], [4,8], [8,12], [12,20], [20,40]]
@@ -123,6 +128,9 @@ while(subj <= N_subjects):
         win), 0)
     wdBlkInlier = np.all(meet.epochEEG(artifact_mask, wdBlkHit_times,
         win), 0)
+    snareInliers.append(snareInlier)
+    wdBlkInliers.append(wdBlkInlier)
+
     all_trials = meet.epochEEG(eeg,
             np.r_[snareHit_times[snareInlier],
                 wdBlkHit_times[wdBlkInlier]],
@@ -243,3 +251,21 @@ plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
     borderaxespad=1, fontsize=5)
 #plt.show()
 fig.savefig(os.path.join(result_folder, 'motor_ERD_2000mspreresponse.pdf'))
+
+
+save_BP = {}
+for i, bp in enumerate(all_BP):
+    save_BP['ERD_{:02d}'.format(i)] = bp
+np.savez(os.path.join(result_folder, 'BP.npz'), **save_BP)
+
+save_ERD = {}
+for i, erd in enumerate(all_ERD):
+    save_ERD['ERD_{:02d}'.format(i)] = erd
+np.savez(os.path.join(result_folder, 'ERD.npz'), **save_ERD)
+
+# store the inlier of the hit responses
+save_inlier = {}
+for i, (snI, wbI) in enumerate(zip(snareInliers, wdBlkInliers)):
+    save_inlier['snareInlier_response_{:02d}'.format(i)] = snI
+    save_inlier['wdBlkInlier_response_{:02d}'.format(i)] = wbI
+np.savez(os.path.join(result_folder, 'inlier_response.npz'), **save_inlier)
