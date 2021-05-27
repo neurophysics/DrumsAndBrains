@@ -81,3 +81,12 @@ np.savez(os.path.join(result_folder, 'CSP.npz'),
         CSP_filters = CSP_filters, # matrix W in paper
         CSP_patterns = CSP_patterns # matrix A in paper
         )
+
+# plot eigenvalues
+plt.plot(CSP_eigvals[::-1], 'o') # hmmmm first 4 maybe?
+CSP_num = 4
+
+# plot CSP components
+ERD_CSP = [np.tensordot(CSP_filters, erd, axes=(0,0)) for erd in ERD_alpha]
+ERD_CSP_subjmean = np.mean(ERD_CSP, axis=0)
+plt.plot(range(ERD_CSP[0].shape[1]), ERD_CSP_subjmean[:CSP_num,:].T) #hmmmm
