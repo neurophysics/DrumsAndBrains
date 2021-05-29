@@ -241,14 +241,13 @@ for ssd_type in ['both', 'listen', 'silence']:
 
     snare_SubjToTrials = np.unique(snare_subject, return_inverse=True)[1]
     EEG_labels = (['Snare{}'.format(i+1) for i in range(N_SSD)] +
-                  ['WdBlk{}'.format(i+1) for i in range(N_SSD)])
+                  ['WdBlk{}'.format(i+1) for i in range(N_SSD)] +
+                  ['Delta{}'.format(i+1) for i in range(N_SSD)])
 
     wdBlk_subject = np.hstack([np.ones(F_SSD_now.shape[-1], int)*(i + 1)
         for i, F_SSD_now in enumerate(wdBlk_F_SSD)])
 
     wdBlk_SubjToTrials = np.unique(wdBlk_subject, return_inverse=True)[1]
-    EEG_labels = (['Snare{}'.format(i+1) for i in range(N_SSD)] +
-                  ['WdBlk{}'.format(i+1) for i in range(N_SSD)])
 
     ###########################################
     # load all the data into rpy2 R interface #
