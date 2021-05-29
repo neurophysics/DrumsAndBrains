@@ -46,11 +46,15 @@ left_handed = [True if i<0 else False for i in LQ]
 ##### plot 2 sec preresponse for each channel #####
 snareInliers = []
 wdBlkInliers = []
+all_snareHit_times = []
+all_wdBlkHit_times = []
 all_BP = [] #avg over all subjects
 all_ERD = [] #avg over all subjects
+cueHit_diff = []
+contrast_cov = []
+target_cov = []
 fbands = [[1,4], [4,8], [8,12], [12,20], [20,40]]
 win = [-2000, 500]
-cueHit_diff = []
 idx = 0 #index to asses eeg (0 to 19)
 subj = 1 #index for subject number (1 to 10, 12 to 21)
 while(subj <= N_subjects):
@@ -120,6 +124,8 @@ while(subj <= N_subjects):
     wdBlkHit_times_outlier = np.isnan(wdBlkHit_times)
     snareHit_times = snareHit_times[~snareHit_times_outlier].astype(int)
     wdBlkHit_times = wdBlkHit_times[~wdBlkHit_times_outlier].astype(int)
+    all_snareHit_times.append(snareHit_times)
+    all_wdBlkHit_times.append(wdBlkHit_times)
 
     cueHit_diff_mean = np.nanmean(cueHit_diff[-1])
     cueHit_diff_sd = np.nanstd(cueHit_diff[-1])
@@ -157,22 +163,41 @@ while(subj <= N_subjects):
 
     # ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
     ERDs = []
+    contrast_cov_subj = []
+    target_cov_subj = []
     for band in fbands:#later loop over all frequency bands
     # 1. band-pass filters with order 6 (3 into each direction)
         Wn = np.array(band) / s_rate * 2
         b, a = sp.signal.butter(3, Wn, btype='bandpass')
-        eeg_filt = sp.signal.filtfilt(b, a, eeg)
+        eeg_filtbp = sp.signal.filtfilt(b, a, eeg)
+        # calculate covariance matrices for csp
+        all_trials_filtbp = meet.epochEEG(eeg_filtbp,
+                np.r_[snareHit_times[snareInlier],
+                    wdBlkHit_times[wdBlkInlier]],
+                win)
+        contrast_trials = all_trials_filtbp[:, :900,:] # baseline activity
+        target_trials = all_trials_filtbp[:, 900:2000,:] # pre-response activity (ERD/S)
+        target_cov_now = np.einsum(
+            'ijk, ljk -> ilk', target_trials, target_trials)
+        contrast_cov_now = np.einsum(
+            'ijk, ljk -> ilk', contrast_trials, contrast_trials)
+        contrast_cov_subj.append(target_cov_now)
+        target_cov_subj.append(contrast_cov_now)
+
         #2. Hilbert-Transform, absolute value
-        eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filt, axis=-1))
+        eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filtbp, axis=-1))
         #3. Normalisieren, so dass 2 sek prä-stimulus 100% sind und dann averagen
         all_trials_filt = meet.epochEEG(eeg_filtHil,
                 np.r_[snareHit_times[snareInlier],
                     wdBlkHit_times[wdBlkInlier]],
                 win)
+        # calculate ERD
         ERD = all_trials_filt.mean(-1)
         ERD /= ERD[:,0][:,np.newaxis]
         ERD *= 100
         ERDs.append(ERD)
+    contrast_cov.append(contrast_cov_subj)
+    target_cov.append(target_cov_subj)
 
     fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,7),
             sharex=True, sharey=True)
@@ -199,6 +224,7 @@ while(subj <= N_subjects):
     #plt.show()
     fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse.pdf'))
     all_ERD.append(ERDs)
+
     idx += 1
     subj += 1
     plt.close('all')
@@ -256,16 +282,29 @@ fig.savefig(os.path.join(result_folder, 'motor_ERD_2000mspreresponse.pdf'))
 save_BP = {}
 for i, bp in enumerate(all_BP):
     save_BP['ERD_{:02d}'.format(i)] = bp
-np.savez(os.path.join(result_folder, 'BP.npz'), **save_BP)
+np.savez(os.path.join(result_folder, 'motor_BP.npz'), **save_BP)
 
 save_ERD = {}
 for i, erd in enumerate(all_ERD):
     save_ERD['ERD_{:02d}'.format(i)] = erd
-np.savez(os.path.join(result_folder, 'ERD.npz'), **save_ERD)
+np.savez(os.path.join(result_folder, 'motor_ERD.npz'), **save_ERD, fbands=fbands)
+
+save_covmat = {}
+for i, (c,t,sn,wb) in enumerate(zip(contrast_cov, target_cov,
+    all_snareHit_times, all_wdBlkHit_times)):
+    save_covmat['contrast_cov_{:02d}'.format(i)] = c
+    save_covmat['target_cov_{:02d}'.format(i)] = t
+    save_covmat['snareHit_times_{:02d}'.format(i)] = sn
+    save_covmat['wdBlkHit_times_{:02d}'.format(i)] = wb
+np.savez(os.path.join(result_folder, 'motor_covmat.npz'),
+    **save_covmat,
+    fbands=fbands,
+    left_handed=left_handed)
 
 # store the inlier of the hit responses
 save_inlier = {}
 for i, (snI, wbI) in enumerate(zip(snareInliers, wdBlkInliers)):
     save_inlier['snareInlier_response_{:02d}'.format(i)] = snI
     save_inlier['wdBlkInlier_response_{:02d}'.format(i)] = wbI
-np.savez(os.path.join(result_folder, 'inlier_response.npz'), **save_inlier)
+    save_inlier['win'] = win
+np.savez(os.path.join(result_folder, 'motor_inlier.npz'), **save_inlier)
