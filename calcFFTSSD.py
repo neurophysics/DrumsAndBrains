@@ -41,7 +41,7 @@ color2 = '#33a02c'.upper()
 color3 = '#b2df8a'.upper()
 color4 = '#a6cee3'.upper()
 
-colors=[color1, color2, color3, color4, 'k']
+colors=[color1, color2, color3, color4]
 
 blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
@@ -168,7 +168,7 @@ save_results = {}
 for i, (snareInlier_now, wdBlkInlier_now,
     snareInlier_listen_now, wdBlkInlier_listen_now,
     snareInlier_silence_now, wdBlkInlier_silence_now) in enumerate(zip(
-    snareInlier, wdBlkInlier, snareInlier_listen, 
+    snareInlier, wdBlkInlier, snareInlier_listen,
     wdBlkInlier_listen, snareInlier_silence, wdBlkInlier_silence)):
     save_results['snareInlier_{:02d}'.format(i)] = snareInlier_now
     save_results['wdBlkInlier_{:02d}'.format(i)] = wdBlkInlier_now
@@ -189,3 +189,85 @@ np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_filters = SSD_filters,
         SSD_patterns = SSD_patterns
         )
+
+
+# plot the resulting EV and patterns
+
+# plot the SSD components scalp maps
+potmaps = [meet.sphere.potMap(chancoords, pat_now,
+    projection='stereographic') for pat_now in SSD_patterns]
+
+h1 = 1
+h2 = 1.3
+h3 = 1
+
+fig = plt.figure(figsize=(5.512,5.512))
+gs = mpl.gridspec.GridSpec(3,1, height_ratios = [h1,h2,h3])
+
+SNNR_ax = fig.add_subplot(gs[0,:])
+SNNR_ax.plot(range(1,len(SSD_eigvals) + 1), 10*np.log10(SSD_eigvals), 'ko-', lw=2,
+        markersize=5)
+SNNR_ax.scatter([1], 10*np.log10(SSD_eigvals[0]), c=color1, s=60, zorder=1000)
+SNNR_ax.scatter([2], 10*np.log10(SSD_eigvals[1]), c=color2, s=60, zorder=1000)
+SNNR_ax.scatter([3], 10*np.log10(SSD_eigvals[2]), c=color3, s=60, zorder=1000)
+SNNR_ax.scatter([4], 10*np.log10(SSD_eigvals[3]), c=color4, s=60, zorder=1000)
+SNNR_ax.axhline(0, c='k', lw=1)
+SNNR_ax.set_xlim([0.5, len(SSD_eigvals)])
+SNNR_ax.set_xticks(np.r_[1,range(5, len(SSD_eigvals) + 1, 5)])
+SNNR_ax.set_ylabel('SNR (dB)')
+SNNR_ax.set_xlabel('component (index)')
+SNNR_ax.set_title('resulting SNR after SSD')
+
+# plot the four spatial patterns
+gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
+        height_ratios = [1,0.1], wspace=0, hspace=0.8)
+head_ax = []
+pc = []
+for i, pat in enumerate(potmaps[:4]):
+    try:
+        head_ax.append(fig.add_subplot(gs2[0,i], sharex=head_ax[0],
+            sharey=head_ax[0], frame_on=False, aspect='equal'))
+    except IndexError:
+        head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False, aspect='equal'))
+    Z = pat[2]/np.abs(pat[2]).max()
+    pc.append(head_ax[-1].pcolormesh(
+        *pat[:2], Z, rasterized=True, cmap='coolwarm', vmin=-1, vmax=1))
+    head_ax[-1].contour(*pat, levels=[0], colors='w', shading='auto')
+    head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+            alpha=0.5, zorder=1001)
+    head_ax[-1].set_xlabel(r'\textbf{%d}' % (i + 1) +'\n'+
+            '($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(SSD_eigvals[i])))
+    head_ax[-1].tick_params(**blind_ax)
+    meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
+head_ax[0].set_ylim([-1.1,1.3])
+head_ax[0].set_xlim([-1.6,1.6])
+
+# add a colorbar
+cbar_ax = fig.add_subplot(gs2[1,:])
+cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+        label='amplitude (a.u.)', ticks=[-1,0,1])
+cbar.ax.set_xticklabels(['-', '0', '+'])
+cbar.ax.axvline(0, c='w', lw=2)
+
+'''spect_ax = fig.add_subplot(gs[2,:])
+[spect_ax.plot(f,
+    10*np.log10(SSD_filters[:,i].dot(SSD_filters[:,i].dot(
+        np.mean([t/np.trace(t[...,contrast_idx].mean(-1)).real
+            for t in poststim_norm_csd], 0).real))),
+        c=colors[i], lw=2) for i in range(4)]
+spect_ax.set_xlim([0.5, 8])
+spect_ax.set_ylim([-1.1, 1.1])
+spect_ax.axhline(0, c='k', lw=1)
+spect_ax.set_xlabel('frequency (Hz)')
+spect_ax.set_ylabel('SNR (dB)')
+spect_ax.set_title('normalized spectrum')
+
+spect_ax.axvline(snareFreq, color='b', zorder=0, lw=1)
+spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=1)
+spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=1)
+spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=1)
+spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)'''
+
+gs.tight_layout(fig, pad=0.2, h_pad=0.8)
+
+fig.savefig(os.path.join(result_folder, 'FFTSSD_patterns.pdf'))
