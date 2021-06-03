@@ -186,15 +186,17 @@ while(subj <= N_subjects):
 
         #2. Hilbert-Transform, absolute value
         eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filtbp, axis=-1))
-        #3. Normalisieren, so dass 2 sek prä-stimulus 100% sind und dann averagen
+        #3. Normalisieren, so dass 1-2 sek prä-response 100% sind und dann averagen
         all_trials_filt = meet.epochEEG(eeg_filtHil,
                 np.r_[snareHit_times[snareInlier],
                     wdBlkHit_times[wdBlkInlier]],
                 win)
         # calculate ERD
         ERD = all_trials_filt.mean(-1)
-        ERD /= ERD[:,0][:,np.newaxis]
-        ERD *= 100
+        avg_idx = np.all([np.arange(*win)>=-2000, np.arange(*win)<-1000],0)
+        ERD /= ERD[:,avg_idx].mean(-1)[:,np.newaxis]
+        #ERD *= 100
+        ERD = 20*np.log10(ERD)
         ERDs.append(ERD)
     contrast_cov.append(contrast_cov_subj)
     target_cov.append(target_cov_subj)
@@ -209,9 +211,11 @@ while(subj <= N_subjects):
             h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1,
                 c=colors[i])
             handels.append(h)
-        axs[c//3, c%3].set_ylabel(channames[c], fontsize=8)
+        if c%3 == 0:
+            axs[c//3, c%3].set_ylabel('ampl. (db)')
+        axs[c//3, c%3].set_title(channames[c], fontsize=8)
         axs[c//3, c%3].axvline(0, lw=0.5, c='k')
-        axs[c//3, c%3].axhline(100, lw=0.5, c='r', ls=':')
+        axs[c//3, c%3].axhline(0, lw=0.5, c='r', ls=':')
         axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
             -(cueHit_diff_mean+cueHit_diff_sd),
             alpha=0.3, color='red')
@@ -222,6 +226,8 @@ while(subj <= N_subjects):
         for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
         borderaxespad=1, fontsize=5)
     #plt.show()
+    axs[0,0].set_ylim([-6,6])
+    #fig.tight_layout()
     fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse.pdf'))
     all_ERD.append(ERDs)
 
@@ -265,7 +271,7 @@ for c in range(Nc):
     axs[c//3, c%3].set_ylabel(channames[c], fontsize=8)
     #axs[c//3, c%3].set_ylim([50,200])
     axs[c//3, c%3].axvline(0, lw=0.5, c='k')
-    axs[c//3, c%3].axhline(100, lw=0.5, c='r', ls=':')
+    axs[c//3, c%3].axhline(0, lw=0.5, c='r', ls=':')
     axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
         -(cueHit_diff_mean+cueHit_diff_sd),
         alpha=0.3, color='red')
