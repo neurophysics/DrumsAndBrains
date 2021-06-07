@@ -549,7 +549,7 @@ for ssd_type in ['both', 'listen', 'silence']:
     with open('tabulate_snare_models.r', 'w') as f:
         f.writelines("library(sjPlot)" + "\n")
         f.writelines("load(file='snare_models.rds')" + "\n")
-        f.writelines("tab_model({}, show.aic=TRUE, show.re.var=FALSE, show.ci=FALSE, show.icc=FALSE, dv.labels=c('{}'), file='Results/snare_models_{}.html')".format(
+        f.writelines("tab_model({}, show.aic=TRUE, show.re.var=FALSE, show.ci=FALSE, show.icc=FALSE, dv.labels=c('{}'), file='Results/models/snare_{}.html')".format(
             ", ".join(snare_models.keys()),
             "', '".join(snare_models.keys()),
             delta_str+ssd_type
@@ -568,7 +568,7 @@ for ssd_type in ['both', 'listen', 'silence']:
     with open('tabulate_wdBlk_models.r', 'w') as f:
         f.writelines("library(sjPlot)" + "\n")
         f.writelines("load(file='wdBlk_models.rds')" + "\n")
-        f.writelines("tab_model({}, show.aic=TRUE, show.re.var=FALSE, show.ci=FALSE, show.icc=FALSE, dv.labels=c('{}'), file='Results/wdBlk_models_{:s}.html')".format(
+        f.writelines("tab_model({}, show.aic=TRUE, show.re.var=FALSE, show.ci=FALSE, show.icc=FALSE, dv.labels=c('{}'), file='Results/models/wdBlk_{:s}.html')".format(
             ", ".join(wdBlk_models.keys()),
             "', '".join(wdBlk_models.keys()),
             delta_str+ssd_type
