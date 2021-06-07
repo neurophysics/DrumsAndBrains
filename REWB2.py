@@ -20,6 +20,8 @@ N_subjects = 21
 
 # reject behavioral outlier
 iqr_rejection = True
+# include general delta [1,4]Hz in SSD calculation
+include_delta = True
 
 # target frequencies
 snareFreq = 7./6
@@ -75,22 +77,31 @@ for i in range(1, N_subjects + 1, 1):
             F_SSD = np.tensordot(SSD_filters, fi['F'], axes=(0,0))
             delta_F_SSD = np.mean(np.abs(F_SSD[:,delta_idx1:delta_idx4]),
                 axis=1)
-            F_SSD = np.hstack([F_SSD[:N_SSD, (snare_idx,wdBlk_idx)],
-                delta_F_SSD[:N_SSD, np.newaxis]])
+            if include_delta:
+                F_SSD = np.hstack([F_SSD[:N_SSD, (snare_idx,wdBlk_idx)],
+                    delta_F_SSD[:N_SSD, np.newaxis]])
+            else:
+                F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs.append(F_SSD)
             # calculate and append SSD for listening window
             F_SSD_listen = np.tensordot(SSD_filters, fi['F_listen'], axes=(0,0))
             delta_F_SSD = np.mean(np.abs(F_SSD_listen[:,delta_idx1:delta_idx4]),
                 axis=1)
-            F_SSD_listen = np.hstack([F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)],
-                delta_F_SSD[:N_SSD, np.newaxis]])
+            if include_delta:
+                F_SSD_listen = np.hstack([F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)],
+                    delta_F_SSD[:N_SSD, np.newaxis]])
+            else:
+                F_SSD_listen = F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs_listen.append(F_SSD_listen)
 
             F_SSD_silence = np.tensordot(SSD_filters, fi['F_silence'], axes=(0,0))
             delta_F_SSD = np.mean(np.abs(F_SSD_silence[:,delta_idx1:delta_idx4]),
                 axis=1)
-            F_SSD_silence = np.hstack([F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)],
-                delta_F_SSD[:N_SSD, np.newaxis]])
+            if include_delta:
+                F_SSD_silence = np.hstack([F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)],
+                    delta_F_SSD[:N_SSD, np.newaxis]])
+            else:
+                F_SSD_silence = F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs_silence.append(F_SSD_silence)
 
     except:
@@ -120,6 +131,13 @@ z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
 musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 
 for ssd_type in ['both', 'listen', 'silence']:
+    # define model name
+    if include_delta:
+        delta_str = 'delta_'
+    else:
+        delta_str = ''
+    print(delta_str + ssd_type)
+
     # get the performance numbers
     snare_F_SSD = []
     wdBlk_F_SSD = []
@@ -241,8 +259,9 @@ for ssd_type in ['both', 'listen', 'silence']:
 
     snare_SubjToTrials = np.unique(snare_subject, return_inverse=True)[1]
     EEG_labels = (['Snare{}'.format(i+1) for i in range(N_SSD)] +
-                  ['WdBlk{}'.format(i+1) for i in range(N_SSD)] +
-                  ['Delta{}'.format(i+1) for i in range(N_SSD)])
+                  ['WdBlk{}'.format(i+1) for i in range(N_SSD)])
+    if include_delta:
+        EEG_labels = EEG_labels + ['Delta{}'.format(i+1) for i in range(N_SSD)]
 
     wdBlk_subject = np.hstack([np.ones(F_SSD_now.shape[-1], int)*(i + 1)
         for i, F_SSD_now in enumerate(wdBlk_F_SSD)])
@@ -307,249 +326,211 @@ for ssd_type in ['both', 'listen', 'silence']:
     #################################
     ###### snare ######
     snare_models = {}
+    wdBlk_models = {}
+    models = {}
 
-    snare_models['fe_b'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session',
-            data = Rsnare_data)
+    for data in [Rsnare_data, RwdBlk_data]:
+        if data == Rsnare_data:
+            condition = ['snare', 'Snare']
+        else:
+            condition = ['wdBlk', 'WdBlk']
 
-    snare_models['fe_b_onlysnare'] = stats.lm(
+        models['fe_b'] = stats.lm(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_between' for l in EEG_labels]) +
+                ' + musicality + trial + session',
+                data = data)
+
+        if include_delta:
+            models['fe_b_only{}'.format(condition[0])] = stats.lm(
             'precision ~ ' + '0 + ' +
             ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('Snare')]) +
+                if l.startswith((condition[1], 'Delta'))]) +
             ' + musicality + trial + session',
-            data = Rsnare_data)
-
-    snare_models['fe_w'] = stats.lm(
+            data = data)
+        else:
+            models['fe_b_only{}'.format(condition[0])] = stats.lm(
             'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            ' + musicality + trial + session',
-            data = Rsnare_data)
-
-    snare_models['fe_w_onlysnare'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('Snare')]) +
-            ' + musicality + trial + session',
-            data = Rsnare_data)
-
-    snare_models['fe_wb'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session',
-            data = Rsnare_data)
-
-    snare_models['fe_wb_onlysnare'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('Snare')]) + ' + ' +
             ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('Snare')]) +
+                if l.startswith(condition[1])]) +
             ' + musicality + trial + session',
-            data = Rsnare_data)
+            data = data)
 
-    snare_models['lme_b_i'] = lme4.lmer(
+        models['fe_w'] = stats.lm(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) +
+                ' + musicality + trial + session',
+                data = data)
+
+        if include_delta:
+            models['fe_w_only{}'.format(condition[0])] = stats.lm(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) +
+                ' + musicality + trial + session',
+                data = data)
+        else:
+            models['fe_w_only{}'.format(condition[0])] = stats.lm(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith(condition[1])]) +
+                ' + musicality + trial + session',
+                data = data)
+
+        models['fe_wb'] = stats.lm(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels]) +
+                ' + musicality + trial + session',
+                data = data)
+
+        if include_delta:
+            models['fe_wb_only{}'.format(condition[0])] = stats.lm(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) +
+                ' + musicality + trial + session',
+                data = data)
+        else:
+            models['fe_wb_only{}'.format(condition[0])] = stats.lm(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith(condition[1])]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith(condition[1])]) +
+                ' + musicality + trial + session',
+                data = data)
+
+        models['lme_b_i'] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_between' for l in EEG_labels]) +
+                ' + musicality + trial + session + ' +
+                '(1 | subject)',
+                data = data, REML=False)
+
+        if include_delta:
+            models['lme_b_i_only{}'.format(condition[0])] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) +
+                ' + musicality + trial + session + ' +
+                '(1 | subject)',
+                data = data, REML=False)
+        else:
+            models['lme_b_i_only{}'.format(condition[0])] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith(condition[1])]) +
+                ' + musicality + trial + session + ' +
+                '(1 | subject)',
+                data = data, REML=False)
+
+        models['lme_w_i'] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) +
+                ' + musicality + trial + session + ' +
+                '(1 | subject)',
+                data = data, REML=False)
+
+        if include_delta:
+            models['lme_w_i_only{}'.format(condition[0])] = lme4.lmer(
             'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
+            ' + '.join([l + '_within' for l in EEG_labels
+                if l.startswith((condition[1], 'Delta'))]) +
             ' + musicality + trial + session + ' +
             '(1 | subject)',
-            data = Rsnare_data, REML=False)
-
-    snare_models['lme_b_i_onlysnare'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('Snare')]) +
-            ' + musicality + trial + session + ' +
-            '(1 | subject)',
-            data = Rsnare_data, REML=False)
-
-    snare_models['lme_w_i'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            ' + musicality + trial + session + ' +
-            '(1 | subject)',
-            data = Rsnare_data, REML=False)
-
-    snare_models['lme_w_i_onlysnare'] = lme4.lmer(
+            data = data, REML=False)
+        else:
+            models['lme_w_i_only{}'.format(condition[0])] = lme4.lmer(
             'precision ~ ' + '0 + ' +
             ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('Snare')]) +
+                if l.startswith(condition[1])]) +
             ' + musicality + trial + session + ' +
             '(1 | subject)',
-            data = Rsnare_data, REML=False)
+            data = data, REML=False)
 
-    snare_models['lme_wb_i'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session + ' +
-            '(1  | subject)',
-            data = Rsnare_data, REML=False)
+        models['lme_wb_i'] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels]) +
+                ' + musicality + trial + session + ' +
+                '(1  | subject)',
+                data = data, REML=False)
 
-    snare_models['lme_wb_i_onlysnare'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('Snare')]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('Snare')]) +
-            ' + musicality + trial + session + ' +
-            '(1  | subject)',
-            data = Rsnare_data, REML=False)
+        if include_delta:
+            models['lme_wb_i_only{}'.format(condition[0])] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) +
+                ' + musicality + trial + session + ' +
+                '(1  | subject)',
+                data = data, REML=False)
+        else:
+            models['lme_wb_i_only{}'.format(condition[0])] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith(condition[1])]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith(condition[1])]) +
+                ' + musicality + trial + session + ' +
+                '(1  | subject)',
+                data = data, REML=False)
 
-    snare_models['lme_wb_is'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session + ' +
-            '(1  + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            '| subject)',
-            data = Rsnare_data, REML=False)
+        models['lme_wb_is'] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels]) +
+                ' + musicality + trial + session + ' +
+                '(1  + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) +
+                '| subject)',
+                data = data, REML=False)
 
-    snare_models['lme_wb_is_onlysnare'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('Snare')]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('Snare')]) +
-            ' + musicality + trial + session + ' +
-            '(1  + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            '| subject)',
-            data = Rsnare_data, REML=False)
+        if include_delta:
+            models['lme_wb_is_only{}'.format(condition[0])] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith((condition[1], 'Delta'))]) +
+                ' + musicality + trial + session + ' +
+                '(1  + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) +
+                '| subject)',
+                data = data, REML=False)
+        else:
+            models['lme_wb_is_only{}'.format(condition[0])] = lme4.lmer(
+                'precision ~ ' + '0 + ' +
+                ' + '.join([l + '_within' for l in EEG_labels
+                    if l.startswith(condition[1])]) + ' + ' +
+                ' + '.join([l + '_between' for l in EEG_labels
+                    if l.startswith(condition[1])]) +
+                ' + musicality + trial + session + ' +
+                '(1  + ' +
+                ' + '.join([l + '_within' for l in EEG_labels]) +
+                '| subject)',
+                data = data, REML=False)
 
+        if data==Rsnare_data:
+            snare_models = models
+        else:
+            wdBlk_models = models
+
+
+    # get the best model using the AIC
     AIC = {}
     for key, value in snare_models.items():
         AIC[key] = stats.AIC(value)[0]
-
-    # get the best model using the AIC
-    best_snare_model = min(AIC, key=AIC.get)
-
-    ###### woodblock ######
-    wdBlk_models = {}
-
-    wdBlk_models['fe_b'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session',
-            data = RwdBlk_data)
-
-    wdBlk_models['fe_b_onlywdBlk'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('WdBlk')]) +
-            ' + musicality + trial + session',
-            data = RwdBlk_data)
-
-    wdBlk_models['fe_w'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            ' + musicality + trial + session',
-            data = RwdBlk_data)
-
-    wdBlk_models['fe_w_onlywdBlk'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('WdBlk')]) +
-            ' + musicality + trial + session',
-            data = RwdBlk_data)
-
-    wdBlk_models['fe_wb'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session',
-            data = RwdBlk_data)
-
-    wdBlk_models['fe_wb_onlywdBlk'] = stats.lm(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('WdBlk')]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('WdBlk')]) +
-            ' + musicality + trial + session',
-            data = RwdBlk_data)
-
-    wdBlk_models['lme_b_i'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session + ' +
-            '(1 | subject)',
-            data = RwdBlk_data, REML=False)
-
-    wdBlk_models['lme_b_i_onlywdBlk'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('WdBlk')]) +
-            ' + musicality + trial + session + ' +
-            '(1 | subject)',
-            data = RwdBlk_data, REML=False)
-
-    wdBlk_models['lme_w_i'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            ' + musicality + trial + session + ' +
-            '(1 | subject)',
-            data = RwdBlk_data, REML=False)
-
-    wdBlk_models['lme_w_i_onlywdBlk'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('WdBlk')]) +
-            ' + musicality + trial + session + ' +
-            '(1 | subject)',
-            data = RwdBlk_data, REML=False)
-
-    wdBlk_models['lme_wb_i'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session + ' +
-            '(1  | subject)',
-            data = RwdBlk_data, REML=False)
-
-    wdBlk_models['lme_wb_i_onlywdBlk'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('WdBlk')]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('WdBlk')]) +
-            ' + musicality + trial + session + ' +
-            '(1  | subject)',
-            data = RwdBlk_data, REML=False)
-
-    wdBlk_models['lme_wb_is'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels]) +
-            ' + musicality + trial + session + ' +
-            '(1  + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            '| subject)',
-            data = RwdBlk_data, REML=False)
-
-    wdBlk_models['lme_wb_is_onlywdBlk'] = lme4.lmer(
-            'precision ~ ' + '0 + ' +
-            ' + '.join([l + '_within' for l in EEG_labels
-                if l.startswith('WdBlk')]) + ' + ' +
-            ' + '.join([l + '_between' for l in EEG_labels
-                if l.startswith('WdBlk')]) +
-            ' + musicality + trial + session + ' +
-            '(1  + ' +
-            ' + '.join([l + '_within' for l in EEG_labels]) +
-            '| subject)',
-            data = RwdBlk_data, REML=False)
-
-    AIC = {}
+    AIC_wb = {}
     for key, value in wdBlk_models.items():
-        AIC[key] = stats.AIC(value)[0]
+        AIC_wb[key] = stats.AIC(value)[0]
 
-    # get the best model using the AIC
-    best_wdBlk_model = min(AIC, key=AIC.get)
-
-
+    best_snare_model = min(AIC, key=AIC.get)
+    best_wdBlk_model = min(AIC_wb, key=AIC.get)
 
 
     #######################################################################
@@ -557,6 +538,7 @@ for ssd_type in ['both', 'listen', 'silence']:
     # to import the model names to the  R environment and save the models #
     # to make the last step in R itself
     #######################################################################
+    # store snare
     for key, value in snare_models.items():
         base.assign(key, value)
 
@@ -567,14 +549,15 @@ for ssd_type in ['both', 'listen', 'silence']:
     with open('tabulate_snare_models.r', 'w') as f:
         f.writelines("library(sjPlot)" + "\n")
         f.writelines("load(file='snare_models.rds')" + "\n")
-        f.writelines("tab_model({}, show.aic=TRUE, show.re.var=FALSE, show.ci=FALSE, show.icc=FALSE, dv.labels=c('{}'), file='Results/snare_models_{:s}.html')".format(
+        f.writelines("tab_model({}, show.aic=TRUE, show.re.var=FALSE, show.ci=FALSE, show.icc=FALSE, dv.labels=c('{}'), file='Results/snare_models_{}.html')".format(
             ", ".join(snare_models.keys()),
             "', '".join(snare_models.keys()),
-            ssd_type)
-            )
+            delta_str+ssd_type
+            ))
 
     os.system('Rscript tabulate_snare_models.r')
 
+    # store wdBlk
     for key, value in wdBlk_models.items():
         base.assign(key, value)
 
@@ -588,7 +571,7 @@ for ssd_type in ['both', 'listen', 'silence']:
         f.writelines("tab_model({}, show.aic=TRUE, show.re.var=FALSE, show.ci=FALSE, show.icc=FALSE, dv.labels=c('{}'), file='Results/wdBlk_models_{:s}.html')".format(
             ", ".join(wdBlk_models.keys()),
             "', '".join(wdBlk_models.keys()),
-            ssd_type)
-            )
+            delta_str+ssd_type
+            ))
 
     os.system('Rscript tabulate_wdBlk_models.r')
