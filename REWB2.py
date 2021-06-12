@@ -21,7 +21,7 @@ N_subjects = 21
 # reject behavioral outlier
 iqr_rejection = True
 # include general delta [1,4]Hz in SSD calculation
-include_delta = True
+include_delta = True 
 
 # target frequencies
 snareFreq = 7./6
@@ -335,57 +335,77 @@ for ssd_type in ['both', 'listen', 'silence']:
         else:
             condition = ('wdBlk', 'WdBlk')
 
-        models['fe_b'] = stats.lm(
+        model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_between' for l in EEG_labels]) +
                 ' + musicality + trial + session',
                 data = data)
+        if np.any(np.isnan(robjects.r.coef(model_now))): # nan in ceof <=> model singular
+            models['fe_b_sing'] = model_now
+        else:
+            models['fe_b'] = model_now
 
         if include_delta:
-            models['fe_b_only{}'.format(condition[0])] = stats.lm(
+            model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_between' for l in EEG_labels
                     if l.startswith((condition[1], 'Delta'))]) +
                 ' + musicality + trial + session',
                 data = data)
         else:
-            models['fe_b_only{}'.format(condition[0])] = stats.lm(
+            model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_between' for l in EEG_labels
                     if l.startswith(condition[1])]) +
                 ' + musicality +  trial + session',
                 data = data)
+        if np.any(np.isnan(robjects.r.coef(model_now))): # nan in ceof <=> model singular
+            models['fe_b_only{}_sing'.format(condition[0])] = model_now
+        else:
+            models['fe_b_only{}'.format(condition[0])] = model_now
 
-        models['fe_w'] = stats.lm(
+        model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels]) +
                 ' + musicality + trial + session',
                 data = data)
+        if np.any(np.isnan(robjects.r.coef(model_now))): # nan in ceof <=> model singular
+            models['fe_w_sing'] = model_now
+        else:
+            models['fe_w'] = model_now
 
         if include_delta:
-            models['fe_w_only{}'.format(condition[0])] = stats.lm(
+            model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith((condition[1], 'Delta'))]) +
                 ' + musicality + trial + session',
                 data = data)
         else:
-            models['fe_w_only{}'.format(condition[0])] = stats.lm(
+            model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith(condition[1])]) +
                 ' + musicality + trial + session',
                 data = data)
+        if np.any(np.isnan(robjects.r.coef(model_now))): # nan in ceof <=> model singular
+            models['fe_w_only{}_sing'.format(condition[0])] = model_now
+        else:
+            models['fe_w_only{}'.format(condition[0])] = model_now
 
-        models['fe_wb'] = stats.lm(
+        model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
                 ' + '.join([l + '_between' for l in EEG_labels]) +
                 ' + musicality + trial + session',
                 data = data)
+        if np.any(np.isnan(robjects.r.coef(model_now))): # nan in ceof <=> model singular
+            models['fe_wb_sing'] = model_now
+        else:
+            models['fe_wb'] = model_now
 
         if include_delta:
-            models['fe_wb_only{}'.format(condition[0])] = stats.lm(
+            model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith((condition[1], 'Delta'))]) + ' + ' +
@@ -394,7 +414,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session',
                 data = data)
         else:
-            models['fe_wb_only{}'.format(condition[0])] = stats.lm(
+            model_now = stats.lm(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith(condition[1])]) + ' + ' +
@@ -402,16 +422,24 @@ for ssd_type in ['both', 'listen', 'silence']:
                     if l.startswith(condition[1])]) +
                 ' + musicality + trial + session',
                 data = data)
+        if np.any(np.isnan(robjects.r.coef(model_now))): # nan in ceof <=> model singular
+            models['fe_wb_only{}_sing'.format(condition[0])] = model_now
+        else:
+            models['fe_wb_only{}'.format(condition[0])] = model_now
 
-        models['lme_b_i'] = lme4.lmer(
+        model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_between' for l in EEG_labels]) +
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_b_i_sing'] = model_now
+        else:
+            models['lme_b_i'] = model_now
 
         if include_delta:
-            models['lme_b_i_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_between' for l in EEG_labels
                     if l.startswith((condition[1], 'Delta'))]) +
@@ -419,23 +447,31 @@ for ssd_type in ['both', 'listen', 'silence']:
                 '(1 | subject)',
                 data = data, REML=False)
         else:
-            models['lme_b_i_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_between' for l in EEG_labels
                     if l.startswith(condition[1])]) +
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_b_i_only{}_sing'.format(condition[0])] = model_now
+        else:
+            models['lme_b_i_only{}'.format(condition[0])] = model_now
 
-        models['lme_w_i'] = lme4.lmer(
+        model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels]) +
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_w_i_sing'] = model_now
+        else:
+            models['lme_w_i'] = model_now
 
         if include_delta:
-            models['lme_w_i_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith((condition[1], 'Delta'))]) +
@@ -443,24 +479,32 @@ for ssd_type in ['both', 'listen', 'silence']:
                 '(1 | subject)',
                 data = data, REML=False)
         else:
-            models['lme_w_i_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith(condition[1])]) +
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_w_i_only{}_sing'.format(condition[0])] = model_now
+        else:
+            models['lme_w_i_only{}'.format(condition[0])] = model_now
 
-        models['lme_wb_i'] = lme4.lmer(
+        model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
                 ' + '.join([l + '_between' for l in EEG_labels]) +
                 ' + musicality + trial + session + ' +
                 '(1  | subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_wb_i_sing'] = model_now
+        else:
+            models['lme_wb_i'] = model_now
 
         if include_delta:
-            models['lme_wb_i_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith((condition[1], 'Delta'))]) + ' + ' +
@@ -470,7 +514,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 '(1  | subject)',
                 data = data, REML=False)
         else:
-            models['lme_wb_i_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith(condition[1])]) + ' + ' +
@@ -479,8 +523,12 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session + ' +
                 '(1  | subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_wb_i_only{}_sing'.format(condition[0])] = model_now
+        else:
+            models['lme_wb_i_only{}'.format(condition[0])] = model_now
 
-        models['lme_wb_is'] = lme4.lmer(
+        model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels]) + ' + ' +
                 ' + '.join([l + '_between' for l in EEG_labels]) +
@@ -489,9 +537,13 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + '.join([l + '_within' for l in EEG_labels]) +
                 '| subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_wb_is_sing'] = model_now
+        else:
+            models['lme_wb_is'] = model_now
 
         if include_delta:
-            models['lme_wb_is_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith((condition[1], 'Delta'))]) + ' + ' +
@@ -503,7 +555,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 '| subject)',
                 data = data, REML=False)
         else:
-            models['lme_wb_is_only{}'.format(condition[0])] = lme4.lmer(
+            model_now = lme4.lmer(
                 'precision ~ ' + '0 + ' +
                 ' + '.join([l + '_within' for l in EEG_labels
                     if l.startswith(condition[1])]) + ' + ' +
@@ -514,6 +566,10 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + '.join([l + '_within' for l in EEG_labels]) +
                 '| subject)',
                 data = data, REML=False)
+        if lme4.isSingular(model_now, tol = 1e-4):
+            models['lme_wb_is_only{}_sing'.format(condition[0])] = model_now
+        else:
+            models['lme_wb_is_only{}'.format(condition[0])] = model_now
 
         if data==Rsnare_data:
             snare_models = models
@@ -531,6 +587,8 @@ for ssd_type in ['both', 'listen', 'silence']:
 
     best_snare_model = min(AIC, key=AIC.get)
     best_wdBlk_model = min(AIC_wb, key=AIC_wb.get)
+    print('best snare: {}'.format(best_snare_model))
+    print('best wdBlk: {}'.format(best_wdBlk_model))
 
 
     #######################################################################
