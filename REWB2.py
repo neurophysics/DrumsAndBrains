@@ -21,7 +21,7 @@ N_subjects = 21
 # reject behavioral outlier
 iqr_rejection = True
 # include general delta [1,4]Hz in SSD calculation
-include_delta = True 
+include_delta = False
 
 # target frequencies
 snareFreq = 7./6
@@ -324,7 +324,6 @@ for ssd_type in ['both', 'listen', 'silence']:
     #################################
     # generate the necessary models #
     #################################
-    ###### snare ######
     snare_models = {}
     wdBlk_models = {}
 
@@ -433,7 +432,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0]:
             models['lme_b_i_sing'] = model_now
         else:
             models['lme_b_i'] = model_now
@@ -454,7 +453,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0]:
             models['lme_b_i_only{}_sing'.format(condition[0])] = model_now
         else:
             models['lme_b_i_only{}'.format(condition[0])] = model_now
@@ -465,7 +464,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0] == '':
             models['lme_w_i_sing'] = model_now
         else:
             models['lme_w_i'] = model_now
@@ -486,7 +485,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session + ' +
                 '(1 | subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0]:
             models['lme_w_i_only{}_sing'.format(condition[0])] = model_now
         else:
             models['lme_w_i_only{}'.format(condition[0])] = model_now
@@ -498,7 +497,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session + ' +
                 '(1  | subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0]:
             models['lme_wb_i_sing'] = model_now
         else:
             models['lme_wb_i'] = model_now
@@ -523,7 +522,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + musicality + trial + session + ' +
                 '(1  | subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0]:
             models['lme_wb_i_only{}_sing'.format(condition[0])] = model_now
         else:
             models['lme_wb_i_only{}'.format(condition[0])] = model_now
@@ -537,7 +536,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + '.join([l + '_within' for l in EEG_labels]) +
                 '| subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0]:
             models['lme_wb_is_sing'] = model_now
         else:
             models['lme_wb_is'] = model_now
@@ -566,7 +565,7 @@ for ssd_type in ['both', 'listen', 'silence']:
                 ' + '.join([l + '_within' for l in EEG_labels]) +
                 '| subject)',
                 data = data, REML=False)
-        if lme4.isSingular(model_now, tol = 1e-4):
+        if lme4.isSingular(model_now, tol = 1e-4)[0]:
             models['lme_wb_is_only{}_sing'.format(condition[0])] = model_now
         else:
             models['lme_wb_is_only{}'.format(condition[0])] = model_now
