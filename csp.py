@@ -4,6 +4,7 @@ executes common spatial pattern algorithm on ERD data
 import numpy as np
 import sys
 import os.path
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy
 import meet
@@ -13,6 +14,27 @@ data_folder = sys.argv[1]
 result_folder = sys.argv[2]
 N_subjects = 21
 s_rate = 1000 # sampling rate of the EEG
+
+## plot
+## plot
+mpl.rcParams['axes.labelsize'] = 7
+mpl.rcParams['axes.titlesize'] = 10
+cmap = 'plasma'
+color1 = '#1f78b4'.upper()
+color2 = '#33a02c'.upper()
+color3 = '#b2df8a'.upper()
+color4 = '#a6cee3'.upper()
+colors=[color1, color2, color3, color4]
+
+blind_ax = dict(top=False, bottom=False, left=False, right=False,
+        labelleft=False, labelright=False, labeltop=False,
+        labelbottom=False)
+
+channames = meet.sphere.getChannelNames('channels.txt')
+chancoords = meet.sphere.getStandardCoordinates(channames)
+chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
+        projection='stereographic')
+chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
 
 # read ERD data
 # erd data is referenced to the average eeg amplitude, bandpass filtered
@@ -70,7 +92,6 @@ CSP_patterns = scipy.linalg.solve(
 
 ### normalize the patterns such that Cz is always positive
 #@gunnar: we did this for ssd, here as well? would make sense to me
-channames = meet.sphere.getChannelNames('channels.txt')
 CSP_patterns*=np.sign(CSP_patterns[:,np.asarray(channames)=='CZ'])
 
 
@@ -81,13 +102,20 @@ np.savez(os.path.join(result_folder, 'CSP.npz'),
         )
 
 # plot eigenvalues
+
+'''with np.load('Results/CSP.npz') as f:
+    CSP_eigvals = f['CSP_eigvals']
+    CSP_filters = f['CSP_filters']
+    CSP_patterns = f['CSP_patterns']'''
+
+
 plt.plot(CSP_eigvals, 'o')
 plt.title('CSP EV, small ERD, large ERS')
 # first argument is pre movement so
 # small EV for ERD: here 1 or maybe 3
 # large EV for ERS: here 2 or 4
-CSP_ERDnum = 1
-CSP_ERSnum = 2
+CSP_ERDnum = 3
+CSP_ERSnum = 4
 
 # apply CSP to EEG
 ERD_CSP = []
@@ -144,9 +172,123 @@ while(subj <= N_subjects):
 # average over subjects
 ERD_CSP_subjmean = np.mean(ERD_CSP, axis=0)
 
+save_ERDCSP = {}
+for i, e in enumerate(ERD_CSP):
+    save_ERDCSP['ERDCSP_{:02d}'.format(i)] = e
+np.savez(os.path.join(result_folder, 'erdcsp.npz'), **save_ERDCSP)
+
 # plot CSP components
 erd_t = range(ERD_CSP[0].shape[1])
 plt.plot(erd_t, ERD_CSP_subjmean[-CSP_ERDnum:,:].T, label='ERD')
 plt.plot(erd_t, ERD_CSP_subjmean[:CSP_ERSnum,:].T, label='ERS')
 plt.legend()
 plt.show()
+plt.savefig(os.path.join(result_folder,'motor_cspComp.pdf'))
+
+# plot ev and spatial patterns
+potmaps = [meet.sphere.potMap(chancoords, pat_now,
+    projection='stereographic') for pat_now in CSP_patterns]
+h1 = 1 #ev
+h2 = 1.3 #ERS
+h3 = 1.3 #ERD
+h4 = 0.1 #colorbar
+fig = plt.figure(figsize = (5.512,5.512))
+gs = mpl.gridspec.GridSpec(4,1, height_ratios = [h1,h2,h3,h4])
+
+SNNR_ax = fig.add_subplot(gs[0,:])
+SNNR_ax.plot(range(1,len(CSP_eigvals) + 1), 10*np.log10(CSP_eigvals), 'ko-', lw=2,
+        markersize=5)
+SNNR_ax.scatter([1], 10*np.log10(CSP_eigvals[0]), c=color1, s=60, zorder=1000)
+SNNR_ax.scatter([2], 10*np.log10(CSP_eigvals[1]), c=color2, s=60, zorder=1000)
+SNNR_ax.scatter([3], 10*np.log10(CSP_eigvals[2]), c=color3, s=60, zorder=1000)
+SNNR_ax.scatter([4], 10*np.log10(CSP_eigvals[3]), c=color4, s=60, zorder=1000)
+SNNR_ax.scatter([len(CSP_eigvals)], 10*np.log10(CSP_eigvals[-1]), c=color1, s=60, zorder=1000)
+SNNR_ax.scatter([len(CSP_eigvals)-1], 10*np.log10(CSP_eigvals[-2]), c=color2, s=60, zorder=1000)
+SNNR_ax.scatter([len(CSP_eigvals)-2], 10*np.log10(CSP_eigvals[-3]), c=color3, s=60, zorder=1000)
+SNNR_ax.scatter([len(CSP_eigvals)-3], 10*np.log10(CSP_eigvals[-4]), c=color4, s=60, zorder=1000)
+SNNR_ax.axhline(0, c='k', lw=1)
+SNNR_ax.set_xlim([0.5, len(CSP_eigvals)+0.5])
+SNNR_ax.set_xticks(np.r_[1,range(5, len(CSP_eigvals) + 1, 5)])
+SNNR_ax.set_ylabel('SNR (dB)')
+SNNR_ax.set_xlabel('component (index)')
+SNNR_ax.set_title('resulting SNR after CSP')
+
+# plot the four spatial patterns for ERS
+gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
+        height_ratios = [1,0.1], wspace=0, hspace=0.8)
+head_ax = []
+pc = []
+for i, pat in enumerate(potmaps[:4]):
+    try:
+        head_ax.append(fig.add_subplot(gs2[0,i], sharex=head_ax[0],
+            sharey=head_ax[0], frame_on=False, aspect='equal'))
+    except IndexError:
+        head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False, aspect='equal'))
+    Z = pat[2]/np.abs(pat[2]).max()
+    pc.append(head_ax[-1].pcolormesh(
+        *pat[:2], Z, rasterized=True, cmap='coolwarm',
+        vmin=-1, vmax=1, shading='auto'))
+    head_ax[-1].contour(*pat, levels=[0], colors='w')
+    head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+            alpha=0.5, zorder=1001)
+    head_ax[-1].set_xlabel('ERS %d' % (i + 1) +'\n'+
+            '($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(CSP_eigvals[i])))
+    head_ax[-1].tick_params(**blind_ax)
+    meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
+head_ax[0].set_ylim([-1.1,1.3])
+head_ax[0].set_xlim([-1.6,1.6])
+
+# plot the four spatial patterns for ERD
+gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[2,:],
+        height_ratios = [1,0.1], wspace=0, hspace=0.8)
+head_ax = []
+pc = []
+for i, pat in reversed(list(enumerate(potmaps[-4:]))): #first component is potmap[-1]
+    try:
+        head_ax.append(fig.add_subplot(gs3[0,i], sharex=head_ax[0],
+            sharey=head_ax[0], frame_on=False, aspect='equal'))
+    except IndexError:
+        head_ax.append(fig.add_subplot(gs3[0,i], frame_on=False, aspect='equal'))
+    Z = pat[2]/np.abs(pat[2]).max()
+    pc.append(head_ax[-1].pcolormesh(
+        *pat[:2], Z, rasterized=True, cmap='coolwarm',
+        vmin=-1, vmax=1, shading='auto'))
+    head_ax[-1].contour(*pat, levels=[0], colors='w')
+    head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+            alpha=0.5, zorder=1001)
+    head_ax[-1].set_xlabel('ERD %d' % (i + 1) +'\n'+
+            '($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(CSP_eigvals[-(i+1)])))
+    head_ax[-1].tick_params(**blind_ax)
+    meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
+head_ax[0].set_ylim([-1.1,1.3])
+head_ax[0].set_xlim([-1.6,1.6])
+
+# add a colorbar
+cbar_ax = fig.add_subplot(gs[3,:])
+cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+        label='amplitude (a.u.)', ticks=[-1,0,1])
+cbar.ax.set_xticklabels(['-', '0', '+'])
+cbar.ax.axvline(0, c='w', lw=2)
+
+'''spect_ax = fig.add_subplot(gs[2,:])
+[spect_ax.plot(f,
+    10*np.log10(CSP_filters[:,i].dot(CSP_filters[:,i].dot(
+        np.mean([t/np.trace(t[...,contrast_idx].mean(-1)).real
+            for t in poststim_norm_csd], 0).real))),
+        c=colors[i], lw=2) for i in range(4)]
+spect_ax.set_xlim([0.5, 8])
+spect_ax.set_ylim([-1.1, 1.1])
+spect_ax.axhline(0, c='k', lw=1)
+spect_ax.set_xlabel('frequency (Hz)')
+spect_ax.set_ylabel('SNR (dB)')
+spect_ax.set_title('normalized spectrum')
+
+spect_ax.axvline(snareFreq, color='b', zorder=0, lw=1)
+spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=1)
+spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=1)
+spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=1)
+spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)'''
+
+gs.tight_layout(fig, pad=0.5)#, pad=0.2, h_pad=0.8
+
+fig.savefig(os.path.join(result_folder, 'motor_CSP_patterns.pdf'))
