@@ -19,9 +19,8 @@ data_folder = sys.argv[1]
 subjectnr = int(sys.argv[2]) #here: total number of subjects
 result_folder = sys.argv[3]
 
-save_folder = os.path.join(result_folder, 'all%02dsubjects' % subjectnr)
-if not os.path.exists(save_folder):
-    os.mkdir(save_folder)
+if not os.path.exists(result_folder):
+    os.mkdir(result_folder)
 
 #as in eeg_outlier 88f
 def plotSpectra(F, psd_pre,title,saveLocation,figsize=(10,10),grid=[8,4]):
@@ -59,7 +58,7 @@ for subject in range(1,1+subjectnr):
     if subject==11:
         continue #no eeg for subject 11
     current_data_folder = os.path.join(data_folder, 'S%02d' % subject)
-    current_save_folder = os.path.join(result_folder, 'S%02d' % subject)
+    current_result_folder = os.path.join(result_folder, 'S%02d' % subject)
     ###### Load EEG data ######
     s_rate = 1000
     # read the cleaned EEG and the artifact segment mask
@@ -76,7 +75,7 @@ for subject in range(1,1+subjectnr):
             projection='stereographic')
 
     ###### get frequencies of interest, divide into listen/silence ######
-    with np.load(os.path.join(current_save_folder, 'behavioural_results.npz'),
+    with np.load(os.path.join(current_result_folder, 'behavioural_results.npz'),
             'r', allow_pickle=True) as f:
         snareCue_nearestClock = f['snareCue_nearestClock']
         snareCue_DevToClock = f['snareCue_DevToClock']
@@ -147,7 +146,7 @@ for subject in range(1,1+subjectnr):
     plotSpectra(F, psd_pre,
         title='Channel spectra, Listening Period, Subject S%02d' % subject,
         saveLocation=os.path.join(
-            current_save_folder, 'Channel_spectra_Listening.pdf'))
+            current_result_folder, 'Channel_spectra_Listening.pdf'))
 
     allEEG_listening = np.concatenate((allEEG_listening,EEG_listening),axis=1)
 
@@ -165,7 +164,7 @@ for subject in range(1,1+subjectnr):
     plotSpectra(F, psd_pre,
         title='Channel spectra, Silence Period, Subject S%02d' % subject,
         saveLocation=os.path.join(
-                    current_save_folder, 'Channel_spectra_Silence.pdf'))
+                    current_result_folder, 'Channel_spectra_Silence.pdf'))
     allEEG_silence = np.concatenate((allEEG_silence,EEG_silence),axis=1)
 
 #### Across subjects
@@ -176,7 +175,7 @@ F, psd_pre =  scipy.signal.welch(
 plotSpectra(F, psd_pre,
     title='Channel spectra across subjects, Listening Period',
     saveLocation=os.path.join(
-                save_folder, 'Channel_spectra_Listening.pdf'))
+                result_folder, 'Channel_spectra_Listening.pdf'))
 
 #Silence
 data = meet.iir.butterworth(allEEG_silence, fp=0.1, fs=0.08, s_rate=s_rate, axis=-1)
@@ -185,4 +184,4 @@ F, psd_pre =  scipy.signal.welch(
 plotSpectra(F, psd_pre,
     title='Channel spectra across subjects, Silence Period',
     saveLocation=os.path.join(
-                save_folder, 'Channel_spectra_Silence.pdf'))
+                result_folder, 'Channel_spectra_Silence.pdf'))
