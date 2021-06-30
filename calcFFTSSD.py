@@ -231,8 +231,9 @@ for i, pat in enumerate(potmaps[:4]):
         head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False, aspect='equal'))
     Z = pat[2]/np.abs(pat[2]).max()
     pc.append(head_ax[-1].pcolormesh(
-        *pat[:2], Z, rasterized=True, cmap='coolwarm', vmin=-1, vmax=1))
-    head_ax[-1].contour(*pat, levels=[0], colors='w', shading='auto')
+        *pat[:2], Z, rasterized=True,
+        cmap='coolwarm', vmin=-1, vmax=1, shading='auto'))
+    head_ax[-1].contour(*pat, levels=[0], colors='w')
     head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
             alpha=0.5, zorder=1001)
     head_ax[-1].set_xlabel(r'\textbf{%d}' % (i + 1) +'\n'+
