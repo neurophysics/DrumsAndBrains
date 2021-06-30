@@ -44,7 +44,7 @@ eeg_clocks = [c for c in eeg_clocks if len(c) > 100]
 assert len(eeg_clocks) == 6, '6 sessions expected'
 
 with np.load(os.path.join(save_folder, 'behavioural_results.npz'),
-        'r', allow_pickle=True) as f:
+        'r', allow_pickle = True, encoding = 'latin1') as f:
     snareCue_nearestClock = f['snareCue_nearestClock']
     snareCue_DevToClock = f['snareCue_DevToClock']
     wdBlkCue_nearestClock = f['wdBlkCue_nearestClock']
@@ -62,7 +62,7 @@ wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
         wdBlkCue_nearestClock, wdBlkCue_DevToClock)
 
 # read the cleaned EEG and the artifact segment mask
-with np.load(eeg_fname, allow_pickle=True) as npzfile:
+with np.load(eeg_fname, allow_pickle = True, encoding = 'latin1') as npzfile:
     EEG = npzfile['clean_data']
     artifact_mask = npzfile['artifact_mask']
 
@@ -157,7 +157,7 @@ fig = plt.figure(figsize=(10,6))
 head_axes = []
 ERP_axes = []
 gs = mpl.gridspec.GridSpec(5, 2, width_ratios=(1,8))
-for i in xrange(5):
+for i in range(5):
     if i == 0:
         head_axes.append(fig.add_subplot(gs[i,0], frame_on=False))
     else:
@@ -260,7 +260,7 @@ ssd_pattern = np.linalg.inv(ssd_filter)
 
 # plot the patterns
 # name the ssd channels
-ssd_channames = ['SSD%02d' % i for i in xrange(len(ssd_pattern))]
+ssd_channames = ['SSD%02d' % i for i in range(len(ssd_pattern))]
 
 # plot the ICA  components scalp maps
 ssd_potmaps = [meet.sphere.potMap(chancoords, ssd_c,
