@@ -7,9 +7,8 @@ data_folder = sys.argv[1]
 subjectnr = int(sys.argv[2]) #here: total number of subjects
 result_folder = sys.argv[3]
 
-save_folder = os.path.join(result_folder, 'all%02dsubjects' % subjectnr)
-if not os.path.exists(save_folder):
-    os.mkdir(save_folder)
+if not os.path.exists(result_folder):
+    os.mkdir(result_folder)
 
 self_perf = np.zeros((subjectnr,6))
 self_vigil = np.zeros((subjectnr,6))
@@ -98,8 +97,8 @@ ax2.legend()
 plt.xlabel('self assessment')
 plt.ylabel('absolute deviation')
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder, 'SelfAssessmentAndResponse.png'))
-fig.savefig(os.path.join(save_folder, 'SelfAssessmentAndResponse.pdf'))
+fig.savefig(os.path.join(result_folder, 'SelfAssessmentAndResponse.png'))
+fig.savefig(os.path.join(result_folder, 'SelfAssessmentAndResponse.pdf'))
 
 
 #plot oscillation amplitude vs performance
@@ -205,8 +204,8 @@ plt.legend()
 plt.xlabel('Oscillation Amplitude')
 plt.ylabel('Absolute Deviation')
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder, 'ListeningAmp_Performance.png'))
-fig.savefig(os.path.join(save_folder, 'ListeningAmp_Performance.pdf'))
+fig.savefig(os.path.join(result_folder, 'ListeningAmp_Performance.png'))
+fig.savefig(os.path.join(result_folder, 'ListeningAmp_Performance.pdf'))
 
 # 1b. Listen, Phase
 r_snareListenPhase = np.corrcoef(mean_snareListenBestPhase,
@@ -223,8 +222,8 @@ plt.legend()
 plt.xlabel('Oscillation Phase')
 plt.ylabel('Absolute Deviation')
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder, 'ListeningPhase_Performance.png'))
-fig.savefig(os.path.join(save_folder, 'ListeningPhase_Performance.pdf'))
+fig.savefig(os.path.join(result_folder, 'ListeningPhase_Performance.png'))
+fig.savefig(os.path.join(result_folder, 'ListeningPhase_Performance.pdf'))
 
 # 2a. Silence, Amplitude
 r_snareSilenceAmp = np.corrcoef(mean_snareSilenceBestAmp,
@@ -241,8 +240,8 @@ plt.legend()
 plt.xlabel('Oscillation Amplitude')
 plt.ylabel('Absolute Deviation')
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder, 'SilenceAmp_Performance.png'))
-fig.savefig(os.path.join(save_folder, 'SilenceAmp_Performance.pdf'))
+fig.savefig(os.path.join(result_folder, 'SilenceAmp_Performance.png'))
+fig.savefig(os.path.join(result_folder, 'SilenceAmp_Performance.pdf'))
 
 # 1b. Silence, Phase
 r_snareSilencePhase = np.corrcoef(mean_snareSilenceBestPhase,
@@ -259,5 +258,5 @@ plt.legend()
 plt.xlabel('Oscillation Phase')
 plt.ylabel('Absolute Deviation')
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder, 'SilencePhase_Performance.png'))
-fig.savefig(os.path.join(save_folder, 'SilencePhase_Performance.pdf'))
+fig.savefig(os.path.join(result_folder, 'SilencePhase_Performance.png'))
+fig.savefig(os.path.join(result_folder, 'SilencePhase_Performance.pdf'))
