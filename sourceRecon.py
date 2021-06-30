@@ -13,9 +13,8 @@ data_folder = sys.argv[1]
 N_subjects = int(sys.argv[2]) #here: total number of subjects
 result_folder = sys.argv[3]
 
-save_folder = os.path.join(result_folder, 'all%02dsubjects' % N_subjects)
-if not os.path.exists(save_folder):
-    os.mkdir(save_folder)
+if not os.path.exists(result_folder):
+    os.mkdir(result_folder)
 
 #for subject in range(1, N_subjects + 1, 1):
 #for now only for first subject
