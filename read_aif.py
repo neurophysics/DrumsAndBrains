@@ -232,10 +232,10 @@ wdBlkCue_nearestClock, wdBlkCue_DevToClock = DevFromNearestClock(
 
 # save the results
 np.savez(os.path.join(save_folder, 'behavioural_results.npz'),
-    snareCue_nearestClock = snareCue_nearestClock,
-    snareCue_DevToClock = snareCue_DevToClock,
-    wdBlkCue_nearestClock = wdBlkCue_nearestClock,
-    wdBlkCue_DevToClock = wdBlkCue_DevToClock,
+    snareCue_nearestClock = np.array(snareCue_nearestClock, dtype=object),
+    snareCue_DevToClock = np.array(snareCue_DevToClock, dtype=object),
+    wdBlkCue_nearestClock = np.array(wdBlkCue_nearestClock, dtype=object),
+    wdBlkCue_DevToClock = np.array(wdBlkCue_DevToClock, dtype=object),
     snareCue_times = snareCue_times,
     wdBlkCue_times = wdBlkCue_times,
     bar_duration = bar_duration,
@@ -255,10 +255,8 @@ with open(os.path.join(data_folder,'S%02d_self-assessment.txt' % subject)) as f:
             self_vigil.append(int(l[1]))
 
 fig = plt.figure()
-absDev_snare = np.abs(snareCue_DevToClock)
-meandevs_snare = [np.mean(s) for s in absDev_snare]
-absDev_wdBlk = np.abs(wdBlkCue_DevToClock)
-meandevs_wdBlk = [np.mean(s) for s in absDev_wdBlk]
+meandevs_snare = [np.mean(np.abs(s)) for s in snareCue_DevToClock]
+meandevs_wdBlk = [np.mean(np.abs(s)) for s in wdBlkCue_DevToClock]
 corrSnare = np.corrcoef(meandevs_snare, self_perf)[0][1]
 corrWdBlk = np.corrcoef(meandevs_wdBlk, self_perf)[0][1]
 plt.plot(meandevs_snare, marker = 'o', label = 'abs mean dev snare')
