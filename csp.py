@@ -48,12 +48,12 @@ all_wdBlkHit_times = []
 i=0
 while True:
     try:
-        with np.load(os.path.join(result_folder, 'motor_inlier.npz'),
+        with np.load(os.path.join(result_folder, 'motor/inlier.npz'),
             'r') as fi:
             snareInlier.append(fi['snareInlier_response_{:02d}'.format(i)])
             wdBlkInlier.append(fi['wdBlkInlier_response_{:02d}'.format(i)])
             win = fi['win']
-        with np.load(os.path.join(result_folder, 'motor_covmat.npz'), 'r') as f_covmat:
+        with np.load(os.path.join(result_folder, 'motor/covmat.npz'), 'r') as f_covmat:
             target_covs.append(f_covmat['target_cov_{:02d}'.format(i)])
             contrast_covs.append(f_covmat['contrast_cov_{:02d}'.format(i)])
             all_snareHit_times.append(f_covmat['snareHit_times_{:02d}'.format(i)])
@@ -183,7 +183,7 @@ plt.plot(erd_t, ERD_CSP_subjmean[-CSP_ERDnum:,:].T, label='ERD')
 plt.plot(erd_t, ERD_CSP_subjmean[:CSP_ERSnum,:].T, label='ERS')
 plt.legend()
 plt.show()
-plt.savefig(os.path.join(result_folder,'motor_cspComp.pdf'))
+plt.savefig(os.path.join(result_folder,'motor/cspComp.pdf'))
 
 # plot ev and spatial patterns
 potmaps = [meet.sphere.potMap(chancoords, pat_now,
@@ -291,4 +291,4 @@ spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)'''
 
 gs.tight_layout(fig, pad=0.5)#, pad=0.2, h_pad=0.8
 
-fig.savefig(os.path.join(result_folder, 'motor_CSP_patterns.pdf'))
+fig.savefig(os.path.join(result_folder, 'motor/CSP_patterns.pdf'))
