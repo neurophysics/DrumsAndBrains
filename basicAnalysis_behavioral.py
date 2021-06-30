@@ -14,9 +14,8 @@ data_folder = sys.argv[1]
 subjectnr = int(sys.argv[2]) #here: total number of subjects
 result_folder = sys.argv[3]
 
-save_folder = os.path.join(result_folder, 'all%02dsubjects' % subjectnr)
-if not os.path.exists(save_folder):
-    os.mkdir(save_folder)
+if not os.path.exists(result_folder):
+    os.mkdir(result_folder)
 
 #calculate and read behavioural results into behaviouraldict:
 #{'S01': {'snareCue_times': [46.28689342,...], ...}, 'S02': {...} }
@@ -188,9 +187,9 @@ ax2.set_ylabel('standard deviation of error (ms)')
 
 fig.tight_layout(pad=0.3)
 
-fig.savefig(os.path.join(save_folder,
+fig.savefig(os.path.join(result_folder,
     'performance_background_plot.pdf'))
-fig.savefig(os.path.join(save_folder,
+fig.savefig(os.path.join(result_folder,
     'performance_background_plot.png'))
 
 # plot scatter of woodblock vs. snare deviation
@@ -235,9 +234,9 @@ fig.tight_layout(pad=0.3)
 fig.canvas.draw()
 ax1.plot(ax1.get_xlim(), snare_wb_regress[1] +
         snare_wb_regress[0]*np.array(ax1.get_xlim()), 'k-', lw=1)
-fig.savefig(os.path.join(save_folder,
+fig.savefig(os.path.join(result_folder,
     'snare_vs_wdBlk_performance.pdf'))
-fig.savefig(os.path.join(save_folder,
+fig.savefig(os.path.join(result_folder,
     'snare_vs_wdBlk_performance.png'))
 
 ###2. plot performance
@@ -281,7 +280,7 @@ ax1.set_ylabel('number of trials')
 ax1.legend(loc='upper left')
 #ax1.set_ylim([0,30])
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder,
+fig.savefig(os.path.join(result_folder,
     'NeuralEntrl_response.png'))
-fig.savefig(os.path.join(save_folder,
+fig.savefig(os.path.join(result_folder,
     'NeuralEntrl_response.pdf'))
