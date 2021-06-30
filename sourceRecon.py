@@ -10,7 +10,7 @@ import helper_functions
 
 s_rate = 1000 # sampling rate of the EEG (1000 samples per sec)
 data_folder = sys.argv[1]
-N_subjects = int(sys.argv[2]) #here: total number of subjects
+N_subjects = 21 #here: total number of subjects
 result_folder = sys.argv[3]
 
 if not os.path.exists(result_folder):
@@ -18,7 +18,7 @@ if not os.path.exists(result_folder):
 
 #for subject in range(1, N_subjects + 1, 1):
 #for now only for first subject
-subject = N_subjects
+subject = 1
 try:
     with np.load(os.path.join(data_folder, 'S%02d' % subject,
             'clean_data.npz'), 'r') as f:
