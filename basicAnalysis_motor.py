@@ -158,7 +158,7 @@ while(subj <= N_subjects):
         axs[c//4, c%4].tick_params(axis='x', labelsize=8)
         axs[c//4, c%4].tick_params(axis='y', labelsize=8)
     #plt.show()
-    fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse.pdf'))
+    fig.savefig(os.path.join(save_folder, 'motor/BP_2000mspreresponse.pdf'))
     all_BP.append(all_trials.mean(-1))
 
     # ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
@@ -228,7 +228,7 @@ while(subj <= N_subjects):
     #plt.show()
     axs[0,0].set_ylim([-6,6])
     #fig.tight_layout()
-    fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse.pdf'))
+    fig.savefig(os.path.join(save_folder, 'motor/ERD_2000mspreresponse.pdf'))
     all_ERD.append(ERDs)
 
     idx += 1
@@ -254,7 +254,7 @@ for c in range(Nc):
         -(cueHit_diff_mean+cueHit_diff_sd),
         alpha=0.3, color='red')
 #plt.show()
-fig.savefig(os.path.join(result_folder, 'motor_BP_2000mspreresponse.pdf'))
+fig.savefig(os.path.join(result_folder, 'motor/BP_2000mspreresponse.pdf'))
 
 # plot ERD for all subjects
 all_ERD_avg = [ np.mean([i[j] for i in all_ERD], axis=0)
@@ -282,18 +282,18 @@ plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
     for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
     borderaxespad=1, fontsize=5)
 #plt.show()
-fig.savefig(os.path.join(result_folder, 'motor_ERD_2000mspreresponse.pdf'))
+fig.savefig(os.path.join(result_folder, 'motor/ERD_2000mspreresponse.pdf'))
 
 
 save_BP = {}
 for i, bp in enumerate(all_BP):
     save_BP['ERD_{:02d}'.format(i)] = bp
-np.savez(os.path.join(result_folder, 'motor_BP.npz'), **save_BP)
+np.savez(os.path.join(result_folder, 'motor/BP.npz'), **save_BP)
 
 save_ERD = {}
 for i, erd in enumerate(all_ERD):
     save_ERD['ERD_{:02d}'.format(i)] = erd
-np.savez(os.path.join(result_folder, 'motor_ERD.npz'), **save_ERD, fbands=fbands)
+np.savez(os.path.join(result_folder, 'motor/ERD.npz'), **save_ERD, fbands=fbands)
 
 save_covmat = {}
 for i, (c,t,sn,wb) in enumerate(zip(contrast_cov, target_cov,
@@ -302,7 +302,7 @@ for i, (c,t,sn,wb) in enumerate(zip(contrast_cov, target_cov,
     save_covmat['target_cov_{:02d}'.format(i)] = t
     save_covmat['snareHit_times_{:02d}'.format(i)] = sn
     save_covmat['wdBlkHit_times_{:02d}'.format(i)] = wb
-np.savez(os.path.join(result_folder, 'motor_covmat.npz'),
+np.savez(os.path.join(result_folder, 'motor/covmat.npz'),
     **save_covmat,
     fbands=fbands,
     left_handed=left_handed)
@@ -313,4 +313,4 @@ for i, (snI, wbI) in enumerate(zip(snareInliers, wdBlkInliers)):
     save_inlier['snareInlier_response_{:02d}'.format(i)] = snI
     save_inlier['wdBlkInlier_response_{:02d}'.format(i)] = wbI
     save_inlier['win'] = win
-np.savez(os.path.join(result_folder, 'motor_inlier.npz'), **save_inlier)
+np.savez(os.path.join(result_folder, 'motor/inlier.npz'), **save_inlier)
