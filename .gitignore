@@ -121,3 +121,6 @@ wdBlk_models.rds
 Results/allEEG_silence.npz
 Results/FFTcSPoCv2.npz
 Results/F_SSD2.csv
+Results/PolyrhythmResults2019.key
+Results/motor/covmat.npz
+Results/motor/ERD.npz
