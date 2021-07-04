@@ -81,6 +81,9 @@ for i in range(1, N_subjects + 1, 1):
                 F_SSD = np.hstack([F_SSD[:N_SSD, (snare_idx,wdBlk_idx)],
                     delta_F_SSD[:N_SSD, np.newaxis]])
             else:
+                # straighten spectrum
+                F_SSD = scipy.ndimage.convolve1d(
+                    F_SSD, np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
                 F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs.append(F_SSD)
             # calculate and append SSD for listening window
@@ -88,17 +91,19 @@ for i in range(1, N_subjects + 1, 1):
             delta_F_SSD = np.mean(np.abs(F_SSD_listen[:,delta_idx1:delta_idx4]),
                 axis=1)
             if include_delta:
-                F_SSD_listen = np.hstack([F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)],
+                F_SSD_listen = np.hstack(
+                    [F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)],
                     delta_F_SSD[:N_SSD, np.newaxis]])
             else:
                 F_SSD_listen = F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs_listen.append(F_SSD_listen)
 
             F_SSD_silence = np.tensordot(SSD_filters, fi['F_silence'], axes=(0,0))
-            delta_F_SSD = np.mean(np.abs(F_SSD_silence[:,delta_idx1:delta_idx4]),
-                axis=1)
+            delta_F_SSD = np.mean(np.abs(
+                F_SSD_silence[:,delta_idx1:delta_idx4]),axis=1)
             if include_delta:
-                F_SSD_silence = np.hstack([F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)],
+                F_SSD_silence = np.hstack(
+                    [F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)],
                     delta_F_SSD[:N_SSD, np.newaxis]])
             else:
                 F_SSD_silence = F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)]
