@@ -4,30 +4,6 @@ import matplotlib.pyplot as plt
 import sys
 import os.path
 
-data_folder = sys.argv[1]
-subject = int(sys.argv[2])
-result_folder = sys.argv[3]
-
-data_folder = os.path.join(data_folder, 'S%02d' % subject)
-save_folder = os.path.join(result_folder, 'S%02d' % subject)
-
-if not os.path.exists(save_folder):
-    os.mkdir(save_folder)
-
-# define some constants
-QPM = 140 # quarter notes per minute
-SPQ = 60./QPM # seconds per quarter note
-bar_duration = SPQ*4 # every bar consists of 4 quarter notes
-
-wdBlkStim_fname = os.path.join(data_folder,
-        'NeuralEntrStimLive8_Ss%02d_WdBlkStim.aif' % subject)
-snareStim_fname =  os.path.join(data_folder,
-        'NeuralEntrStimLive8_Ss%02d_SnareStim.aif' % subject)
-syncIn_fname =  os.path.join(data_folder,
-        'NeuralEntrStimLive8_Ss%02d_SyncIn.aif' % subject)
-drumIn_fname =  os.path.join(data_folder,
-        'NeuralEntrStimLive8_Ss%02d_DrumIn.aif' % subject)
-
 # check that all files have the equal number of samples
 def check_length(*fnames):
     fsize = []
@@ -35,8 +11,6 @@ def check_length(*fnames):
         f = aifc.open(fname, 'r')
         fsize.append(f.getnframes())
     assert np.all(np.asarray(fsize)==fsize[0])
-
-check_length(wdBlkStim_fname, snareStim_fname, syncIn_fname, drumIn_fname)
 
 # define the funtions to get timings of all beats and to extract cues
 def moving_average(a, n):
@@ -143,56 +117,6 @@ def get_ResponseLatency(cue_time, drum_time, bar_duration):
         candidate_beat_latencies, cue_time)]
     return np.ma.masked_invalid(latencies)
 
-# read the click times of the instruments
-wdBlkStim_times = get_ClickTime(wdBlkStim_fname)
-snareStim_times = get_ClickTime(snareStim_fname)
-
-# get the cue positions - as mindiff, choose half a bar plus 50 ms
-snareCue_times, wdBlkCue_times = GetAllCues(
-        snareStim_times, wdBlkStim_times, mindiff=bar_duration/2. + 0.05)
-
-# check that we indeed have all the 75 stimuli
-assert len(snareCue_times) == 75
-assert len(wdBlkCue_times) == 75
-
-# read the drum response
-drum_times = get_ClickTime(drumIn_fname)
-
-# calculate the latency between cue and response
-snare_latencies = get_ResponseLatency(snareCue_times, drum_times,
-        2*bar_duration)
-wdBlk_latencies = get_ResponseLatency(wdBlkCue_times, drum_times,
-        2*bar_duration)
-
-# calculate the deviation to the intended beat latency
-snare_deviation = snare_latencies - bar_duration/2.
-wdBlk_deviation = wdBlk_latencies - 2*bar_duration/3
-
-# calculate the absolute precision
-snare_precision = np.abs(snare_deviation)
-wdBlk_precision = np.abs(wdBlk_deviation)
-
-hist_bins = np.arange(0.5, 1.5 + 0.025, 0.025)
-
-# plot the results
-fig = plt.figure()
-ax1 = fig.add_subplot(111)
-ax1.hist(snare_latencies, bins=hist_bins, color='b', label='duple cue',
-        edgecolor='w', alpha=0.6)
-ax1.axvline(bar_duration/2., color='b', label='correct duple lat.')
-ax1.hist(wdBlk_latencies, bins=hist_bins, color='r', label='triple cue',
-        edgecolor='w', alpha=0.6)
-ax1.axvline(2*bar_duration/3., color='r', label='correct triple lat.')
-ax1.set_xlabel('latency to cue (s)')
-ax1.set_ylabel('number of trials')
-ax1.legend(loc='upper left')
-ax1.set_ylim([0,30])
-fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder,
-    'NeuralEntrl_Ss%02dresponse.png' % subject))
-fig.savefig(os.path.join(save_folder,
-    'NeuralEntrl_Ss%02dresponse.pdf' % subject))
-
 # seperate clock into sessions and measure deviation to closest clock of
 # session
 def getSessionClocks(fname, thresh=25000):
@@ -223,53 +147,125 @@ def DevFromNearestClock(clocks, t):
             for s, e in zip(session_start, np.r_[session_start[1:], np.inf])]
     return nearest_sessionClock, nearest_sessionDev
 
-syncIn_times = get_ClickTime(syncIn_fname, thresh=13, normalize=True)
+if __name__=="__main__" :
+    data_folder = sys.argv[1]
+    subject = int(sys.argv[2])
+    result_folder = sys.argv[3]
 
-snareCue_nearestClock, snareCue_DevToClock = DevFromNearestClock(
-        syncIn_times, snareCue_times)
-wdBlkCue_nearestClock, wdBlkCue_DevToClock = DevFromNearestClock(
-        syncIn_times, wdBlkCue_times)
+    data_folder = os.path.join(data_folder, 'S%02d' % subject)
+    save_folder = os.path.join(result_folder, 'S%02d' % subject)
 
-# save the results
-np.savez(os.path.join(save_folder, 'behavioural_results.npz'),
-    snareCue_nearestClock = np.array(snareCue_nearestClock, dtype=object),
-    snareCue_DevToClock = np.array(snareCue_DevToClock, dtype=object),
-    wdBlkCue_nearestClock = np.array(wdBlkCue_nearestClock, dtype=object),
-    wdBlkCue_DevToClock = np.array(wdBlkCue_DevToClock, dtype=object),
-    snareCue_times = snareCue_times,
-    wdBlkCue_times = wdBlkCue_times,
-    bar_duration = bar_duration,
-    snare_deviation = snare_deviation.data,
-    wdBlk_deviation = wdBlk_deviation.data,
-    )
+    if not os.path.exists(save_folder):
+        os.mkdir(save_folder)
 
-# plot self performance
-self_perf = []
-self_vigil = []
-with open(os.path.join(data_folder,'S%02d_self-assessment.txt' % subject)) as f:
-    for line in f:
-        l = line.split(' ')
-        if line[0] == 'P':
-            self_perf.append(int(l[1]))
-        if line[0] == 'V':
-            self_vigil.append(int(l[1]))
+    wdBlkStim_fname = os.path.join(data_folder,
+            'NeuralEntrStimLive8_Ss%02d_WdBlkStim.aif' % subject)
+    snareStim_fname =  os.path.join(data_folder,
+            'NeuralEntrStimLive8_Ss%02d_SnareStim.aif' % subject)
+    syncIn_fname =  os.path.join(data_folder,
+            'NeuralEntrStimLive8_Ss%02d_SyncIn.aif' % subject)
+    drumIn_fname =  os.path.join(data_folder,
+            'NeuralEntrStimLive8_Ss%02d_DrumIn.aif' % subject)
 
-fig = plt.figure()
-meandevs_snare = [np.mean(np.abs(s)) for s in snareCue_DevToClock]
-meandevs_wdBlk = [np.mean(np.abs(s)) for s in wdBlkCue_DevToClock]
-corrSnare = np.corrcoef(meandevs_snare, self_perf)[0][1]
-corrWdBlk = np.corrcoef(meandevs_wdBlk, self_perf)[0][1]
-plt.plot(meandevs_snare, marker = 'o', label = 'abs mean dev snare')
-plt.plot(meandevs_wdBlk, marker = 'o', label = 'abs mean dev wdBlk')
-plt.plot([(10.-s)/10 for s in self_perf], marker = 'o', label = '10-Performance / 10')
-plt.plot([(10.-s)/10 for s in self_vigil], marker = 'o', label = '10-Vigilance / 10')
-plt.legend()
-plt.ylim(0.,0.8)
-plt.xlabel('sessions (~25 trials each)')
-plt.ylabel('absolute deviation / self assessment score')
-plt.title('self assessment vs snare/wdblk performance (r = %02f / %02f)'% (corrSnare, corrWdBlk))
-fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(save_folder,
-    'SelfAssessmentAndResponseSs%02d.png' % subject))
-fig.savefig(os.path.join(save_folder,
-    'SelfAssessmentAndResponseSs%02d.pdf' % subject))
+    check_length(wdBlkStim_fname, snareStim_fname, syncIn_fname, drumIn_fname)
+
+    # read the click times of the instruments
+    wdBlkStim_times = get_ClickTime(wdBlkStim_fname)
+    snareStim_times = get_ClickTime(snareStim_fname)
+
+    # get the cue positions - as mindiff, choose half a bar plus 50 ms
+    snareCue_times, wdBlkCue_times = GetAllCues(
+            snareStim_times, wdBlkStim_times, mindiff=bar_duration/2. + 0.05)
+
+    # check that we indeed have all the 75 stimuli
+    assert len(snareCue_times) == 75
+    assert len(wdBlkCue_times) == 75
+
+    # read the drum response
+    drum_times = get_ClickTime(drumIn_fname)
+
+    # calculate the latency between cue and response
+    snare_latencies = get_ResponseLatency(snareCue_times, drum_times,
+            2*bar_duration)
+    wdBlk_latencies = get_ResponseLatency(wdBlkCue_times, drum_times,
+            2*bar_duration)
+
+    # calculate the deviation to the intended beat latency
+    snare_deviation = snare_latencies - bar_duration/2.
+    wdBlk_deviation = wdBlk_latencies - 2*bar_duration/3
+
+    # calculate the absolute precision
+    snare_precision = np.abs(snare_deviation)
+    wdBlk_precision = np.abs(wdBlk_deviation)
+
+    hist_bins = np.arange(0.5, 1.5 + 0.025, 0.025)
+
+    # plot the results
+    fig = plt.figure()
+    ax1 = fig.add_subplot(111)
+    ax1.hist(snare_latencies, bins=hist_bins, color='b', label='duple cue',
+            edgecolor='w', alpha=0.6)
+    ax1.axvline(bar_duration/2., color='b', label='correct duple lat.')
+    ax1.hist(wdBlk_latencies, bins=hist_bins, color='r', label='triple cue',
+            edgecolor='w', alpha=0.6)
+    ax1.axvline(2*bar_duration/3., color='r', label='correct triple lat.')
+    ax1.set_xlabel('latency to cue (s)')
+    ax1.set_ylabel('number of trials')
+    ax1.legend(loc='upper left')
+    ax1.set_ylim([0,30])
+    fig.tight_layout(pad=0.3)
+    fig.savefig(os.path.join(save_folder,
+        'NeuralEntrl_Ss%02dresponse.png' % subject))
+    fig.savefig(os.path.join(save_folder,
+        'NeuralEntrl_Ss%02dresponse.pdf' % subject))
+
+    syncIn_times = get_ClickTime(syncIn_fname, thresh=13, normalize=True)
+
+    snareCue_nearestClock, snareCue_DevToClock = DevFromNearestClock(
+            syncIn_times, snareCue_times)
+    wdBlkCue_nearestClock, wdBlkCue_DevToClock = DevFromNearestClock(
+            syncIn_times, wdBlkCue_times)
+
+    # save the results
+    np.savez(os.path.join(save_folder, 'behavioural_results.npz'),
+        snareCue_nearestClock = np.array(snareCue_nearestClock, dtype=object),
+        snareCue_DevToClock = np.array(snareCue_DevToClock, dtype=object),
+        wdBlkCue_nearestClock = np.array(wdBlkCue_nearestClock, dtype=object),
+        wdBlkCue_DevToClock = np.array(wdBlkCue_DevToClock, dtype=object),
+        snareCue_times = snareCue_times,
+        wdBlkCue_times = wdBlkCue_times,
+        bar_duration = bar_duration,
+        snare_deviation = snare_deviation.data,
+        wdBlk_deviation = wdBlk_deviation.data,
+        )
+
+    # plot self performance
+    self_perf = []
+    self_vigil = []
+    with open(os.path.join(data_folder,'S%02d_self-assessment.txt' % subject)) as f:
+        for line in f:
+            l = line.split(' ')
+            if line[0] == 'P':
+                self_perf.append(int(l[1]))
+            if line[0] == 'V':
+                self_vigil.append(int(l[1]))
+
+    fig = plt.figure()
+    meandevs_snare = [np.mean(np.abs(s)) for s in snareCue_DevToClock]
+    meandevs_wdBlk = [np.mean(np.abs(s)) for s in wdBlkCue_DevToClock]
+    corrSnare = np.corrcoef(meandevs_snare, self_perf)[0][1]
+    corrWdBlk = np.corrcoef(meandevs_wdBlk, self_perf)[0][1]
+    plt.plot(meandevs_snare, marker = 'o', label = 'abs mean dev snare')
+    plt.plot(meandevs_wdBlk, marker = 'o', label = 'abs mean dev wdBlk')
+    plt.plot([(10.-s)/10 for s in self_perf], marker = 'o', label = '10-Performance / 10')
+    plt.plot([(10.-s)/10 for s in self_vigil], marker = 'o', label = '10-Vigilance / 10')
+    plt.legend()
+    plt.ylim(0.,0.8)
+    plt.xlabel('sessions (~25 trials each)')
+    plt.ylabel('absolute deviation / self assessment score')
+    plt.title('self assessment vs snare/wdblk performance (r = %02f / %02f)'% (corrSnare, corrWdBlk))
+    fig.tight_layout(pad=0.3)
+    fig.savefig(os.path.join(save_folder,
+        'SelfAssessmentAndResponseSs%02d.png' % subject))
+    fig.savefig(os.path.join(save_folder,
+        'SelfAssessmentAndResponseSs%02d.pdf' % subject))

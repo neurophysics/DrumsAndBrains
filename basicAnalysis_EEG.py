@@ -16,8 +16,9 @@ oscillation frequencies are actually there (avg spectrum across all
 trials per subject and also across all subjects)'''
 
 data_folder = sys.argv[1]
-subjectnr = int(sys.argv[2]) #here: total number of subjects
-result_folder = sys.argv[3]
+result_folder = sys.argv[2]
+N_subjects = 21
+s_rate = 1000
 
 if not os.path.exists(result_folder):
     os.mkdir(result_folder)
@@ -54,13 +55,13 @@ def plotSpectra(F, psd_pre,title,saveLocation,figsize=(10,10),grid=[8,4]):
 #create empty arrays to store eeg data across subjects
 allEEG_listening = np.empty((32,0))
 allEEG_silence = np.empty((32,0))
-for subject in range(1,1+subjectnr):
+for subject in range(1,1+N_subjects):
+    print('calculating channel spectra subject '+str(subject))
     if subject==11:
         continue #no eeg for subject 11
     current_data_folder = os.path.join(data_folder, 'S%02d' % subject)
     current_result_folder = os.path.join(result_folder, 'S%02d' % subject)
     ###### Load EEG data ######
-    s_rate = 1000
     # read the cleaned EEG and the artifact segment mask
     eeg_fname = os.path.join(current_data_folder, 'clean_data.npz')
     with np.load(eeg_fname) as npzfile:
@@ -159,7 +160,7 @@ for subject in range(1,1+subjectnr):
         i=i+silence_win[1]
     # apply a 0.1 Hz high-pass filter
     data = meet.iir.butterworth(EEG_silence, fp=0.1, fs=0.08, s_rate=s_rate, axis=-1)
-    F, psd_pre =  scipy.signal.welch(
+    F, psd_pre = scipy.signal.welch(
             data, fs=s_rate, nperseg=1024, scaling='density')
     plotSpectra(F, psd_pre,
         title='Channel spectra, Silence Period, Subject S%02d' % subject,
@@ -167,10 +168,13 @@ for subject in range(1,1+subjectnr):
                     current_result_folder, 'Channel_spectra_Silence.pdf'))
     allEEG_silence = np.concatenate((allEEG_silence,EEG_silence),axis=1)
 
-#### Across subjects
+#np.savez(os.path.join(result_folder, 'allEEG_silence.npz'), allEEG_silence=allEEG_silence)
+#np.savez(os.path.join(result_folder, 'allEEG_listening.npz'), allEEG_listening=allEEG_listening)
+
+#### Across subjects (takes a while)
 #Listening
 data = meet.iir.butterworth(allEEG_listening, fp=0.1, fs=0.08, s_rate=s_rate, axis=-1)
-F, psd_pre =  scipy.signal.welch(
+F, psd_pre = scipy.signal.welch(
             data, fs=s_rate, nperseg=1024, scaling='density')
 plotSpectra(F, psd_pre,
     title='Channel spectra across subjects, Listening Period',
@@ -179,7 +183,7 @@ plotSpectra(F, psd_pre,
 
 #Silence
 data = meet.iir.butterworth(allEEG_silence, fp=0.1, fs=0.08, s_rate=s_rate, axis=-1)
-F, psd_pre =  scipy.signal.welch(
+F, psd_pre = scipy.signal.welch(
             data, fs=s_rate, nperseg=1024, scaling='density')
 plotSpectra(F, psd_pre,
     title='Channel spectra across subjects, Silence Period',

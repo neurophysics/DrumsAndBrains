@@ -4,20 +4,20 @@ import sys
 import os.path
 
 data_folder = sys.argv[1]
-subjectnr = int(sys.argv[2]) #here: total number of subjects
-result_folder = sys.argv[3]
+result_folder = sys.argv[2]
+N_subjects = 21
 
 if not os.path.exists(result_folder):
     os.mkdir(result_folder)
 
-self_perf = np.zeros((subjectnr,6))
-self_vigil = np.zeros((subjectnr,6))
-meandevs_snare = np.zeros((subjectnr,6))
-meandevs_wdBlk = np.zeros((subjectnr,6))
-snareCue_DevToClock = np.zeros((subjectnr, 75))
-wdBlkCue_DevToClock = np.zeros((subjectnr, 75))
+self_perf = np.zeros((N_subjects,6))
+self_vigil = np.zeros((N_subjects,6))
+meandevs_snare = np.zeros((N_subjects,6))
+meandevs_wdBlk = np.zeros((N_subjects,6))
+snareCue_DevToClock = np.zeros((N_subjects, 75))
+wdBlkCue_DevToClock = np.zeros((N_subjects, 75))
 
-for subject in range(1,subjectnr+1):
+for subject in range(1,N_subjects+1):
     current_data_folder = os.path.join(data_folder, 'S%02d' % subject)
 
     # Collect self assessment of performance and vigilance data
@@ -68,7 +68,7 @@ ax1.set_title('self assessment vs real snare performance (r = %02f / %02f)'
 ax2 = fig.add_subplot(212, sharex=ax1)
 ax2.set_title('self assessment vs real wdBlk performance (r = %02f / %02f)'
         % (r_wdBlkPerf, r_wdBlkVigil))
-for subject in range(0,subjectnr):
+for subject in range(0,N_subjects):
     #ax1.set_ylim(0.,0.8)
     if subject== 0:
         ax1.plot(self_perf[subject],
@@ -103,17 +103,17 @@ fig.savefig(os.path.join(result_folder, 'SelfAssessmentAndResponse.pdf'))
 
 #plot oscillation amplitude vs performance
 # read eeg data:
-snareInlier = np.zeros((subjectnr,75))
-wdBlkInlier = np.zeros((subjectnr,75))
-snareListenBestAmp = np.zeros((subjectnr,75))
-wdBlkListenBestAmp = np.zeros((subjectnr,75))
-snareListenBestPhase = np.zeros((subjectnr,75))
-wdBlkListenBestPhase = np.zeros((subjectnr,75))
-snareSilenceBestAmp = np.zeros((subjectnr,75))
-wdBlkSilenceBestAmp = np.zeros((subjectnr,75))
-snareSilenceBestPhase = np.zeros((subjectnr,75))
-wdBlkSilenceBestPhase = np.zeros((subjectnr,75))
-for subject in range(1,subjectnr+1):
+snareInlier = np.zeros((N_subjects,75))
+wdBlkInlier = np.zeros((N_subjects,75))
+snareListenBestAmp = np.zeros((N_subjects,75))
+wdBlkListenBestAmp = np.zeros((N_subjects,75))
+snareListenBestPhase = np.zeros((N_subjects,75))
+wdBlkListenBestPhase = np.zeros((N_subjects,75))
+snareSilenceBestAmp = np.zeros((N_subjects,75))
+wdBlkSilenceBestAmp = np.zeros((N_subjects,75))
+snareSilenceBestPhase = np.zeros((N_subjects,75))
+wdBlkSilenceBestPhase = np.zeros((N_subjects,75))
+for subject in range(1,N_subjects+1):
     if subject==11:
         continue #no eeg for subject 11
     with np.load(os.path.join(result_folder, 'S%02d' % subject,
@@ -164,7 +164,7 @@ for trial in range(0, 75):
     wdBlkSilenceAmps = []
     snareSilencePhases = []
     wdBlkSilencePhases = []
-    for subject in range(0, subjectnr):
+    for subject in range(0, N_subjects):
         if snareInlier[subject][trial]: #only append trials of subjects that are Inlier
             #print subject, trial, snareInlier[subject][trial]
             snareDevs.append(snareCue_DevToClock[subject][trial])

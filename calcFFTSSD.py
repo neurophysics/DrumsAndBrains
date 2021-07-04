@@ -17,7 +17,6 @@ import helper_functions
 import meet
 from tqdm import trange, tqdm # for a progress bar
 
-
 # set parameters
 ## input
 result_folder = sys.argv[1]

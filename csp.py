@@ -183,7 +183,6 @@ plt.plot(erd_t, ERD_CSP_subjmean[-CSP_ERDnum:,:].T, label='ERD')
 plt.plot(erd_t, ERD_CSP_subjmean[:CSP_ERSnum,:].T, label='ERS')
 plt.legend()
 plt.show()
-plt.savefig(os.path.join(result_folder,'motor/cspComp.pdf'))
 
 # plot ev and spatial patterns
 potmaps = [meet.sphere.potMap(chancoords, pat_now,

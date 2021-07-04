@@ -24,7 +24,7 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelbottom=False)
 
 with np.load(os.path.join(result_folder, 'FFTSSD.npz'), 'rb') as fl:
-    SNNR_i = fl['SSD_obj_per_subject'][:,0]
+    SNNR_i = fl['SSD_obj_per_subject'][:,0] #SNNR_i = fi['SSD_eigvals']?
 
 SNNR_i = 10*np.log10(SNNR_i)
 
@@ -74,4 +74,3 @@ ax.text(0.95, 0.05, r'$R^2=%.2f$ ' % corr**2 + r'(1-tailed $p=%.3f$)' % corr_p,
 fig.tight_layout(pad=0.3)
 fig.savefig(os.path.join(result_folder, 'SNNR_exp.pdf'))
 fig.savefig(os.path.join(result_folder, 'SNNR_exp.png'))
-

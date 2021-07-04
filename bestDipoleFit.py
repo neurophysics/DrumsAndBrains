@@ -1,7 +1,7 @@
+import sys
 import numpy as np
 import tables
 import meet
-import argparse
 import os
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib as mpl
@@ -9,17 +9,13 @@ import matplotlib.pyplot as plt
 import scipy.stats
 
 # load spoc pattern
-parser = argparse.ArgumentParser(
-        description='Calculate source from cSpoC pattern')
-parser.add_argument('result_folder', type=str, default='./Results/',
-        help='the folder to store all results', nargs='?')
-args = parser.parse_args()
+result_folder = sys.argv[1]
 
 scatter_cmap = 'OrRd'
 scatter_cmap_inst = mpl.cm.get_cmap(scatter_cmap)
 
 try:
-    with np.load(os.path.join(args.result_folder,
+    with np.load(os.path.join(result_folder,
             'FFTSSD.npz'), 'r') as f:
         wdBlk_pattern = f['SSD_patterns'][0] # shape (32,) polarities for all
         snare_pattern = f['SSD_patterns'][0] # channels
@@ -89,7 +85,7 @@ def mni2mri(inpoint, mat=mni2mri_matrix):
     transformation matrix'''
     inpoint = np.r_[inpoint, 1]
     return np.dot(inpoint,mat)[:3]
-    
+
 snare_singleMNI = coord[:,snare_singleFit]
 snare_pairedMNI = (coord[:,snare_pairedFit[0]], coord[:,snare_pairedFit[1]])
 snare_singleMRI = mni2mri(snare_singleMNI)
@@ -156,7 +152,7 @@ for ax_now in ax1:
     ax_now.set_frame_on(False)
 
 fig1.tight_layout()
-fig1.savefig(os.path.join(args.result_folder,
+fig1.savefig(os.path.join(result_folder,
         'BestDipoleFit_snarePaired.pdf'))
 
 ##########################
@@ -196,7 +192,7 @@ for ax_now in ax2:
     ax_now.set_frame_on(False)
 
 fig2.tight_layout()
-fig2.savefig(os.path.join(args.result_folder,
+fig2.savefig(os.path.join(result_folder,
         'BestDipoleFit_snareSingle.pdf'))
 #plt.show()
 

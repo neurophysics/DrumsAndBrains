@@ -7,12 +7,12 @@ import subprocess
 import csv
 import scipy
 import scipy.stats
-
+import aifc
 import read_aif
 
 data_folder = sys.argv[1]
-subjectnr = int(sys.argv[2]) #here: total number of subjects
-result_folder = sys.argv[3]
+N_subjects = 21
+result_folder = sys.argv[2]
 
 if not os.path.exists(result_folder):
     os.mkdir(result_folder)
@@ -20,26 +20,20 @@ if not os.path.exists(result_folder):
 #calculate and read behavioural results into behaviouraldict:
 #{'S01': {'snareCue_times': [46.28689342,...], ...}, 'S02': {...} }
 behaviouraldict = {}
-for i in range(1,subjectnr+1):
+for i in range(1, N_subjects+1):
     # load the results into a dictionary
     try:
         with np.load(os.path.join(result_folder,'S%02d' % i,
             'behavioural_results.npz'), allow_pickle=True) as behave_file:
             behaviouraldict['S%02d' % i] = dict(behave_file)
     except:
-        # run the script to analyze the behavioural data
-        subprocess.call("%s read_aif.py %s %d %s" % (
-            'python2', data_folder, i, result_folder),
-            shell=True)
-        with np.load(os.path.join(result_folder,'S%02d' % i,
-            'behavioural_results.npz'), allow_pickle=True) as behave_file:
-            behaviouraldict['S%02d' % i] = dict(behave_file)
+        print('Please run read_aif.py for every subjects first.')
 
 ###1. plot performance vs musical background:
 #read subject background (LQ and music qualification)
-#background is a dict {"subjectnr":[LQ, Quali, Level, years]}
+#background is a dict {"N_subjects":[LQ, Quali, Level, years]}
 background = {}
-with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'rU') as infile:
+with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'r') as infile:
     reader = csv.DictReader(infile, fieldnames=None, delimiter=';')
     for row in reader:
         key = "S%02d" % int(row['Subjectnr']) #same format as behaviouraldict
@@ -52,14 +46,14 @@ z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
         )/raw_musicscores.std(0)
 musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 
-snare_abs_performance = np.zeros(subjectnr)
-snare_mean_performance = np.zeros(subjectnr)
-snare_se_performance = np.zeros(subjectnr)
-wb_abs_performance = np.zeros(subjectnr)
-wb_mean_performance = np.zeros(subjectnr)
-wb_se_performance = np.zeros(subjectnr)
-snare_rel_performance = np.zeros(subjectnr)
-wb_rel_performance = np.zeros(subjectnr)
+snare_abs_performance = np.zeros(N_subjects)
+snare_mean_performance = np.zeros(N_subjects)
+snare_se_performance = np.zeros(N_subjects)
+wb_abs_performance = np.zeros(N_subjects)
+wb_mean_performance = np.zeros(N_subjects)
+wb_se_performance = np.zeros(N_subjects)
+snare_rel_performance = np.zeros(N_subjects)
+wb_rel_performance = np.zeros(N_subjects)
 for k,v in sorted(behaviouraldict.items()):
     i = int(k[1:])-1 #'S01'=> entry 0
     snaredev = v['snare_deviation']
@@ -76,66 +70,66 @@ for k,v in sorted(behaviouraldict.items()):
     wb_rel_performance[i] = np.std(wbdev)
 
 snare_abs_expregress = scipy.stats.linregress(
-        musicscore[0:subjectnr],
+        musicscore[0:N_subjects],
         np.log(snare_abs_performance))
 snare_abs_rss = np.sum((np.log(snare_abs_performance) -
     (snare_abs_expregress[1] +
-        musicscore[0:subjectnr]*snare_abs_expregress[0]))**2)
+        musicscore[0:N_subjects]*snare_abs_expregress[0]))**2)
 snare_abs_tss = np.sum((np.log(snare_abs_performance) -
     np.mean(np.log(snare_abs_performance)))**2)
 snare_abs_r2 = 1 - snare_abs_rss/snare_abs_tss
 
 snare_rel_expregress = scipy.stats.linregress(
-        musicscore[0:subjectnr],
+        musicscore[0:N_subjects],
         np.log(snare_rel_performance))
 snare_rel_rss = np.sum((np.log(snare_rel_performance) -
     (snare_rel_expregress[1] +
-        musicscore[0:subjectnr]*snare_rel_expregress[0]))**2)
+        musicscore[0:N_subjects]*snare_rel_expregress[0]))**2)
 snare_rel_tss = np.sum((np.log(snare_rel_performance) -
     np.mean(np.log(snare_rel_performance)))**2)
 snare_rel_r2 = 1 - snare_rel_rss/snare_rel_tss
 
 wb_abs_expregress = scipy.stats.linregress(
-        musicscore[0:subjectnr],
+        musicscore[0:N_subjects],
         np.log(wb_abs_performance))
 wb_abs_rss = np.sum((np.log(wb_abs_performance) -
     (wb_abs_expregress[1] +
-        musicscore[0:subjectnr]*wb_abs_expregress[0]))**2)
+        musicscore[0:N_subjects]*wb_abs_expregress[0]))**2)
 wb_abs_tss = np.sum((np.log(wb_abs_performance) -
     np.mean(np.log(wb_abs_performance)))**2)
 wb_abs_r2 = 1 - wb_abs_rss/wb_abs_tss
 
 wb_rel_expregress = scipy.stats.linregress(
-        musicscore[0:subjectnr],
+        musicscore[0:N_subjects],
         np.log(wb_rel_performance))
 wb_rel_rss = np.sum((np.log(wb_rel_performance) -
     (wb_rel_expregress[1] +
-        musicscore[0:subjectnr]*wb_rel_expregress[0]))**2)
+        musicscore[0:N_subjects]*wb_rel_expregress[0]))**2)
 wb_rel_tss = np.sum((np.log(wb_rel_performance) -
     np.mean(np.log(wb_rel_performance)))**2)
 wb_rel_r2 = 1 - wb_rel_rss/wb_rel_tss
 
 N_permute = 10000
 snare_abs_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:subjectnr],
+    scipy.stats.linregress(musicscore[0:N_subjects],
         np.log(snare_abs_performance)[
-            np.random.randn(subjectnr).argsort()
-            ]).slope for _ in xrange(N_permute)])
+            np.random.randn(N_subjects).argsort()
+            ]).slope for _ in range(N_permute)])
 snare_rel_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:subjectnr],
+    scipy.stats.linregress(musicscore[0:N_subjects],
         np.log(snare_rel_performance)[
-            np.random.randn(subjectnr).argsort()
-            ]).slope for _ in xrange(N_permute)])
+            np.random.randn(N_subjects).argsort()
+            ]).slope for _ in range(N_permute)])
 wb_abs_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:subjectnr],
+    scipy.stats.linregress(musicscore[0:N_subjects],
         np.log(wb_abs_performance)[
-            np.random.randn(subjectnr).argsort()
-            ]).slope for _ in xrange(N_permute)])
+            np.random.randn(N_subjects).argsort()
+            ]).slope for _ in range(N_permute)])
 wb_rel_slope_permute = np.array([
-    scipy.stats.linregress(musicscore[0:subjectnr],
+    scipy.stats.linregress(musicscore[0:N_subjects],
         np.log(wb_rel_performance)[
-            np.random.randn(subjectnr).argsort()
-            ]).slope for _ in xrange(N_permute)])
+            np.random.randn(N_subjects).argsort()
+            ]).slope for _ in range(N_permute)])
 
 snare_abs_slope_p = (np.sum(snare_abs_slope_permute <=
     snare_abs_expregress.slope) + 1)/float(N_permute + 1)
@@ -154,23 +148,23 @@ ax1 = fig.add_subplot(121)
 fig.subplots_adjust(wspace=.5)
 ax2 = fig.add_subplot(122, sharex=ax1, sharey=ax1)
 
-ax1.scatter(musicscore[0:subjectnr], snare_abs_performance,
+ax1.scatter(musicscore[0:N_subjects], snare_abs_performance,
     marker = 'o', label=r'duple beat, $R^2=%.2f$ ($p=%.4f$)' % (
         snare_abs_r2, snare_abs_slope_p), color='b')
 ax1.plot(x, np.exp(snare_abs_expregress[1]+snare_abs_expregress[0]*x),
         'b-')
-ax1.scatter(musicscore[0:subjectnr], wb_abs_performance,
+ax1.scatter(musicscore[0:N_subjects], wb_abs_performance,
     marker = 'o', label=r'triple beat, $R^2=%.2f$ ($p=%.4f$)' % (
         wb_abs_r2, wb_abs_slope_p), color='r')
 ax1.plot(x, np.exp(wb_abs_expregress[1]+wb_abs_expregress[0]*x),
         'r-')
 
-ax2.scatter(musicscore[0:subjectnr], snare_rel_performance,
+ax2.scatter(musicscore[0:N_subjects], snare_rel_performance,
     marker = 'o', label=r'duple beat, $R^2=%.2f$ ($p=%.4f$)' % (
         snare_rel_r2, snare_rel_slope_p), color='b')
 ax2.plot(x, np.exp(snare_rel_expregress[1]+snare_rel_expregress[0]*x),
         'b-')
-ax2.scatter(musicscore[0:subjectnr], wb_rel_performance,
+ax2.scatter(musicscore[0:N_subjects], wb_rel_performance,
     marker = 'o', label=r'triple beat, $R^2=%.2f$ ($p=%.4f$)' % (
         wb_rel_r2, wb_rel_slope_p), color='r')
 ax2.plot(x, np.exp(wb_rel_expregress[1]+wb_rel_expregress[0]*x),
@@ -184,9 +178,7 @@ ax1.set_xlabel('musical experience (z-score)')
 ax2.set_xlabel('musical experience (z-score)')
 ax1.set_ylabel('absolute error (ms)')
 ax2.set_ylabel('standard deviation of error (ms)')
-
 fig.tight_layout(pad=0.3)
-
 fig.savefig(os.path.join(result_folder,
     'performance_background_plot.pdf'))
 fig.savefig(os.path.join(result_folder,
@@ -207,7 +199,7 @@ snare_wb_slope_permute = np.array([
     scipy.stats.linregress(
         snare_mean_performance,
         np.random.choice(wb_mean_performance, size=len(wb_mean_performance),
-            replace=False))[0] for _ in xrange(N_permute)])
+            replace=False))[0] for _ in range(N_permute)])
 snare_wb_slope_p = (np.sum((snare_wb_slope_permute >= snare_wb_regress[0])) + 1
         )/float(N_permute + 1)
 
@@ -247,8 +239,8 @@ QPM = 140 # quarter notes per minute
 SPQ = 60./QPM # seconds per quarter note
 bar_duration = SPQ*4 # every bar consists of 4 quarter notes
 
-allSnare_latencies = np.zeros((subjectnr,75))
-allWdBlk_latencies = np.zeros((subjectnr,75))
+allSnare_latencies = np.zeros((N_subjects,75))
+allWdBlk_latencies = np.zeros((N_subjects,75))
 for k,v in sorted(behaviouraldict.items()):
     i = int(k[1:]) #'S01' => 1
     drumIn_fname =  os.path.join(data_folder,

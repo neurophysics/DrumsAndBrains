@@ -1,5 +1,5 @@
 #!/bin/bash
-i=15
+i=1
 end=21
 while (($i <= $end)); do
     echo python -W ignore read_eeg.py Data/ $i Results/
