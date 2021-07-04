@@ -114,3 +114,10 @@ FFTcSPoCv2.npz
 prepared_VerifyFFTSSD.npz
 Results/FFTSSD.npz
 sa_nyhead.mat
+.RData
+.Rhistory
+snare_models.rds
+wdBlk_models.rds
+Results/allEEG_silence.npz
+Results/FFTcSPoCv2.npz
+Results/F_SSD2.csv
