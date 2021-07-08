@@ -74,7 +74,7 @@ for i in range(1, N_subjects + 1, 1):
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_FFTSSD.npz', 'r') as fi:
             # calculate and append SSD for both listening and silence
-            F_SSD = np.tensordot(SSD_filters, fi['F'], axes=(0,0))
+            F_SSD = np.abs(np.tensordot(SSD_filters, fi['F'], axes=(0,0)))
             delta_F_SSD = np.mean(np.abs(F_SSD[:,delta_idx1:delta_idx4]),
                 axis=1)
             if include_delta:
@@ -87,7 +87,8 @@ for i in range(1, N_subjects + 1, 1):
                 F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs.append(F_SSD)
             # calculate and append SSD for listening window
-            F_SSD_listen = np.tensordot(SSD_filters, fi['F_listen'], axes=(0,0))
+            F_SSD_listen = np.abs(np.tensordot(SSD_filters, fi['F_listen'],
+                axes=(0,0)))
             delta_F_SSD = np.mean(np.abs(F_SSD_listen[:,delta_idx1:delta_idx4]),
                 axis=1)
             if include_delta:
@@ -95,10 +96,14 @@ for i in range(1, N_subjects + 1, 1):
                     [F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)],
                     delta_F_SSD[:N_SSD, np.newaxis]])
             else:
+                # straighten spectrum
+                F_SSD_listen = scipy.ndimage.convolve1d(F_SSD_listen,
+                    np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
                 F_SSD_listen = F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs_listen.append(F_SSD_listen)
 
-            F_SSD_silence = np.tensordot(SSD_filters, fi['F_silence'], axes=(0,0))
+            F_SSD_silence = np.abs(np.tensordot(SSD_filters, fi['F_silence'],
+                axes=(0,0)))
             delta_F_SSD = np.mean(np.abs(
                 F_SSD_silence[:,delta_idx1:delta_idx4]),axis=1)
             if include_delta:
@@ -106,6 +111,9 @@ for i in range(1, N_subjects + 1, 1):
                     [F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)],
                     delta_F_SSD[:N_SSD, np.newaxis]])
             else:
+                # straighten spectrum
+                F_SSD_silence = scipy.ndimage.convolve1d(F_SSD_silence, 
+                    np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
                 F_SSD_silence = F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)]
             F_SSDs_silence.append(F_SSD_silence)
 
@@ -114,9 +122,9 @@ for i in range(1, N_subjects + 1, 1):
 
 # take absolute value to get EEG amplitude and log to transform
 # to a linear scale
-F_SSDs = [np.log(np.abs(F_SSD_now)) for F_SSD_now in F_SSDs]
-F_SSDs_listen = [np.log(np.abs(F_SSD_now)) for F_SSD_now in F_SSDs_listen]
-F_SSDs_silence = [np.log(np.abs(F_SSD_now)) for F_SSD_now in F_SSDs_silence]
+F_SSDs = [np.log(F_SSD_now) for F_SSD_now in F_SSDs]
+F_SSDs_listen = [np.log(F_SSD_now) for F_SSD_now in F_SSDs_listen]
+F_SSDs_silence = [np.log(F_SSD_now) for F_SSD_now in F_SSDs_silence]
 
 # read the musicality scores of all subjects
 background = {}
