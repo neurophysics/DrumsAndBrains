@@ -85,6 +85,7 @@ for i in range(1, N_subjects + 1, 1):
             elif include_convolution: # straighten spectrum
                 F_SSD = scipy.ndimage.convolve1d(
                     F_SSD, np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
+                F_SSD = F_SSD + np.abs(np.min(F_SSD)) + 1 #so log works later
                 F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
             else:
                 F_SSD = F_SSD[:N_SSD, (snare_idx,wdBlk_idx)]
@@ -101,6 +102,7 @@ for i in range(1, N_subjects + 1, 1):
             elif include_convolution: # straighten spectrum
                 F_SSD_listen = scipy.ndimage.convolve1d(F_SSD_listen,
                     np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
+                F_SSD_listen = F_SSD_listen + np.abs(np.min(F_SSD_listen)) + 1 #so log works later
                 F_SSD_listen = F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)]
             else:
                 F_SSD_listen = F_SSD_listen[:N_SSD, (snare_idx,wdBlk_idx)]
@@ -117,6 +119,7 @@ for i in range(1, N_subjects + 1, 1):
             elif include_convolution: # straighten spectrum
                 F_SSD_silence = scipy.ndimage.convolve1d(F_SSD_silence,
                     np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
+                F_SSD_silence = F_SSD_silence + np.abs(np.min(F_SSD_silence)) + 1 #so log works later
                 F_SSD_silence = F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)]
             else:
                 F_SSD_silence = F_SSD_silence[:N_SSD, (snare_idx,wdBlk_idx)]
