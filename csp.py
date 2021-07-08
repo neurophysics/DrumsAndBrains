@@ -83,7 +83,7 @@ for t, c in zip(target_cov_a, contrast_cov_a):
 # calculate CSP
 ## EV and filter
 CSP_eigvals, CSP_filters = helper_functions.eigh_rank(all_target_cov,
-        all_target_cov + all_contrast_cov) #interestingly only gives 31 EV
+        all_contrast_cov)
 
 # patterns
 CSP_patterns = scipy.linalg.solve(
@@ -95,7 +95,7 @@ CSP_patterns = scipy.linalg.solve(
 CSP_patterns*=np.sign(CSP_patterns[:,np.asarray(channames)=='CZ'])
 
 
-np.savez(os.path.join(result_folder, 'CSP.npz'),
+np.savez(os.path.join(result_folder, 'motor/CSP.npz'),
         CSP_eigvals = CSP_eigvals,
         CSP_filters = CSP_filters, # matrix W in paper
         CSP_patterns = CSP_patterns # matrix A in paper
@@ -103,7 +103,7 @@ np.savez(os.path.join(result_folder, 'CSP.npz'),
 
 # plot eigenvalues
 
-'''with np.load('Results/CSP.npz') as f:
+'''with np.load('Results/motor/CSP.npz') as f:
     CSP_eigvals = f['CSP_eigvals']
     CSP_filters = f['CSP_filters']
     CSP_patterns = f['CSP_patterns']'''
@@ -175,14 +175,21 @@ ERD_CSP_subjmean = np.mean(ERD_CSP, axis=0)
 save_ERDCSP = {}
 for i, e in enumerate(ERD_CSP):
     save_ERDCSP['ERDCSP_{:02d}'.format(i)] = e
-np.savez(os.path.join(result_folder, 'erdcsp.npz'), **save_ERDCSP)
+np.savez(os.path.join(result_folder, 'motor/erdcsp.npz'), **save_ERDCSP)
 
 # plot CSP components
 erd_t = range(ERD_CSP[0].shape[1])
-plt.plot(erd_t, ERD_CSP_subjmean[-CSP_ERDnum:,:].T, label='ERD')
-plt.plot(erd_t, ERD_CSP_subjmean[:CSP_ERSnum,:].T, label='ERS')
+plt.figure()
+for d in range(CSP_ERDnum):
+    plt.plot(erd_t, ERD_CSP_subjmean[-(d+1),:].T,
+        label='ERD {}, EV={}dB'.format(d+1, round(CSP_eigvals[-d], 2)))
+for s in range(CSP_ERSnum):
+    plt.plot(erd_t, ERD_CSP_subjmean[s,:].T,
+        label='ERS {}, EV={}dB'.format(s+1, round(CSP_eigvals[s],2)))
+plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T, c='black', alpha=0.1)
 plt.legend()
-plt.show()
+plt.title('subj.-avg. and eeg-applied CSP components')
+plt.savefig(os.path.join(result_folder, 'motor/erdcsp.pdf'))
 
 # plot ev and spatial patterns
 potmaps = [meet.sphere.potMap(chancoords, pat_now,
@@ -242,7 +249,7 @@ gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[2,:],
         height_ratios = [1,0.1], wspace=0, hspace=0.8)
 head_ax = []
 pc = []
-for i, pat in reversed(list(enumerate(potmaps[-4:]))): #first component is potmap[-1]
+for i, pat in enumerate(reversed(potmaps[-4:])): # take last 4, reverse, then enumerate
     try:
         head_ax.append(fig.add_subplot(gs3[0,i], sharex=head_ax[0],
             sharey=head_ax[0], frame_on=False, aspect='equal'))
