@@ -287,7 +287,7 @@ fig.savefig(os.path.join(result_folder, 'motor/ERD_2000mspreresponse.pdf'))
 
 save_BP = {}
 for i, bp in enumerate(all_BP):
-    save_BP['ERD_{:02d}'.format(i)] = bp
+    save_BP['BP_{:02d}'.format(i)] = bp
 np.savez(os.path.join(result_folder, 'motor/BP.npz'), **save_BP)
 
 save_ERD = {}
