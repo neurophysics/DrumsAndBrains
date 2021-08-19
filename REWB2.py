@@ -23,7 +23,7 @@ iqr_rejection = True
 # include general delta [1,4]Hz in SSD calculation
 include_delta = False
 # convolve to straighten spectrum
-include_convolution = True
+include_convolution = False
 
 # target frequencies
 snareFreq = 7./6
@@ -300,7 +300,6 @@ for ssd_type in ['both', 'listen', 'silence']:
     wdBlk_data = {}
 
     # add EEG
-    # absolute value and log have already been take above!
     for i,l in enumerate(EEG_labels):
         snare_data[l] = robjects.vectors.FloatVector(
                 np.hstack([F_SSD_now[i] for F_SSD_now in snare_F_SSD]))
@@ -316,14 +315,20 @@ for ssd_type in ['both', 'listen', 'silence']:
             musicscore[snare_SubjToTrials])
     wdBlk_data['musicality'] = robjects.vectors.FloatVector(
             musicscore[wdBlk_SubjToTrials])
-    # add trial index
-    snare_data['trial'] = robjects.vectors.FloatVector(np.log(np.hstack(snare_trial_idx) + 1))
-    wdBlk_data['trial'] = robjects.vectors.FloatVector(np.log(np.hstack(wdBlk_trial_idx) + 1))
-    # add session index
-    snare_data['session'] = robjects.vectors.FloatVector(np.log(np.hstack(snare_session_idx) + 1))
-    snare_data['precision'] = robjects.vectors.FloatVector(np.log(np.abs(np.hstack(snare_deviation))))
-    wdBlk_data['session'] = robjects.vectors.FloatVector(np.log(np.hstack(wdBlk_session_idx) + 1))
-    wdBlk_data['precision'] = robjects.vectors.FloatVector(np.log(np.abs(np.hstack(wdBlk_deviation))))
+    # add trial index (no log)
+    snare_data['trial'] = robjects.vectors.FloatVector(
+        np.hstack(snare_trial_idx) + 1)
+    wdBlk_data['trial'] = robjects.vectors.FloatVector(
+        np.hstack(wdBlk_trial_idx) + 1)
+    # add session index (no log) and precision
+    snare_data['session'] = robjects.vectors.FloatVector(
+        np.hstack(snare_session_idx) + 1)
+    snare_data['precision'] = robjects.vectors.FloatVector(
+        np.log(np.abs(np.hstack(snare_deviation))))
+    wdBlk_data['session'] = robjects.vectors.FloatVector(
+        np.hstack(wdBlk_session_idx) + 1)
+    wdBlk_data['precision'] = robjects.vectors.FloatVector(
+        np.log(np.abs(np.hstack(wdBlk_deviation))))
 
     Rsnare_data = base.data_frame(**snare_data)
     RwdBlk_data = base.data_frame(**wdBlk_data)
@@ -368,6 +373,7 @@ for ssd_type in ['both', 'listen', 'silence']:
             models['fe_b_sing'] = model_now
         else:
             models['fe_b'] = model_now
+
 
         if include_delta:
             model_now = stats.lm(
