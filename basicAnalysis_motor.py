@@ -55,6 +55,8 @@ contrast_cov = []
 target_cov = []
 fbands = [[1,4], [4,8], [8,12], [12,20], [20,40]]
 win = [-2000, 500]
+base_idx = range(750) #corresponds to -2000 to -1250ms
+act_idx = range(1250,2000) #corresponds to -750 to 0ms
 idx = 0 #index to asses eeg (0 to 19)
 subj = 1 #index for subject number (1 to 10, 12 to 21)
 while(subj <= N_subjects):
@@ -175,8 +177,8 @@ while(subj <= N_subjects):
                 np.r_[snareHit_times[snareInlier],
                     wdBlkHit_times[wdBlkInlier]],
                 win)
-        contrast_trials = all_trials_filtbp[:, :900,:] # baseline activity
-        target_trials = all_trials_filtbp[:, 900:2000,:] # pre-response activity (ERD/S)
+        contrast_trials = all_trials_filtbp[:, base_idx,:] # baseline activity
+        target_trials = all_trials_filtbp[:, act_idx,:] # pre-response activity (ERD/S)
         target_cov_now = np.einsum(
             'ijk, ljk -> ilk', target_trials, target_trials)
         contrast_cov_now = np.einsum(
@@ -305,7 +307,9 @@ for i, (c,t,sn,wb) in enumerate(zip(contrast_cov, target_cov,
 np.savez(os.path.join(result_folder, 'motor/covmat.npz'),
     **save_covmat,
     fbands=fbands,
-    left_handed=left_handed)
+    left_handed=left_handed,
+    base_idx = base_idx, #corresponds to -2000 to -1250ms
+    act_idx = act_idx) #corresponds to -750 to 0ms)
 
 # store the inlier of the hit responses
 save_inlier = {}

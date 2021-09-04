@@ -16,7 +16,6 @@ N_subjects = 21
 s_rate = 1000 # sampling rate of the EEG
 
 ## plot
-## plot
 mpl.rcParams['axes.labelsize'] = 7
 mpl.rcParams['axes.titlesize'] = 10
 cmap = 'plasma'
@@ -36,7 +35,8 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
         projection='stereographic')
 chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
 
-# read ERD data
+
+##### read ERD data ####
 # erd data is referenced to the average eeg amplitude, bandpass filtered
 # with order 6, normalized s.t. 2 sec pre responce are 100%, trial-averaged
 snareInlier = [] # list of 20 subjects, each shape ≤75
@@ -60,65 +60,62 @@ while True:
             all_wdBlkHit_times.append(f_covmat['wdBlkHit_times_{:02d}'.format(i)])
             fbands = f_covmat['fbands']
             left_handed = f_covmat['left_handed']
+            base_idx = f_covmat['base_idx'] #corresponds to -2000 to -1250ms
+            act_idx = f_covmat['act_idx'] #corresponds to -750 to 0ms
         i+=1
     except KeyError:
         break
 
-# for now, choose alpha band
-target_cov_a = [t[2] for t in target_covs]
-contrast_cov_a = [t[2] for t in contrast_covs]
+##### try reading CSP, if not calculate it #####
+try:
+    with np.load('Results/motor/CSP.npz') as f:
+        CSP_eigvals = f['CSP_eigvals']
+        CSP_filters = f['CSP_filters']
+        CSP_patterns = f['CSP_patterns']
+    print('CSP succesfully read.')
+except KeyError: # read ERD data and calculate CSP
+    print('calculating CSP...')
+    # for now, choose alpha band
+    target_cov_a = [t[2] for t in target_covs]
+    contrast_cov_a = [t[2] for t in contrast_covs]
 
-## average the covariance matrices across all subjects
-for t, c in zip(target_cov_a, contrast_cov_a):
-    # normalize by the trace of the contrast covariance matrix
-    t_now = t.mean(-1)/np.trace(c.mean(-1))
-    c_now = c.mean(-1)/np.trace(c.mean(-1))
-    try:
-        all_target_cov += t_now
-        all_contrast_cov += c_now
-    except: #init
-        all_target_cov = t_now
-        all_contrast_cov = c_now
+    ## average the covariance matrices across all subjects
+    for t, c in zip(target_cov_a, contrast_cov_a):
+        # normalize by the trace of the contrast covariance matrix
+        t_now = t.mean(-1)/np.trace(c.mean(-1))
+        c_now = c.mean(-1)/np.trace(c.mean(-1))
+        try:
+            all_target_cov += t_now
+            all_contrast_cov += c_now
+        except: #init
+            all_target_cov = t_now
+            all_contrast_cov = c_now
 
-# calculate CSP
-## EV and filter
-CSP_eigvals, CSP_filters = helper_functions.eigh_rank(all_target_cov,
-        all_contrast_cov)
+    ##### calculate CSP #####
+    ## EV and filter
+    CSP_eigvals, CSP_filters = helper_functions.eigh_rank(all_target_cov,
+            all_contrast_cov)
 
-# patterns
-CSP_patterns = scipy.linalg.solve(
-        CSP_filters.T.dot(all_target_cov).dot(CSP_filters),
-        CSP_filters.T.dot(all_target_cov))
+    # patterns
+    CSP_patterns = scipy.linalg.solve(
+            CSP_filters.T.dot(all_target_cov).dot(CSP_filters),
+            CSP_filters.T.dot(all_target_cov))
 
-### normalize the patterns such that Cz is always positive
-#@gunnar: we did this for ssd, here as well? would make sense to me
-CSP_patterns*=np.sign(CSP_patterns[:,np.asarray(channames)=='CZ'])
+    ### normalize the patterns such that Cz is always positive
+    #@gunnar: we did this for ssd, here as well? would make sense to me
+    CSP_patterns*=np.sign(CSP_patterns[:,np.asarray(channames)=='CZ'])
 
-
-np.savez(os.path.join(result_folder, 'motor/CSP.npz'),
-        CSP_eigvals = CSP_eigvals,
-        CSP_filters = CSP_filters, # matrix W in paper
-        CSP_patterns = CSP_patterns # matrix A in paper
-        )
-
-# plot eigenvalues
-
-'''with np.load('Results/motor/CSP.npz') as f:
-    CSP_eigvals = f['CSP_eigvals']
-    CSP_filters = f['CSP_filters']
-    CSP_patterns = f['CSP_patterns']'''
+    np.savez(os.path.join(result_folder, 'motor/CSP.npz'),
+            CSP_eigvals = CSP_eigvals,
+            CSP_filters = CSP_filters, # matrix W in paper
+            CSP_patterns = CSP_patterns # matrix A in paper
+            )
 
 
-plt.plot(CSP_eigvals, 'o')
-plt.title('CSP EV, small ERD, large ERS')
-# first argument is pre movement so
-# small EV for ERD: here 1 or maybe 3
-# large EV for ERS: here 2 or 4
-CSP_ERDnum = 3
-CSP_ERSnum = 4
-
-# apply CSP to EEG
-ERD_CSP = []
+##### apply CSP to EEG #####
+ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each shape (CSPcomp,time)
+ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject, each shape (Ntrial,)
+ERSCSP_trial = [] # same for ERS
 idx = 0 #index to asses eeg (0 to 19)
 subj = 1 #index for subject number (1 to 10, 12 to 21)
 while(subj <= N_subjects):
@@ -151,7 +148,7 @@ while(subj <= N_subjects):
     eeg_filtbp = scipy.signal.filtfilt(b, a, eeg)
     # apply CSP to eeg data
     EEG_CSP_subj = np.tensordot(CSP_filters, eeg_filtbp, axes=(0,0))
-    # Hilbert-Transform, absolute value
+    # Hilbert-Transform, absolute value (could also be abs**2)
     eeg_filtHil = np.abs(scipy.signal.hilbert(EEG_CSP_subj, axis=-1))
     # normalize s.t.2000ms preresponse are 100%
     snareHit_times = all_snareHit_times[idx]
@@ -159,25 +156,52 @@ while(subj <= N_subjects):
     all_trials_filt = meet.epochEEG(eeg_filtHil,
             np.r_[snareHit_times[snareInlier[idx]],
                 wdBlkHit_times[wdBlkInlier[idx]]],
-            win)
-    # calculate ERD
+            win) # (SSDcomp, time, trials) = (31, 2500, 143)
+    # calculate trial averaged ERDCSP
     ERD_CSP_subj = all_trials_filt.mean(-1) # trial average
     ERD_CSP_subj /= ERD_CSP_subj[:,0][:,np.newaxis] #want to start at 0%
     ERD_CSP_subj *= 100 # ERD in percent
     ERD_CSP.append(ERD_CSP_subj)
 
+    # calculate ERD in percent per subject and trial
+    # ERD (ERS) = percentage of power decrease (increase):
+    # ERD% = (A-R)/R*100
+    # A event period power 1250-2000 (i.e.(-750 to 0 because we want pre stimulus)))
+    # R reference period power 0-750 (i.e. -2000:-1250 samples),
+    ERDCSP_allCSP_trial = (np.mean(all_trials_filt[:,act_idx], axis=1
+            ) - np.mean(all_trials_filt[:,base_idx], axis=1)
+            ) / np.mean(all_trials_filt[:,base_idx], axis=1) * 100
+    # only keep min/max value i.e. best component
+    ERDCSP_trial.append(
+        ERDCSP_allCSP_trial[np.argmin(np.min(ERDCSP_allCSP_trial, axis=1))])
+    ERSCSP_trial.append(
+        ERDCSP_allCSP_trial[np.argmax(np.max(ERDCSP_allCSP_trial, axis=1))])
+
     idx += 1
     subj += 1
+
+save_ERDCSP = {}
+for i, (e, d, s) in enumerate(zip(ERD_CSP, ERDCSP_trial, ERSCSP_trial)):
+    save_ERDCSP['ERDCSP_{:02d}'.format(i)] = e
+    save_ERDCSP['ERDCSP_trial_{:02d}'.format(i)] = d
+    save_ERDCSP['ERSCSP_trial_{:02d}'.format(i)] = s
+np.savez(os.path.join(result_folder, 'motor/erdcsp.npz'), **save_ERDCSP)
+
+
+##### plot CSP components #####
+# look at plot to determine number of components
+plt.plot(CSP_eigvals, 'o')
+plt.title('CSP EV, small ERD, large ERS')
+# first argument is pre movement so
+# small EV for ERD: here 1 or maybe 3
+# large EV for ERS: here 2 or 4
+CSP_ERDnum = 3
+CSP_ERSnum = 4
 
 # average over subjects
 ERD_CSP_subjmean = np.mean(ERD_CSP, axis=0)
 
-save_ERDCSP = {}
-for i, e in enumerate(ERD_CSP):
-    save_ERDCSP['ERDCSP_{:02d}'.format(i)] = e
-np.savez(os.path.join(result_folder, 'motor/erdcsp.npz'), **save_ERDCSP)
-
-# plot CSP components
+# plot
 erd_t = range(ERD_CSP[0].shape[1])
 plt.figure()
 for d in range(CSP_ERDnum):
