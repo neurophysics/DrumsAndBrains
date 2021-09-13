@@ -147,19 +147,29 @@ while(subj <= N_subjects):
     Nc = len(channames)
     fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
             sharex=True, sharey=True)
-    fig.subplots_adjust(top=0.95, bottom=0.05)
-    fig.suptitle('BP: 2000 ms preresponse')
+    fig.subplots_adjust(top=0.94, bottom=0.08, left=0.11, right=0.95, hspace=0.2)
+    fig.suptitle('BP: 2000 ms preresponse, trial-avg.', fontsize=14)
     for c in range(Nc):
         axs[c//4, c%4].plot(range(*win), all_trials.mean(-1)[c], linewidth=1, c='k')
-        axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
+        axs[c//4, c%4].set_title(channames[c], fontsize=8, pad=2)
         axs[c//4, c%4].axvline(0, lw=0.5, c='k')
         axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
         axs[c//4, c%4].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
             -(cueHit_diff_mean+cueHit_diff_sd),
-            alpha=0.3, color='red')
-        axs[c//4, c%4].tick_params(axis='x', labelsize=8)
-        axs[c//4, c%4].tick_params(axis='y', labelsize=8)
-    #plt.show()
+            alpha=0.3, color='red', label='mean cue time ± sd')
+    # y label
+    axs[0,0].text(0.04, 0.5, s='amplitude [$\mu$V]',
+        transform = fig.transFigure, rotation='vertical',
+        ha='left', va='center', clip_on=False)
+    # x label
+    axs[0,0].text(0.5, 0.035, s='time around response [ms]',
+        transform = fig.transFigure,
+        ha='center', va='bottom', clip_on=False)
+    # legend
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles)) #delete doubles
+    plt.legend(by_label.values(), by_label.keys(), bbox_to_anchor=[0.5, 0.0],
+        bbox_transform = fig.transFigure, loc='lower center')
     fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse.pdf'))
     all_BP.append(all_trials.mean(-1))
 
@@ -183,8 +193,8 @@ while(subj <= N_subjects):
             'ijk, ljk -> ilk', target_trials, target_trials)
         contrast_cov_now = np.einsum(
             'ijk, ljk -> ilk', contrast_trials, contrast_trials)
-        contrast_cov_subj.append(target_cov_now)
-        target_cov_subj.append(contrast_cov_now)
+        contrast_cov_subj.append(contrast_cov_now)
+        target_cov_subj.append(target_cov_now)
 
         #2. Hilbert-Transform, absolute value
         eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filtbp, axis=-1))
@@ -203,34 +213,37 @@ while(subj <= N_subjects):
     contrast_cov.append(contrast_cov_subj)
     target_cov.append(target_cov_subj)
 
-    fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,7),
+    fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,10),
             sharex=True, sharey=True)
-    fig.subplots_adjust(top=0.95, bottom=0.05)
-    fig.suptitle('ERD: 2000 ms preresponse')
+    fig.subplots_adjust(top=0.94, bottom=0.07, left=0.11, right=0.95, hspace=0.3)
+    fig.suptitle('ERD: 2000 ms preresponse, trial-avg.', fontsize=12)
     for c in range(Nc):
-        handels = [] # for legend
         for i,ERD in enumerate(ERDs):
-            h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1,
-                c=colors[i])
-            handels.append(h)
-        if c%3 == 0:
-            axs[c//3, c%3].set_ylabel('ampl. (db)')
-        axs[c//3, c%3].set_title(channames[c], fontsize=8)
+            axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1, c=colors[i],
+                label = '_'*c + str(fbands[i][0])+'-'+str(fbands[i][1]) +' Hz')
+        axs[c//3, c%3].set_title(channames[c], fontsize=8, pad=2)
         axs[c//3, c%3].axvline(0, lw=0.5, c='k')
         axs[c//3, c%3].axhline(0, lw=0.5, c='r', ls=':')
         axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
-            -(cueHit_diff_mean+cueHit_diff_sd),
-            alpha=0.3, color='red')
-        axs[c//3, c%3].tick_params(axis='x', labelsize=8)
-        axs[c//3, c%3].tick_params(axis='y', labelsize=8)
-    fig.delaxes(axs[c//3, 2])
-    plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
-        for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
-        borderaxespad=1, fontsize=5)
-    #plt.show()
-    axs[0,0].set_ylim([-6,6])
-    #fig.tight_layout()
+            -(cueHit_diff_mean+cueHit_diff_sd), alpha=0.3, color='red',
+            label='_'*c + 'mean cue time ± sd') #_ gets ignored as label
+    # y lim+label
+    #axs[0,0].set_ylim([-3.5,3.5])
+    axs[0,0].text(0.035, 0.5, s='amplitude [dB]',
+        transform = fig.transFigure, rotation='vertical',
+        ha='left', va='center', clip_on=False)
+    # x label
+    axs[0,0].text(0.5, 0.02, s='time around response [ms]',
+        transform = fig.transFigure,
+        ha='center', va='bottom', clip_on=False)
+    # legend in last (empty) axes
+    axs[c//3,2].axis('off')
+    lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+    lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+    axs[c//3,2].legend(lines, labels, bbox_to_anchor=[0.5,1.1],
+        loc='upper center', fontsize=8)
     fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse.pdf'))
+
     all_ERD.append(ERDs)
 
     idx += 1
@@ -242,48 +255,69 @@ cueHit_diff_mean = np.nanmean(np.hstack(cueHit_diff))
 cueHit_diff_sd = np.nanstd(np.hstack(cueHit_diff))
 # plot BP for all subjects
 all_BP_avg = np.mean(all_BP, axis=0)
-fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,7),
+fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
         sharex=True, sharey=True)
 fig.tight_layout()
-fig.subplots_adjust(top=0.95, bottom=0.05)
-fig.suptitle('BP: 2000 ms preresponse, subject average')
+fig.subplots_adjust(top=0.94, bottom=0.08, left=0.11, right=0.95, hspace=0.2)
+fig.suptitle('BP: 2000 ms preresponse, subj.- and trial-avg.', fontsize=14)
 for c in range(Nc):
     axs[c//4, c%4].plot(range(*win), all_BP_avg[c], linewidth=1, c='k')
-    axs[c//4, c%4].set_ylabel(channames[c], fontsize=8)
+    axs[c//4, c%4].set_title(channames[c], fontsize=8, pad=2)
     axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
     axs[c//4, c%4].axvline(0, lw=0.5, c='k')
     axs[c//4, c%4].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
         -(cueHit_diff_mean+cueHit_diff_sd),
-        alpha=0.3, color='red')
-#plt.show()
+        alpha=0.3, color='red', label='mean cue time ± sd')
+# y label
+axs[0,0].text(0.04, 0.5, s='amplitude [$\mu$V]',
+    transform = fig.transFigure, rotation='vertical',
+    ha='left', va='center', clip_on=False)
+# x label
+axs[0,0].text(0.5, 0.035, s='time around response [ms]',
+    transform = fig.transFigure,
+    ha='center', va='bottom', clip_on=False)
+# legend
+handles, labels = plt.gca().get_legend_handles_labels()
+by_label = dict(zip(labels, handles)) #delete doubles
+plt.legend(by_label.values(), by_label.keys(), bbox_to_anchor=[0.5, 0.0],
+        bbox_transform = fig.transFigure, loc='lower center')
 fig.savefig(os.path.join(result_folder, 'motor/BP_2000mspreresponse.pdf'))
 
 # plot ERD for all subjects
 all_ERD_avg = [ np.mean([i[j] for i in all_ERD], axis=0)
     for j in range(len(fbands))] # for each band, average over subjects
-fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,7),
+
+fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,10),
         sharex=True, sharey=True)
-fig.subplots_adjust(top=0.95, bottom=0.05)
-fig.suptitle('ERD: 2000 ms preresponse')
+fig.subplots_adjust(top=0.94, bottom=0.07, left=0.11, right=0.95, hspace=0.3)
+fig.suptitle('ERD: 2000 ms preresponse, subj.- and trial-avg.', fontsize=12)
 for c in range(Nc):
-    handels = [] # for legend
     for i,ERD in enumerate(all_ERD_avg):
-        h, = axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1, c=colors[i])
-        handels.append(h)
-    axs[c//3, c%3].set_ylabel(channames[c], fontsize=8)
-    #axs[c//3, c%3].set_ylim([50,200])
+        axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1, c=colors[i],
+            label = '_'*c + str(fbands[i][0])+'-'+str(fbands[i][1]) +' Hz')
+    axs[c//3, c%3].set_title(channames[c], fontsize=8, pad=2)
     axs[c//3, c%3].axvline(0, lw=0.5, c='k')
     axs[c//3, c%3].axhline(0, lw=0.5, c='r', ls=':')
     axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
-        -(cueHit_diff_mean+cueHit_diff_sd),
-        alpha=0.3, color='red')
+        -(cueHit_diff_mean+cueHit_diff_sd), alpha=0.3, color='red',
+        label='_'*c + 'mean cue time ± sd')
     axs[c//3, c%3].tick_params(axis='x', labelsize=8)
     axs[c//3, c%3].tick_params(axis='y', labelsize=8)
-fig.delaxes(axs[c//3, 2])
-plt.legend(handels,['frequency band '+str(i[0])+'-'+str(i[1]) +' Hz'
-    for i in fbands], bbox_to_anchor=(1.7, 1.2), loc='upper center',
-    borderaxespad=1, fontsize=5)
-#plt.show()
+# y lim+label
+axs[0,0].set_ylim([-3.5,3.5])
+axs[0,0].text(0.035, 0.5, s='amplitude [dB]',
+    transform = fig.transFigure, rotation='vertical',
+    ha='left', va='center', clip_on=False)
+# x label
+axs[0,0].text(0.5, 0.02, s='time around response [ms]',
+    transform = fig.transFigure,
+    ha='center', va='bottom', clip_on=False)
+# legend in last (empty) axes
+axs[c//3,2].axis('off')
+lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+axs[c//3,2].legend(lines, labels, bbox_to_anchor=[0.5,1.1],
+    loc='upper center', fontsize=8)
 fig.savefig(os.path.join(result_folder, 'motor/ERD_2000mspreresponse.pdf'))
 
 

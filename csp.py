@@ -16,14 +16,15 @@ N_subjects = 21
 s_rate = 1000 # sampling rate of the EEG
 
 ## plot
-mpl.rcParams['axes.labelsize'] = 7
-mpl.rcParams['axes.titlesize'] = 10
-cmap = 'plasma'
-color1 = '#1f78b4'.upper()
-color2 = '#33a02c'.upper()
-color3 = '#b2df8a'.upper()
-color4 = '#a6cee3'.upper()
-colors=[color1, color2, color3, color4]
+color1 = '#01665e'.upper()
+color2 = '#35978f'.upper()
+color3 = '#80cdc1'.upper()
+color4 = '#c7eae5'.upper()
+color5 = '#f6e8c3'.upper()
+color6 = '#dfc27d'.upper()
+color7 = '#bf812d'.upper()
+color8 = '#8c510a'.upper()
+colors=[color1, color2, color3, color4, color5, color6, color7, color8]
 
 blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
@@ -73,7 +74,7 @@ try:
         CSP_filters = f['CSP_filters']
         CSP_patterns = f['CSP_patterns']
     print('CSP succesfully read.')
-except KeyError: # read ERD data and calculate CSP
+except FileNotFoundError: # read ERD data and calculate CSP
     print('calculating CSP...')
     # for now, choose alpha band
     target_cov_a = [t[2] for t in target_covs]
@@ -156,10 +157,10 @@ while(subj <= N_subjects):
     all_trials_filt = meet.epochEEG(eeg_filtHil,
             np.r_[snareHit_times[snareInlier[idx]],
                 wdBlkHit_times[wdBlkInlier[idx]]],
-            win) # (SSDcomp, time, trials) = (31, 2500, 143)
+            win) # (ERDcomp, time, trials) = (31, 2500, 143)
     # calculate trial averaged ERDCSP
     ERD_CSP_subj = all_trials_filt.mean(-1) # trial average
-    ERD_CSP_subj /= ERD_CSP_subj[:,0][:,np.newaxis] #want to start at 0%
+    ERD_CSP_subj /= ERD_CSP_subj[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
     ERD_CSP_subj *= 100 # ERD in percent
     ERD_CSP.append(ERD_CSP_subj)
 
@@ -201,19 +202,23 @@ CSP_ERSnum = 4
 # average over subjects
 ERD_CSP_subjmean = np.mean(ERD_CSP, axis=0)
 
-# plot
-erd_t = range(ERD_CSP[0].shape[1])
+# plot CSP components
+erd_t = range(win[0], win[1])
 plt.figure()
 for d in range(CSP_ERDnum):
     plt.plot(erd_t, ERD_CSP_subjmean[-(d+1),:].T,
-        label='ERD {}, EV={}dB'.format(d+1, round(CSP_eigvals[-d], 2)))
-for s in range(CSP_ERSnum):
-    plt.plot(erd_t, ERD_CSP_subjmean[s,:].T,
-        label='ERS {}, EV={}dB'.format(s+1, round(CSP_eigvals[s],2)))
+        label='ERD %d' % (d+1) + ' ($\mathrm{EV=%.2fdB}$)' % round(
+        10*np.log10(CSP_eigvals[-(d+1)]), 2), color=colors[d])
+for s in range(-CSP_ERSnum,0,1): #-4,-3,-2,-1
+    plt.plot(erd_t, ERD_CSP_subjmean[-(s+1),:].T,
+        label='ERS %d' % (-s) + ' ($\mathrm{EV=%.2fdB}$)' % round(
+        10*np.log10(CSP_eigvals[-(s+1)]),2), color=colors[s])
 plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T, c='black', alpha=0.1)
-plt.legend()
-plt.title('subj.-avg. and eeg-applied CSP components')
-plt.savefig(os.path.join(result_folder, 'motor/erdcsp.pdf'))
+plt.legend(fontsize=8)
+plt.xlabel('time around response [ms]', fontsize=10)
+plt.ylabel('CSP filtered EEG, relative amplitude [%]', fontsize=10)
+plt.title('subj.-avg. and eeg-applied CSP components [8-12 Hz]', fontsize=12)
+plt.savefig(os.path.join(result_folder, 'motor/erdcsp_comp.pdf'))
 
 # plot ev and spatial patterns
 potmaps = [meet.sphere.potMap(chancoords, pat_now,
@@ -222,20 +227,19 @@ h1 = 1 #ev
 h2 = 1.3 #ERS
 h3 = 1.3 #ERD
 h4 = 0.1 #colorbar
+
 fig = plt.figure(figsize = (5.512,5.512))
 gs = mpl.gridspec.GridSpec(4,1, height_ratios = [h1,h2,h3,h4])
 
 SNNR_ax = fig.add_subplot(gs[0,:])
 SNNR_ax.plot(range(1,len(CSP_eigvals) + 1), 10*np.log10(CSP_eigvals), 'ko-', lw=2,
         markersize=5)
-SNNR_ax.scatter([1], 10*np.log10(CSP_eigvals[0]), c=color1, s=60, zorder=1000)
-SNNR_ax.scatter([2], 10*np.log10(CSP_eigvals[1]), c=color2, s=60, zorder=1000)
-SNNR_ax.scatter([3], 10*np.log10(CSP_eigvals[2]), c=color3, s=60, zorder=1000)
-SNNR_ax.scatter([4], 10*np.log10(CSP_eigvals[3]), c=color4, s=60, zorder=1000)
-SNNR_ax.scatter([len(CSP_eigvals)], 10*np.log10(CSP_eigvals[-1]), c=color1, s=60, zorder=1000)
-SNNR_ax.scatter([len(CSP_eigvals)-1], 10*np.log10(CSP_eigvals[-2]), c=color2, s=60, zorder=1000)
-SNNR_ax.scatter([len(CSP_eigvals)-2], 10*np.log10(CSP_eigvals[-3]), c=color3, s=60, zorder=1000)
-SNNR_ax.scatter([len(CSP_eigvals)-3], 10*np.log10(CSP_eigvals[-4]), c=color4, s=60, zorder=1000)
+for d in range(4): # small EV for ERD
+    SNNR_ax.scatter([d+1], 10*np.log10(CSP_eigvals[d]),
+    c=colors[d], s=60, zorder=1000)
+for s in range(-4,0):#[-4, -3, -2, -1]
+    SNNR_ax.scatter([len(CSP_eigvals)+s+1], 10*np.log10(CSP_eigvals[s]),
+    c=colors[s], s=60, zorder=1000)
 SNNR_ax.axhline(0, c='k', lw=1)
 SNNR_ax.set_xlim([0.5, len(CSP_eigvals)+0.5])
 SNNR_ax.set_xticks(np.r_[1,range(5, len(CSP_eigvals) + 1, 5)])
@@ -243,42 +247,17 @@ SNNR_ax.set_ylabel('SNR (dB)')
 SNNR_ax.set_xlabel('component (index)')
 SNNR_ax.set_title('resulting SNR after CSP')
 
-# plot the four spatial patterns for ERS
-gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
-        height_ratios = [1,0.1], wspace=0, hspace=0.8)
-head_ax = []
-pc = []
-for i, pat in enumerate(potmaps[:4]):
-    try:
-        head_ax.append(fig.add_subplot(gs2[0,i], sharex=head_ax[0],
-            sharey=head_ax[0], frame_on=False, aspect='equal'))
-    except IndexError:
-        head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False, aspect='equal'))
-    Z = pat[2]/np.abs(pat[2]).max()
-    pc.append(head_ax[-1].pcolormesh(
-        *pat[:2], Z, rasterized=True, cmap='coolwarm',
-        vmin=-1, vmax=1, shading='auto'))
-    head_ax[-1].contour(*pat, levels=[0], colors='w')
-    head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
-            alpha=0.5, zorder=1001)
-    head_ax[-1].set_xlabel('ERS %d' % (i + 1) +'\n'+
-            '($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(CSP_eigvals[i])))
-    head_ax[-1].tick_params(**blind_ax)
-    meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
-head_ax[0].set_ylim([-1.1,1.3])
-head_ax[0].set_xlim([-1.6,1.6])
-
 # plot the four spatial patterns for ERD
 gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[2,:],
         height_ratios = [1,0.1], wspace=0, hspace=0.8)
 head_ax = []
 pc = []
-for i, pat in enumerate(reversed(potmaps[-4:])): # take last 4, reverse, then enumerate
+for d, pat in enumerate(reversed(potmaps[-4:])): # take last 4, reverse, then enumerate
     try:
-        head_ax.append(fig.add_subplot(gs3[0,i], sharex=head_ax[0],
+        head_ax.append(fig.add_subplot(gs3[0,d], sharex=head_ax[0],
             sharey=head_ax[0], frame_on=False, aspect='equal'))
     except IndexError:
-        head_ax.append(fig.add_subplot(gs3[0,i], frame_on=False, aspect='equal'))
+        head_ax.append(fig.add_subplot(gs3[0,d], frame_on=False, aspect='equal'))
     Z = pat[2]/np.abs(pat[2]).max()
     pc.append(head_ax[-1].pcolormesh(
         *pat[:2], Z, rasterized=True, cmap='coolwarm',
@@ -286,10 +265,37 @@ for i, pat in enumerate(reversed(potmaps[-4:])): # take last 4, reverse, then en
     head_ax[-1].contour(*pat, levels=[0], colors='w')
     head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
             alpha=0.5, zorder=1001)
-    head_ax[-1].set_xlabel('ERD %d' % (i + 1) +'\n'+
-            '($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(CSP_eigvals[-(i+1)])))
+    head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n'+
+            '($\mathrm{SNR=%.2fdB}$)' % (10*np.log10(CSP_eigvals[-(d+1)])),
+            fontsize=8)
     head_ax[-1].tick_params(**blind_ax)
-    meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
+    meet.sphere.addHead(head_ax[-1], ec=colors[d], zorder=1000, lw=3)
+head_ax[0].set_ylim([-1.1,1.3])
+head_ax[0].set_xlim([-1.6,1.6])
+
+# plot the four spatial patterns for ERS
+gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
+        height_ratios = [1,0.1], wspace=0, hspace=0.8)
+head_ax = []
+pc = []
+for s, pat in enumerate(potmaps[:4]):
+    try:
+        head_ax.append(fig.add_subplot(gs2[0,s], sharex=head_ax[0],
+            sharey=head_ax[0], frame_on=False, aspect='equal'))
+    except IndexError:
+        head_ax.append(fig.add_subplot(gs2[0,s], frame_on=False, aspect='equal'))
+    Z = pat[2]/np.abs(pat[2]).max()
+    pc.append(head_ax[-1].pcolormesh(
+        *pat[:2], Z, rasterized=True, cmap='coolwarm',
+        vmin=-1, vmax=1, shading='auto'))
+    head_ax[-1].contour(*pat, levels=[0], colors='w')
+    head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+            alpha=0.5, zorder=1001)
+    head_ax[-1].set_xlabel('ERS %d' % (s + 1) +'\n'+
+            '($\mathrm{SNR=%.2fdB}$)' % (10*np.log10(CSP_eigvals[s])),
+            fontsize=8)
+    head_ax[-1].tick_params(**blind_ax)
+    meet.sphere.addHead(head_ax[-1], ec=colors[-(s+1)], zorder=1000, lw=3)
 head_ax[0].set_ylim([-1.1,1.3])
 head_ax[0].set_xlim([-1.6,1.6])
 
