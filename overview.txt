@@ -30,21 +30,21 @@ a/b/... script can run in parallel
 
 3a. (R) calcFFTSSD.py
     plots: 'FFTSSD_patterns.pdf'
-    data: 'F_SSD.npz', 'FFTSSD.npz'
+    data: 'F_SSD_inlier.npz', 'FFTSSD.npz'
 3b. (DR) basicAnalysis_motor.py
     plots: 'motor/BP_2000mspreresponse.pdf', 'motor/ERD_2000mspreresponse.pdf' (also for each subject)
     data: 'motor/BP.npz', 'motor/ERD.npz', 'motor/covmat.npz', 'motor/inlier.npz'
 
 4a. (DR) REWB2.py
-    data: ('snare_models.rds', 'wdBlk_models.rds'), Results/models/* e.g. *=snare_both.html
-4b. (DR) SSDMusicCorr.py
-    plots: 'SNNR_exp.pdf'
-4c. (R) bestDipoleFit.py
+    data: F_SSD.npz, ('snare_models.rds', 'wdBlk_models.rds'), Results/models/* e.g. *=snare_both.html
+4b. (R) bestDipoleFit.py
     plots: 'BestDipoleFit_snarePaired.pdf', 'BestDipoleFit_snareSingle.pdf'
-4d. (DR) csp.py
+4c. (DR) csp.py
     plots: 'motor/CSP_patterns.pdf'
     data: 'CSP.npz', 'erdcsp.npz'
 
+5a. (DR) SSDMusicCorr.py
+    plots: 'SNNR_exp.pdf'
 
 # other scripts
 helper_function.py: includes some helpful functions

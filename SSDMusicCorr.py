@@ -23,13 +23,23 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
         labelbottom=False)
 
-with np.load(os.path.join(result_folder, 'FFTSSD.npz'), 'rb') as fl:
-    SNNR_i = fl['SSD_obj_per_subject'][:,0] #SNNR_i = fi['SSD_eigvals']?
+# SNNR_i used to be from FFTSSD.npz: fl['SSD_obj_per_subject'][:,0]
+F_SSDs = [] #for each subject (N_SSD=2,N_freq=2,N_trials)
+if os.path.exists(os.path.join(result_folder, 'F_SSD.npz')):
+    i=0
+    while True:
+        try:
+            with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as f:
+                F_SSDs.append(f['F_SSD{:02d}'.format(i)])
+            i+=1
+        except KeyError:
+            break
 
+SNNR_i = [f[0,0,0] for f in F_SSDs]
 SNNR_i = 10*np.log10(SNNR_i)
 
 background = {}
-with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'rU') as infile:
+with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'r') as infile:
     reader = csv.DictReader(infile, fieldnames=None, delimiter=';')
     for row in reader:
         key = row['Subjectnr']
