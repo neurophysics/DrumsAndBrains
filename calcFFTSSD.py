@@ -180,7 +180,7 @@ for i, (snareInlier_now, wdBlkInlier_now,
     #save_results['F_SSD_listen_{:02d}'.format(i)] = F_SSD_listen_now
     #save_results['F_SSD_silence_{:02d}'.format(i)] = F_SSD_silence_now
 
-np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
+np.savez(os.path.join(result_folder, 'F_SSD_inlier.npz'), **save_results, f=f)
 
 ## save SSD eigenvalues, filters and patterns in a.npz
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
