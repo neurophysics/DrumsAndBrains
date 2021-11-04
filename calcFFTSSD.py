@@ -109,6 +109,12 @@ for t, c in zip(target_cov, contrast_cov):
 SSD_eigvals, SSD_filters = helper_functions.eigh_rank(
         all_target_cov, all_contrast_cov)
 
+SNNR_i = []
+for t, c in zip(target_cov, contrast_cov):
+    t_power = SSD_filters.T @ t.mean(-1) @ SSD_filters #target power = ignal + noise
+    c_power = SSD_filters.T @ c.mean(-1) @ SSD_filters #contrast power
+    SNNR_i.append(t_power / c_power)
+
 ## patterns
 SSD_patterns = scipy.linalg.solve(
         SSD_filters.T.dot(all_target_cov).dot(SSD_filters),
@@ -186,7 +192,8 @@ np.savez(os.path.join(result_folder, 'F_SSD_inlier.npz'), **save_results, f=f)
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_eigvals = SSD_eigvals,
         SSD_filters = SSD_filters,
-        SSD_patterns = SSD_patterns
+        SSD_patterns = SSD_patterns,
+        SNNR_i = SNNR_i
         )
 
 
