@@ -16,15 +16,15 @@ N_subjects = 21
 s_rate = 1000 # sampling rate of the EEG
 
 ## plot
-color1 = '#01665e'.upper()
-color2 = '#35978f'.upper()
-color3 = '#80cdc1'.upper()
-color4 = '#c7eae5'.upper()
-color5 = '#f6e8c3'.upper()
-color6 = '#dfc27d'.upper()
-color7 = '#bf812d'.upper()
-color8 = '#8c510a'.upper()
-colors=[color1, color2, color3, color4, color5, color6, color7, color8]
+color1 = '#8c510a'.upper() #dark brown
+color2 = '#bf812d'.upper()
+color3 = '#dfc27d'.upper()
+color4 = '#f6e8c3'.upper() #light brown
+color5 = '#c7eae5'.upper() #light blue
+color6 = '#80cdc1'.upper()
+color7 = '#35978f'.upper()
+color8 = '#01665e'.upper() #dark blue
+colors = [color1, color2, color3, color4, color5, color6, color7, color8]
 
 blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
@@ -196,8 +196,8 @@ plt.title('CSP EV, small ERD, large ERS')
 # first argument is pre movement so
 # small EV for ERD: here 1 or maybe 3
 # large EV for ERS: here 2 or 4
-CSP_ERDnum = 3
-CSP_ERSnum = 4
+CSP_ERDnum = 3 # [:3]
+CSP_ERSnum = 4 #[-4:]
 
 # average over subjects
 ERD_CSP_subjmean = np.mean(ERD_CSP, axis=0)
@@ -205,15 +205,17 @@ ERD_CSP_subjmean = np.mean(ERD_CSP, axis=0)
 # plot CSP components
 erd_t = range(win[0], win[1])
 plt.figure()
-for d in range(CSP_ERDnum):
-    plt.plot(erd_t, ERD_CSP_subjmean[-(d+1),:].T,
-        label='ERD %d' % (d+1) + ' ($\mathrm{EV=%.2fdB}$)' % round(
-        10*np.log10(CSP_eigvals[-(d+1)]), 2), color=colors[d])
-for s in range(-CSP_ERSnum,0,1): #-4,-3,-2,-1
-    plt.plot(erd_t, ERD_CSP_subjmean[-(s+1),:].T,
-        label='ERS %d' % (-s) + ' ($\mathrm{EV=%.2fdB}$)' % round(
-        10*np.log10(CSP_eigvals[-(s+1)]),2), color=colors[s])
-plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T, c='black', alpha=0.1)
+# plot in order from top to bottom
+for s in range(CSP_ERSnum): #0,1,2,3
+    plt.plot(erd_t, ERD_CSP_subjmean[s,:].T,
+        label='ERS %d' % (s+1) + ' ($\mathrm{EV=%.2fdB}$)' % round(
+        10*np.log10(CSP_eigvals[s]),2), color=colors[s])
+for d in range(-CSP_ERDnum,0,1): #-3,-2,-1
+    plt.plot(erd_t, ERD_CSP_subjmean[d,:].T,
+        label='ERD %d' % (-d) + ' ($\mathrm{EV=%.2fdB}$)' % round(
+        10*np.log10(CSP_eigvals[d]), 2), color=colors[d])
+plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T,
+    c='black', alpha=0.1)
 plt.legend(fontsize=8)
 plt.xlabel('time around response [ms]', fontsize=10)
 plt.ylabel('CSP filtered EEG, relative amplitude [%]', fontsize=10)
