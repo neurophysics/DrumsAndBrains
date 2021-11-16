@@ -71,19 +71,19 @@ while True:
 F_SSDs = []
 F_SSDs_listen = []
 F_SSDs_silence = []
-if os.path.exists(os.path.join(
-    result_folder, 'S{:02d}'.format(subj), 'F_SSD.npz')):
+# check if there is already a F_SSD file
+if os.path.exists(os.path.join(result_folder, 'F_SSD.npz')):
     i=0
     while True:
         try:
             with np.load(os.path.join(result_folder, 'F_SSD.npz'), 'r') as f:
-            F_SSDs.append(f['F_SSD{:02d}'.format(i)])
-            F_SSDs_listen.append(f['F_SSD_listen{:02d}'.format(i)])
-            F_SSDs_silence.append(f['F_SSD_silence{:02d}'.format(i)])
+                F_SSDs.append(f['F_SSD{:02d}'.format(i)])
+                F_SSDs_listen.append(f['F_SSD_listen{:02d}'.format(i)])
+                F_SSDs_silence.append(f['F_SSD_silence{:02d}'.format(i)])
             i+=1
         except KeyError:
             break
-else:
+else: #calculate F_SSDs
     for i in range(1, N_subjects + 1, 1):
         try:
             with np.load(os.path.join(result_folder, 'S%02d' % i)
