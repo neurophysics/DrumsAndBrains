@@ -204,11 +204,11 @@ while(subj <= N_subjects):
                     wdBlkHit_times[wdBlkInlier]],
                 win)
         # calculate ERD
-        ERD = all_trials_filt.mean(-1)
+        ERD = all_trials_filt.mean(-1) #trial avg
         avg_idx = np.all([np.arange(*win)>=-2000, np.arange(*win)<-1000],0)
         ERD /= ERD[:,avg_idx].mean(-1)[:,np.newaxis]
         #ERD *= 100
-        ERD = 20*np.log10(ERD)
+        ERD = 20*np.log10(ERD) #in db
         ERDs.append(ERD)
     contrast_cov.append(contrast_cov_subj)
     target_cov.append(target_cov_subj)
