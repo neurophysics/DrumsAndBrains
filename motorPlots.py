@@ -48,18 +48,30 @@ while True:
             snareInlier.append(fi['snareInlier_response_{:02d}'.format(i)])
             wdBlkInlier.append(fi['wdBlkInlier_response_{:02d}'.format(i)])
             win = fi['win']
+        with np.load(os.path.join(result_folder, 'motor/covmat.npz'),
+            'r') as f_covmat:
+            fbands = f_covmat['fbands']
+            base_idx = f_covmat['base_idx'] #corresponds to -2000 to -1250ms
+            act_idx = f_covmat['act_idx'] #corresponds to -750 to 0ms
         i+=1
     except KeyError:
         break
 
+base_ms = [t+win[0] for t in base_idx] #-2000 to 500 milliseconds
+act_ms = [t+win[0] for t in act_idx] #-2000 to 500
+
 ##### read BP #####
-BP = [] #stores BP per subject, each shape (Ncomp, time)=(32,2500)
+BPs = [] #stores BP per subject, each shape (Ncomp, time)=(32,2500)
+ERDs = [] #stores ERD per subject, each shape (band,Ncomp, time)=(5,32,2500)
 i=0
-while True:
+while True: #loop over subjects
     try:
         with np.load(os.path.join(result_folder, 'motor/BP.npz'),
-            'r') as fi:
-            BP.append(fi['BP_{:02d}'.format(i)])
+            'r') as f_BP:
+            BPs.append(f_BP['BP_{:02d}'.format(i)])
+        with np.load(os.path.join(result_folder, 'motor/ERD.npz'),
+            'r') as f_ERD:
+            ERDs.append(f_ERD['ERD_{:02d}'.format(i)])
         i+=1
     except KeyError:
         break
@@ -88,7 +100,6 @@ except FileNotFoundError: # read ERD data and calculate CSP
 ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, CSPcomp,time)
 ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject,each shape (Nband, Ntrial)
 ERSCSP_trial = [] # same for ERS
-BP = [] #stores BP per subject, each shape (Ncomp, time)=(32,2500)
 try:
     i=0 #loop over subjects
     while True:
@@ -97,9 +108,6 @@ try:
                 ERD_CSP.append(f['ERDCSP_{:02d}'.format(i)])
                 ERDCSP_trial.append(f['ERDCSP_trial_{:02d}'.format(i)])
                 ERSCSP_trial.append(f['ERSCSP_trial_{:02d}'.format(i)])
-            with np.load(os.path.join(result_folder, 'motor/BP.npz'),
-                'r') as fi:
-                BP.append(fi['BP_{:02d}'.format(i)])
             i+=1
         except KeyError:
             break
@@ -123,6 +131,9 @@ for band_idx, band_name in enumerate(band_names):
     ev = CSP_eigvals[band_idx]
     CSP_ERDnum = CSP_ERDnums[band_idx]
     CSP_ERSnum = CSP_ERSnums[band_idx]
+    # normalize
+    ERD_CSP_subjmean /= ERD_CSP_subjmean[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
+    ERD_CSP_subjmean *= 100 # ERD in percent
 
     # plot CSP components
     erd_t = range(win[0], win[1])
@@ -138,6 +149,10 @@ for band_idx, band_name in enumerate(band_names):
             10*np.log10(ev[d]), 2), color=colors[d])
     plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T,
         c='black', alpha=0.1)
+    plt.axvspan(base_ms[0], base_ms[-1], alpha=0.3, color=colors[4],
+        label='contrast period') #_ gets ignored as label
+    plt.axvspan(act_ms[0], act_ms[-1], alpha=0.3, color=colors[5],
+        label='target period')
     plt.legend(fontsize=8)
     plt.xlabel('time around response [ms]', fontsize=10)
     plt.ylabel('CSP filtered EEG, relative amplitude [%]', fontsize=10)
@@ -145,6 +160,7 @@ for band_idx, band_name in enumerate(band_names):
         band_name[:-1]), fontsize=12)
     plt.savefig(os.path.join(result_folder,
         'motor/erdcsp_comp{}.pdf'.format(band_name)))
+
 
 ##### plot EV and CSP patterns #####
 # this, especially calculating the potmaps, takes a while
@@ -179,32 +195,6 @@ for band_idx, band_name in enumerate(band_names):
     SNNR_ax.set_xlabel('component (index)')
     SNNR_ax.set_title('resulting SNR after CSP for band ' + band_name)
 
-    # plot the four spatial patterns for ERD
-    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[2,:],
-            height_ratios = [1,0.1], wspace=0, hspace=0.8)
-    head_ax = []
-    pc = []
-    for d, pat in enumerate(reversed(potmaps[-4:])): # take last 4, reverse, then enumerate
-        try:
-            head_ax.append(fig.add_subplot(gs3[0,d], sharex=head_ax[0],
-                sharey=head_ax[0], frame_on=False, aspect='equal'))
-        except IndexError:
-            head_ax.append(fig.add_subplot(gs3[0,d], frame_on=False, aspect='equal'))
-        Z = pat[2]/np.abs(pat[2]).max()
-        pc.append(head_ax[-1].pcolormesh(
-            *pat[:2], Z, rasterized=True, cmap='coolwarm',
-            vmin=-1, vmax=1, shading='auto'))
-        head_ax[-1].contour(*pat, levels=[0], colors='w')
-        head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
-                alpha=0.5, zorder=1001)
-        head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n'+
-                '($\mathrm{SNR=%.2fdB}$)' % (10*np.log10(ev[-(d+1)])),
-                fontsize=8)
-        head_ax[-1].tick_params(**blind_ax)
-        meet.sphere.addHead(head_ax[-1], ec=colors[d], zorder=1000, lw=3)
-    head_ax[0].set_ylim([-1.1,1.3])
-    head_ax[0].set_xlim([-1.6,1.6])
-
     # plot the four spatial patterns for ERS
     gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
             height_ratios = [1,0.1], wspace=0, hspace=0.8)
@@ -227,7 +217,33 @@ for band_idx, band_name in enumerate(band_names):
                 '($\mathrm{SNR=%.2fdB}$)' % (10*np.log10(ev[s])),
                 fontsize=8)
         head_ax[-1].tick_params(**blind_ax)
-        meet.sphere.addHead(head_ax[-1], ec=colors[-(s+1)], zorder=1000, lw=3)
+        meet.sphere.addHead(head_ax[-1], ec=colors[s], zorder=1000, lw=3)
+    head_ax[0].set_ylim([-1.1,1.3])
+    head_ax[0].set_xlim([-1.6,1.6])
+
+    # plot the four spatial patterns for ERD
+    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[2,:],
+            height_ratios = [1,0.1], wspace=0, hspace=0.8)
+    head_ax = []
+    pc = []
+    for d, pat in enumerate(reversed(potmaps[-4:])): # take last 4, reverse, then enumerate
+        try:
+            head_ax.append(fig.add_subplot(gs3[0,d], sharex=head_ax[0],
+                sharey=head_ax[0], frame_on=False, aspect='equal'))
+        except IndexError:
+            head_ax.append(fig.add_subplot(gs3[0,d], frame_on=False, aspect='equal'))
+        Z = pat[2]/np.abs(pat[2]).max()
+        pc.append(head_ax[-1].pcolormesh(
+            *pat[:2], Z, rasterized=True, cmap='coolwarm',
+            vmin=-1, vmax=1, shading='auto'))
+        head_ax[-1].contour(*pat, levels=[0], colors='w')
+        head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                alpha=0.5, zorder=1001)
+        head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n'+
+                '($\mathrm{SNR=%.2fdB}$)' % (10*np.log10(ev[-(d+1)])),
+                fontsize=8)
+        head_ax[-1].tick_params(**blind_ax)
+        meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
     head_ax[0].set_ylim([-1.1,1.3])
     head_ax[0].set_xlim([-1.6,1.6])
 
@@ -262,82 +278,195 @@ for band_idx, band_name in enumerate(band_names):
     fig.savefig(os.path.join(result_folder,
         'motor/CSP_patterns{}.pdf'.format(band_name)))
 
-##### plot BP and ERP patterns over time #####
-times = [-1000,-750,-500,-250,0] #ms relative to response
-time_idx = [t-win[0]-1 for t in times] #win is -2000 to 500
-# for now, only for the first subject (later for all or average?)
-ERD_CSP_subj = ERD_CSP[0]
-BP_subj = BP[0]
-potmaps_BP = [meet.sphere.potMap(chancoords, BP_subj[:,t],
-    projection='stereographic') for t in time_idx]
-
-fig = plt.figure(figsize = (5.512,5.512))
-h1 = 2 #BP
-h7 = 0.1 #colorbar
-gs = mpl.gridspec.GridSpec(7,1, height_ratios = [h1,h1,h1,h1,h1,h1,h7])
-
-# first line BP
-gs1 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[0,:],
-        height_ratios = [1,0.1], wspace=0, hspace=0.2)
-head_ax = []
-pc = [] #for color bar
-for i, pat in enumerate(potmaps_BP):
-    try:
-        head_ax.append(fig.add_subplot(gs1[0,i], sharex=head_ax[0],
-            sharey=head_ax[0], frame_on=False, aspect='equal'))
-    except IndexError:
-        head_ax.append(fig.add_subplot(gs1[0,i], frame_on=False, aspect='equal'))
-    Z = pat[2]/np.abs(pat[2]).max()
-    pc.append(head_ax[-1].pcolormesh(
-        *pat[:2], Z, rasterized=True, cmap='coolwarm',
-        vmin=-1, vmax=1, shading='auto'))
-    head_ax[-1].contour(*pat, levels=[0], colors='w')
-    head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
-            alpha=0.5, zorder=1001)
-    head_ax[0].set_ylabel('BP', fontsize=8)
-    head_ax[-1].tick_params(**blind_ax)
-    meet.sphere.addHead(head_ax[-1], ec='black', zorder=1000, lw=2)
-head_ax[0].set_ylim([-1.1,1.3])
-head_ax[0].set_xlim([-1.6,1.6])
-
-
-# line 2-6: ERD per band (only ERD => last component)
+##### plot combination of above plots: components with patterns above and below ####
 for band_idx, band_name in enumerate(band_names):
-    potmaps_ERD = [meet.sphere.potMap(chancoords, ERD_CSP_subj[band_idx,:,t],
-        projection='stereographic') for t in time_idx]
+    ev = CSP_eigvals[band_idx]
 
-    gsi = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[band_idx+1,:],
-            height_ratios = [1,0.1], wspace=0, hspace=0.2)
+    potmaps = potmaps_csp[band_idx]
+    h1 = 2. #ERS
+    h2 = 5. #component plot
+    h3 = 2. #ERD
+    h4 = 0.08 #colorbar
+
+    fig = plt.figure(figsize = (5.5,7))
+    gs = mpl.gridspec.GridSpec(4,1, height_ratios = [h1,h2,h3,h4], top=0.99,
+        bottom = -1, hspace=0.0)
+
+    # plot the five spatial patterns for ERS
+    gs1 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[0,:],
+            height_ratios = [1,0.1], wspace=0, hspace=0.7)
     head_ax = []
-    for i, pat in enumerate(potmaps_ERD):
+    pc = []
+    for s, pat in enumerate(potmaps[:5]):
         try:
-            head_ax.append(fig.add_subplot(gsi[band_idx+1,i], sharex=head_ax[0],
+            head_ax.append(fig.add_subplot(gs1[0,s], sharex=head_ax[0],
                 sharey=head_ax[0], frame_on=False, aspect='equal'))
         except IndexError:
-            head_ax.append(fig.add_subplot(gsi[0,i], frame_on=False, aspect='equal'))
-        #Z = pat[2]/np.abs(pat[2]).max()
+            head_ax.append(fig.add_subplot(gs1[0,s], frame_on=False, aspect='equal'))
+        Z = pat[2]/np.abs(pat[2]).max()
         pc.append(head_ax[-1].pcolormesh(
             *pat[:2], Z, rasterized=True, cmap='coolwarm',
             vmin=-1, vmax=1, shading='auto'))
         head_ax[-1].contour(*pat, levels=[0], colors='w')
         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                 alpha=0.5, zorder=1001)
-        head_ax[0].set_ylabel('ERD\n' + band_name + ' Hz', fontsize=8)
+        head_ax[-1].set_xlabel('ERS %d' % (s + 1),
+                fontsize=8)
+        head_ax[-1].tick_params(**blind_ax)
+        meet.sphere.addHead(head_ax[-1], ec=colors[s], zorder=1000, lw=3)
+    head_ax[0].set_ylim([-1.1,1.3])
+    head_ax[0].set_xlim([-1.6,1.6])
+
+    # plot the four spatial patterns for ERD
+    comp_ax = fig.add_subplot(gs[1,:])
+    ERD_CSP_subjmean = np.mean([e[band_idx] for e in ERD_CSP], axis=0)
+    CSP_ERDnum = CSP_ERDnums[band_idx]
+    CSP_ERSnum = CSP_ERSnums[band_idx]
+    # normalize
+    ERD_CSP_subjmean /= ERD_CSP_subjmean[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
+    ERD_CSP_subjmean *= 100 # ERD in percent
+    for s in range(CSP_ERSnum): #0,1,2,3
+        comp_ax.plot(erd_t, ERD_CSP_subjmean[s,:].T,
+            label='ERS %d' % (s+1) + ' ($\mathrm{EV=%.2fdB}$)' % round(
+            10*np.log10(ev[s]),2), color=colors[s])
+    for d in range(-CSP_ERDnum,0,1): #-3,-2,-1
+        comp_ax.plot(erd_t, ERD_CSP_subjmean[d,:].T,
+            label='ERD %d' % (-d) + ' ($\mathrm{EV=%.2fdB}$)' % round(
+            10*np.log10(ev[d]), 2), color=colors[d])
+    comp_ax.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T,
+        c='black', alpha=0.1)
+    comp_ax.axvspan(base_ms[0], base_ms[-1], alpha=0.3, color=colors[4],
+        label='contrast period') #_ gets ignored as label
+    comp_ax.axvspan(act_ms[0], act_ms[-1], alpha=0.3, color=colors[5],
+        label='target period')
+    comp_ax.legend(fontsize=8)
+    comp_ax.set_xlabel('time around response [ms]', fontsize=10)
+    comp_ax.set_ylabel('CSP filtered EEG, relative amplitude [%]', fontsize=10)
+    comp_ax.set_title('subj.-avg. and eeg-applied CSP components {} Hz]'.format(
+        band_name[:-1]), fontsize=12)
+
+    # plot the five spatial patterns for ERD
+    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[2,:],
+            height_ratios = [1,0.1], wspace=0, hspace=0.7)
+    head_ax = []
+    pc = []
+    for d, pat in enumerate(reversed(potmaps[-5:])): # take last 5, reverse, then enumerate
+        try:
+            head_ax.append(fig.add_subplot(gs3[0,d], sharex=head_ax[0],
+                sharey=head_ax[0], frame_on=False, aspect='equal'))
+        except IndexError:
+            head_ax.append(fig.add_subplot(gs3[0,d], frame_on=False, aspect='equal'))
+        Z = pat[2]/np.abs(pat[2]).max()
+        pc.append(head_ax[-1].pcolormesh(
+            *pat[:2], Z, rasterized=True, cmap='coolwarm',
+            vmin=-1, vmax=1, shading='auto'))
+        head_ax[-1].contour(*pat, levels=[0], colors='w')
+        head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                alpha=0.5, zorder=1001)
+        head_ax[-1].set_xlabel('ERD %d' % (d + 1),
+                fontsize=8)
+        head_ax[-1].tick_params(**blind_ax)
+        meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
+    head_ax[0].set_ylim([-1.1,1.3])
+    head_ax[0].set_xlim([-1.6,1.6])
+
+    # add a colorbar
+    cbar_ax = fig.add_subplot(gs[3,:])
+    cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+            label='amplitude (a.u.)', ticks=[-1,0,1])
+    cbar.ax.set_xticklabels(['-', '0', '+'])
+    cbar.ax.axvline(0, c='w', lw=2)
+
+    gs.tight_layout(fig, pad=0.5, h_pad=0.8)#, pad=0.2, h_pad=0.8
+    fig.savefig(os.path.join(result_folder,
+        'motor/CSP{}.pdf'.format(band_name)))
+plt.close('all')
+
+##### plot BP and ERP patterns over time fro each subject #####
+times = [-1000,-750,-500,-250,0] #ms relative to response
+time_idx = [t-win[0]-1 for t in times] #win is -2000 to 500
+for subj_idx in range(N_subjects):
+    if subj_idx < 11:
+        subj = subj_idx+1
+    elif subj_idx == 11: #11 has no eeg, could make this clearer by tring to read file
+        break
+    else:
+        subj = subj_idx+2
+    print('calculating and plotting patterns for subject '+str(subj)+'...')
+    BP_subj = BPs[subj_idx]
+    ERD_subj = ERDs[subj_idx]
+
+    potmaps_BP = [meet.sphere.potMap(chancoords, BP_subj[:,t],
+        projection='stereographic') for t in time_idx]
+
+    fig = plt.figure(figsize = (5.512,5.512))
+    h1 = 2 #BP
+    h7 = 0.1 #colorbar
+    gs = mpl.gridspec.GridSpec(7,1, height_ratios = [h1,h1,h1,h1,h1,h1,h7])
+
+    # first line BP
+    gs1 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[0,:],
+            height_ratios = [1,0.1], wspace=0, hspace=0.2)
+    head_ax = []
+    pc = [] #for color bar
+    for i, pat in enumerate(potmaps_BP):
+        try:
+            head_ax.append(fig.add_subplot(gs1[0,i], sharex=head_ax[0],
+                sharey=head_ax[0], frame_on=False, aspect='equal'))
+        except IndexError:
+            head_ax.append(fig.add_subplot(gs1[0,i], frame_on=False, aspect='equal'))
+        Z = pat[2]/np.abs(pat[2]).max()
+        pc.append(head_ax[-1].pcolormesh(
+            *pat[:2], Z, rasterized=True, cmap='coolwarm',
+            vmin=-1, vmax=1, shading='auto'))
+        head_ax[-1].contour(*pat, levels=[0], colors='w')
+        head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                alpha=0.5, zorder=1001)
+        head_ax[0].set_ylabel('BP', fontsize=8)
         head_ax[-1].tick_params(**blind_ax)
         meet.sphere.addHead(head_ax[-1], ec='black', zorder=1000, lw=2)
-        head_ax[-1].set_ylim([-1.1,1.3])
-        head_ax[-1].set_xlim([-1.6,1.6])
-        if band_idx == len(band_names)-1:
-            head_ax[-1].set_xlabel(str(times[i]) + 'ms', fontsize=8)
+    head_ax[0].set_ylim([-1.1,1.3])
+    head_ax[0].set_xlim([-1.6,1.6])
+    head_ax[2].set_title('BP and ERD patterns for subject ' + str(subj))
 
-# line 7: add a colorbar
-cbar.ax.tick_params(labelsize=8)
-cbar_ax = fig.add_subplot(gs[6,:])
-cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
-        label='amplitude (a.u.)', ticks=[-1,0,1])
-cbar.ax.set_xticklabels(['-', '0', '+'])
-cbar.ax.axvline(0, c='w', lw=2)
-cbar.ax.set_xticklabels(['-', '0', '+'])
+    # line 2-6: ERD per band (only ERD => last component)
+    for band_idx, band_name in enumerate(band_names):
+        potmaps_ERD = [meet.sphere.potMap(chancoords, ERD_subj[band_idx,:,t],
+            projection='stereographic') for t in time_idx]
 
-gs.tight_layout(fig, pad=0.5, h_pad=0.2)
-plt.savefig(os.path.join(result_folder,'motor/patternsByTime.pdf'))
+        gsi = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[band_idx+1,:],
+                height_ratios = [1,0.1], wspace=0, hspace=0.2)
+        head_ax = []
+        for i, pat in enumerate(potmaps_ERD):
+            try:
+                head_ax.append(fig.add_subplot(gsi[0,i], sharex=head_ax[0],
+                    sharey=head_ax[0], frame_on=False, aspect='equal'))
+            except IndexError: #first head
+                head_ax.append(fig.add_subplot(gsi[0,i], frame_on=False, aspect='equal'))
+            #Z = pat[2]/np.abs(pat[2]).max()
+            pc.append(head_ax[-1].pcolormesh(
+                *pat[:2], Z, rasterized=True, cmap='coolwarm',
+                vmin=-1, vmax=1, shading='auto'))
+            head_ax[-1].contour(*pat, levels=[0], colors='w')
+            head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                    alpha=0.5, zorder=1001)
+            head_ax[0].set_ylabel('ERD\n' + band_name + ' Hz', fontsize=8)
+            head_ax[-1].tick_params(**blind_ax)
+            meet.sphere.addHead(head_ax[-1], ec='black', zorder=1000, lw=2)
+            head_ax[-1].set_ylim([-1.1,1.3])
+            head_ax[-1].set_xlim([-1.6,1.6])
+            if band_idx == len(band_names)-1:
+                head_ax[-1].set_xlabel(str(times[i]) + 'ms', fontsize=8)
+
+    # line 7: add a colorbar
+    cbar.ax.tick_params(labelsize=8)
+    cbar_ax = fig.add_subplot(gs[6,:])
+    cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+            label='amplitude [dB]', ticks=[-1,0,1])
+    cbar.ax.set_xticklabels(['-', '0', '+'])
+    cbar.ax.axvline(0, c='w', lw=2)
+    cbar.ax.set_xticklabels(['-', '0', '+'])
+
+    gs.tight_layout(fig, pad=0.5, h_pad=0.2)
+    plt.savefig(os.path.join(result_folder,'S%02d'% subj,
+        'motor_patternsByTime.pdf'))
