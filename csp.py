@@ -126,7 +126,7 @@ try:
     i=0
     while True:
         try:
-            with np.load(os.path.join(result_folder,'motor/erdcsp.npz')) as f:
+            with np.load(os.path.join(result_folder,'motor/erdcsp2.npz')) as f:
                 ERD_CSP.append(f['ERDCSP_{:02d}'.format(i)])
                 ERDCSP_trial.append(f['ERDCSP_trial_{:02d}'.format(i)])
                 ERSCSP_trial.append(f['ERSCSP_trial_{:02d}'.format(i)])
@@ -169,9 +169,10 @@ except FileNotFoundError: # read ERD data and calculate CSP
             b, a = scipy.signal.butter(3, Wn, btype='bandpass')
             eeg_filtbp = scipy.signal.filtfilt(b, a, eeg)
             # apply CSP to eeg data
-            EEG_CSP_subj = np.tensordot(CSP_filters[band_idx], eeg_filtbp, axes=(0,0))
+            EEG_CSP_subj = np.tensordot(CSP_filters[band_idx], eeg_filtbp,
+                axes=(0,0))
             # Hilbert-Transform, absolute value (could also be abs**2)
-            eeg_filtHil = np.abs(scipy.signal.hilbert(EEG_CSP_subj, axis=-1))
+            eeg_filtHil = np.abs(scipy.signal.hilbert(EEG_CSP_subj, axis=-1))**2
             # normalize s.t.2000ms preresponse are 100%
             snareHit_times = all_snareHit_times[idx]
             wdBlkHit_times = all_wdBlkHit_times[idx]
@@ -181,8 +182,9 @@ except FileNotFoundError: # read ERD data and calculate CSP
                     win) # (ERDcomp, time, trials) = (31, 2500, 143)
             # calculate trial averaged ERDCSP
             ERD_CSP_subj_band = all_trials_filt.mean(-1) # trial average
-            ERD_CSP_subj_band /= ERD_CSP_subj_band[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
-            ERD_CSP_subj_band *= 100 # ERD in percent
+
+            #ERD_CSP_subj_band /= ERD_CSP_subj_band[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
+            #ERD_CSP_subj_band *= 100 # ERD in percent
             ERD_CSP_subj.append(ERD_CSP_subj_band)
 
             # calculate ERD in percent per subject and trial
