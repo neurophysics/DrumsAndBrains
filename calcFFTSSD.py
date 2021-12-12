@@ -256,7 +256,7 @@ cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
 cbar.ax.set_xticklabels(['-', '0', '+'])
 cbar.ax.axvline(0, c='w', lw=2)
 
-'''spect_ax = fig.add_subplot(gs[2,:])
+spect_ax = fig.add_subplot(gs[2,:])
 [spect_ax.plot(f,
     10*np.log10(SSD_filters[:,i].dot(SSD_filters[:,i].dot(
         np.mean([t/np.trace(t[...,contrast_idx].mean(-1)).real
@@ -273,7 +273,7 @@ spect_ax.axvline(snareFreq, color='b', zorder=0, lw=1)
 spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=1)
 spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=1)
 spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=1)
-spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)'''
+spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)
 
 gs.tight_layout(fig, pad=0.2, h_pad=0.8)
 

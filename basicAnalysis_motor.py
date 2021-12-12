@@ -143,14 +143,15 @@ while(subj <= N_subjects):
             np.r_[snareHit_times[snareInlier],
                 wdBlkHit_times[wdBlkInlier]],
             win)
-    all_trials -= all_trials[:,-win[0]][:,np.newaxis]
+    BP = all_trials.mean(-1) # trial average, now shape (channels, time)
+    BP -= np.mean(BP[:,0], axis=0) #should be 0 at time -2000
     Nc = len(channames)
     fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
             sharex=True, sharey=True)
     fig.subplots_adjust(top=0.94, bottom=0.08, left=0.11, right=0.95, hspace=0.2)
     fig.suptitle('BP: 2000 ms preresponse, trial-avg.', fontsize=14)
     for c in range(Nc):
-        axs[c//4, c%4].plot(range(*win), all_trials.mean(-1)[c], linewidth=1, c='k')
+        axs[c//4, c%4].plot(range(*win), BP[c], linewidth=1, c='k')
         axs[c//4, c%4].set_title(channames[c], fontsize=8, pad=2)
         axs[c//4, c%4].axvline(0, lw=0.5, c='k')
         axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
@@ -171,7 +172,7 @@ while(subj <= N_subjects):
     plt.legend(by_label.values(), by_label.keys(), bbox_to_anchor=[0.5, 0.0],
         bbox_transform = fig.transFigure, loc='lower center')
     fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse.pdf'))
-    all_BP.append(all_trials.mean(-1))
+    all_BP.append(BP)
 
     # ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
     ERDs = []

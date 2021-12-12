@@ -385,28 +385,28 @@ plt.close('all')
 ##### plot BP and ERP patterns over time fro each subject #####
 times = [-1000,-750,-500,-250,0] #ms relative to response
 time_idx = [t-win[0]-1 for t in times] #win is -2000 to 500
-for subj_idx in range(N_subjects):
-    if subj_idx < 11:
+for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is missing
+    if subj_idx < 10: #subject idx 10 already belongs to subject 12
         subj = subj_idx+1
-    elif subj_idx == 11: #11 has no eeg, could make this clearer by tring to read file
-        break
     else:
         subj = subj_idx+2
+    
     print('calculating and plotting patterns for subject '+str(subj)+'...')
     BP_subj = BPs[subj_idx]
     ERD_subj = ERDs[subj_idx]
 
     potmaps_BP = [meet.sphere.potMap(chancoords, BP_subj[:,t],
         projection='stereographic') for t in time_idx]
+    vmax_BP = np.max(np.abs(BP_subj[:,999:1999])) #0 is in the middle, scale for plotting potmaps
 
-    fig = plt.figure(figsize = (5.512,5.512))
-    h1 = 2 #BP
-    h7 = 0.1 #colorbar
-    gs = mpl.gridspec.GridSpec(7,1, height_ratios = [h1,h1,h1,h1,h1,h1,h7])
+
+    fig = plt.figure(figsize = (5.512,9))
+    h1 = 2 #BP, ERD
+    h28 = 0.1 #colorbars
+    gs = mpl.gridspec.GridSpec(8,1, height_ratios = [h1,h28,h1,h1,h1,h1,h1,h28])
 
     # first line BP
-    gs1 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[0,:],
-            height_ratios = [1,0.1], wspace=0, hspace=0.2)
+    gs1 = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[0,:], wspace=0, hspace=0.2)
     head_ax = []
     pc = [] #for color bar
     for i, pat in enumerate(potmaps_BP):
@@ -415,10 +415,9 @@ for subj_idx in range(N_subjects):
                 sharey=head_ax[0], frame_on=False, aspect='equal'))
         except IndexError:
             head_ax.append(fig.add_subplot(gs1[0,i], frame_on=False, aspect='equal'))
-        Z = pat[2]/np.abs(pat[2]).max()
         pc.append(head_ax[-1].pcolormesh(
-            *pat[:2], Z, rasterized=True, cmap='coolwarm',
-            vmin=-1, vmax=1, shading='auto'))
+            *pat, rasterized=True, cmap='coolwarm', #*pat gives him all pats one by one
+            vmin=-vmax_BP, vmax=vmax_BP, shading='auto'))
         head_ax[-1].contour(*pat, levels=[0], colors='w')
         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                 alpha=0.5, zorder=1001)
@@ -429,13 +428,22 @@ for subj_idx in range(N_subjects):
     head_ax[0].set_xlim([-1.6,1.6])
     head_ax[2].set_title('BP and ERD patterns for subject ' + str(subj))
 
-    # line 2-6: ERD per band (only ERD => last component)
+    # line 2: add a colorbar for BP
+    cbar.ax.tick_params(labelsize=8)
+    cbar_ax = fig.add_subplot(gs[1,:])
+    cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+            label=r'amplitude [$\mu$ V]')#, ticks=[-1,0,1])
+    #cbar.ax.set_xticklabels(['-', '0', '+'])
+    cbar.ax.axvline(0, c='w', lw=2)
+
+    # line 3-7: ERD per band (only ERD => last component)
+    vmax = np.max(np.abs(ERD_subj[2,:,999:1999])) #0 is in the middle, scale for plotting potmaps
     for band_idx, band_name in enumerate(band_names):
         potmaps_ERD = [meet.sphere.potMap(chancoords, ERD_subj[band_idx,:,t],
             projection='stereographic') for t in time_idx]
 
-        gsi = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[band_idx+1,:],
-                height_ratios = [1,0.1], wspace=0, hspace=0.2)
+        gsi = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[band_idx+2,:],
+            wspace=0, hspace=0.2)
         head_ax = []
         for i, pat in enumerate(potmaps_ERD):
             try:
@@ -443,10 +451,9 @@ for subj_idx in range(N_subjects):
                     sharey=head_ax[0], frame_on=False, aspect='equal'))
             except IndexError: #first head
                 head_ax.append(fig.add_subplot(gsi[0,i], frame_on=False, aspect='equal'))
-            #Z = pat[2]/np.abs(pat[2]).max()
             pc.append(head_ax[-1].pcolormesh(
-                *pat[:2], Z, rasterized=True, cmap='coolwarm',
-                vmin=-1, vmax=1, shading='auto'))
+                *pat, rasterized=True, cmap='coolwarm',
+                vmin=-vmax, vmax=vmax, shading='auto'))
             head_ax[-1].contour(*pat, levels=[0], colors='w')
             head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                     alpha=0.5, zorder=1001)
@@ -458,14 +465,13 @@ for subj_idx in range(N_subjects):
             if band_idx == len(band_names)-1:
                 head_ax[-1].set_xlabel(str(times[i]) + 'ms', fontsize=8)
 
-    # line 7: add a colorbar
+    # line 8: add a colorbar
     cbar.ax.tick_params(labelsize=8)
-    cbar_ax = fig.add_subplot(gs[6,:])
+    cbar_ax = fig.add_subplot(gs[7,:])
     cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
-            label='amplitude [dB]', ticks=[-1,0,1])
-    cbar.ax.set_xticklabels(['-', '0', '+'])
+            label='amplitude [dB]')#, ticks=[-1,0,1])
+    #cbar.ax.set_xticklabels(['-', '0', '+'])
     cbar.ax.axvline(0, c='w', lw=2)
-    cbar.ax.set_xticklabels(['-', '0', '+'])
 
     gs.tight_layout(fig, pad=0.5, h_pad=0.2)
     plt.savefig(os.path.join(result_folder,'S%02d'% subj,
