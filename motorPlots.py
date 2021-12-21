@@ -122,15 +122,17 @@ for i,ev in enumerate(CSP_eigvals):
     plt.title('CSP EV band {}, small ERD, large ERS'.format(band_names[1]))
     #plt.show()
 # first argument is pre movement so
+# old, just use 5 for each now
 CSP_ERDnums = [2,5,5,5,5] # e.g. [:3] # small EV 2 or 5 mostly both work
 CSP_ERSnums = [4,4,4,4,5] #e.g. [-4:] # large EV
+CSP_ERDnum = 5
+CSP_ERSnum = 5
 
 for band_idx, band_name in enumerate(band_names):
     # average over subjects
     ERD_CSP_subjmean = np.mean([e[band_idx] for e in ERD_CSP], axis=0)
     ev = CSP_eigvals[band_idx]
-    CSP_ERDnum = CSP_ERDnums[band_idx]
-    CSP_ERSnum = CSP_ERSnums[band_idx]
+
     # normalize
     ERD_CSP_subjmean /= ERD_CSP_subjmean[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
     ERD_CSP_subjmean *= 100 # ERD in percent
@@ -290,11 +292,11 @@ for band_idx, band_name in enumerate(band_names):
 
     fig = plt.figure(figsize = (5.5,7))
     gs = mpl.gridspec.GridSpec(4,1, height_ratios = [h1,h2,h3,h4], top=0.99,
-        bottom = -1, hspace=0.0)
+        bottom = 0.1, hspace=0.0)
 
     # plot the five spatial patterns for ERS
-    gs1 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[0,:],
-            height_ratios = [1,0.1], wspace=0, hspace=0.7)
+    gs1 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[0,:], #two rows to have some space below
+            height_ratios=[1,0.1], wspace=0, hspace=0.7)
     head_ax = []
     pc = []
     for s, pat in enumerate(potmaps[:5]):
@@ -310,7 +312,8 @@ for band_idx, band_name in enumerate(band_names):
         head_ax[-1].contour(*pat, levels=[0], colors='w')
         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                 alpha=0.5, zorder=1001)
-        head_ax[-1].set_xlabel('ERS %d' % (s + 1),
+        head_ax[-1].set_xlabel('ERS %d' % (s + 1) + '\n($\mathrm{%.2fdB}$)' % round(
+        10*np.log10(ev[s]),2),
                 fontsize=8)
         head_ax[-1].tick_params(**blind_ax)
         meet.sphere.addHead(head_ax[-1], ec=colors[s], zorder=1000, lw=3)
@@ -318,36 +321,39 @@ for band_idx, band_name in enumerate(band_names):
     head_ax[0].set_xlim([-1.6,1.6])
 
     # plot the four spatial patterns for ERD
-    comp_ax = fig.add_subplot(gs[1,:])
+    gs2 = mpl.gridspec.GridSpecFromSubplotSpec(1,1, gs[1,:],
+        wspace=0, hspace=0.7)
+    comp_ax = fig.add_subplot(gs2[0,0])
     ERD_CSP_subjmean = np.mean([e[band_idx] for e in ERD_CSP], axis=0)
-    CSP_ERDnum = CSP_ERDnums[band_idx]
-    CSP_ERSnum = CSP_ERSnums[band_idx]
+
     # normalize
     ERD_CSP_subjmean /= ERD_CSP_subjmean[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
-    ERD_CSP_subjmean *= 100 # ERD in percent
+    #ERD_CSP_subjmean *= 100 # ERD in percent
+    ERD_CSP_subjmean = 20*np.log10(ERD_CSP_subjmean) # ERD in dB
     for s in range(CSP_ERSnum): #0,1,2,3
         comp_ax.plot(erd_t, ERD_CSP_subjmean[s,:].T,
-            label='ERS %d' % (s+1) + ' ($\mathrm{EV=%.2fdB}$)' % round(
-            10*np.log10(ev[s]),2), color=colors[s])
+            label='ERS %d' % (s+1), color=colors[s])
     for d in range(-CSP_ERDnum,0,1): #-3,-2,-1
         comp_ax.plot(erd_t, ERD_CSP_subjmean[d,:].T,
-            label='ERD %d' % (-d) + ' ($\mathrm{EV=%.2fdB}$)' % round(
-            10*np.log10(ev[d]), 2), color=colors[d])
+            label='ERD %d' % (-d), color=colors[d])
     comp_ax.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T,
         c='black', alpha=0.1)
     comp_ax.axvspan(base_ms[0], base_ms[-1], alpha=0.3, color=colors[4],
-        label='contrast period') #_ gets ignored as label
+        label='contrast period')
     comp_ax.axvspan(act_ms[0], act_ms[-1], alpha=0.3, color=colors[5],
         label='target period')
-    comp_ax.legend(fontsize=8)
+    handles, labels = plt.gca().get_legend_handles_labels()
+    order = [0,1,2,3,4,10,5,6,7,8,9,11]
+    comp_ax.legend([handles[idx] for idx in order],
+        [labels[idx] for idx in order], loc='upper left', fontsize=8, ncol=2)
     comp_ax.set_xlabel('time around response [ms]', fontsize=10)
-    comp_ax.set_ylabel('CSP filtered EEG, relative amplitude [%]', fontsize=10)
+    comp_ax.set_ylabel('CSP filtered EEG, relative amplitude [dB]', fontsize=10)
     comp_ax.set_title('subj.-avg. and eeg-applied CSP components {} Hz]'.format(
         band_name[:-1]), fontsize=12)
 
     # plot the five spatial patterns for ERD
-    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[2,:],
-            height_ratios = [1,0.1], wspace=0, hspace=0.7)
+    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[2,:],
+            wspace=0, hspace=0.7)
     head_ax = []
     pc = []
     for d, pat in enumerate(reversed(potmaps[-5:])): # take last 5, reverse, then enumerate
@@ -363,7 +369,8 @@ for band_idx, band_name in enumerate(band_names):
         head_ax[-1].contour(*pat, levels=[0], colors='w')
         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                 alpha=0.5, zorder=1001)
-        head_ax[-1].set_xlabel('ERD %d' % (d + 1),
+        head_ax[-1].set_xlabel('ERD %d' % (d + 1) + '\n($\mathrm{%.2fdB}$)' % round(
+        10*np.log10(ev[-(d+1)]), 2),
                 fontsize=8)
         head_ax[-1].tick_params(**blind_ax)
         meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
@@ -382,6 +389,7 @@ for band_idx, band_name in enumerate(band_names):
         'motor/CSP{}.pdf'.format(band_name)))
 plt.close('all')
 
+
 ##### plot BP and ERP patterns over time fro each subject #####
 times = [-1000,-750,-500,-250,0] #ms relative to response
 time_idx = [t-win[0]-1 for t in times] #win is -2000 to 500
@@ -390,7 +398,7 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
         subj = subj_idx+1
     else:
         subj = subj_idx+2
-    
+
     print('calculating and plotting patterns for subject '+str(subj)+'...')
     BP_subj = BPs[subj_idx]
     ERD_subj = ERDs[subj_idx]
