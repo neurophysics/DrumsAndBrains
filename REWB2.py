@@ -45,6 +45,7 @@ snareInlier_listen = []
 wdBlkInlier_listen = []
 snareInlier_silence = []
 wdBlkInlier_silence = []
+
 i=0
 while True:
     try:
