@@ -177,13 +177,15 @@ F_listen = slepianFFT(listen_trials, nperseg, axis=1)
 F_silence = slepianFFT(silence_trials, nperseg, axis=1)
 
 ## apply a filter in the Fourier domain to extract only the frequencies
-## of interest, i.e. 1-2 Hz (contrast) and snare + wdBlkFreq (target)
-contrast_freqwin = [1,2]
+## of interest, i.e. 3-4 Hz (contrast) and 3.5 Hz (first mutual harmonic of snare and woodblock) (target)
+contrast_freqwin = [1,4]
 contrast_mask = np.all([f>=contrast_freqwin[0], f<=contrast_freqwin[1]], 0)
 
 target_mask = np.zeros(f.shape, bool)
 target_mask[np.argmin((f-snareFreq)**2)] = True
+target_mask[np.argmin((f-2*snareFreq)**2)] = True
 target_mask[np.argmin((f-wdBlkFreq)**2)] = True
+target_mask[np.argmin((f-2*wdBlkFreq)**2)] = True
 
 ## exclude the target frequencies from the contrast mask
 contrast_mask = contrast_mask != target_mask
@@ -191,10 +193,14 @@ contrast_mask = contrast_mask != target_mask
 ## calcultae FFT of target
 target_F = np.copy(F)
 target_F[:,~target_mask] = 0
+# covariance matrix should represent mean power of frequencies in target
+target_F[:, target_mask] *= np.sqrt(1/target_mask.sum())
 
 ## calculate FFt of contrast
 contrast_F = np.copy(F)
 contrast_F[:,~contrast_mask] = 0
+# covariance matrix should represent mean power of frequencies in contrast
+contrast_F[:,contrast_mask] *= np.sqrt(1/contrast_mask.sum())
 
 # inverse FFT
 ## signal not periodic but good filter for magnitude response

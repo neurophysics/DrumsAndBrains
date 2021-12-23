@@ -15,7 +15,6 @@ import os.path
 import csv
 import helper_functions
 import meet
-from tqdm import trange, tqdm # for a progress bar
 
 # set parameters
 ## input
@@ -95,8 +94,7 @@ for t, c in zip(target_cov, contrast_cov):
     # normalize by the trace of the contrast covariance matrix
     t_now = t.mean(-1)/np.trace(c.mean(-1))
     c_now = c.mean(-1)/np.trace(c.mean(-1))
-    #t_now = t.mean(-1)
-    #c_now = c.mean(-1)    #averaged over trials => shape (32,32)
+    # averaged over trials => shape (32,32)
     try:
         all_target_cov += t_now
         all_contrast_cov += c_now
@@ -132,35 +130,12 @@ F_subj_mean = np.mean(F_mean, axis=0)
 ## normalize by mean power of frequencies (except snare/wdblk)
 ## (divide to get SNR => want higher SNR at target frequence)
 ### compute target and contrast mask
-contrast_freqwin = [1, 2]
+contrast_freqwin = [1, 4]
 contrast_mask = np.all([f>=contrast_freqwin[0], f<=contrast_freqwin[1]], 0)
 
 target_mask = np.zeros(f.shape, bool)
 target_mask[np.argmin((f-snareFreq)**2)] = True
 target_mask[np.argmin((f-wdBlkFreq)**2)] = True
-
-### divide by mean power of frequencies (except snare/wdblk)
-F_SSD_subj_mean_norm = F_SSD_subj_mean/F_SSD_subj_mean[
-        :,target_mask != contrast_mask].mean(-1)[:,np.newaxis]
-F_subj_mean_norm = F_subj_mean/F_subj_mean[
-        :,target_mask != contrast_mask].mean(-1)[:,np.newaxis]
-
-## alternatively, normalize for each frequency by their neighboring frequencies
-F_SSD_subj_mean_peak = F_SSD_subj_mean / scipy.ndimage.convolve1d(
-        F_SSD_subj_mean, np.r_[[1]*2, 0, [1]*2]/4)
-F_subj_mean_peak = F_subj_mean / scipy.ndimage.convolve1d(
-        F_subj_mean, np.r_[[1]*2, 0, [1]*2]/4)
-
-# plot the results
-f_plot_mask = np.all([f>=0.5, f<=4], 0)
-SSD_num = 4
-
-fig = plt.figure()
-ax = fig.add_subplot(111)
-ax.plot(f[f_plot_mask], 20*np.log10(F_subj_mean_norm[:,f_plot_mask].T),
-        'k-', alpha=0.1)
-ax.plot(f[f_plot_mask], 20*np.log10(F_SSD_subj_mean_norm[:SSD_num,
-    f_plot_mask].T))
 
 # save the results
 save_results = {}
@@ -175,10 +150,6 @@ for i, (snareInlier_now, wdBlkInlier_now,
     save_results['wdBlkInlier_listen_{:02d}'.format(i)] = wdBlkInlier_listen_now
     save_results['snareInlier_silence_{:02d}'.format(i)] = snareInlier_silence_now
     save_results['wdBlkInlier_silence_{:02d}'.format(i)] = wdBlkInlier_silence_now
-    # the following get now calculated in REWB2.py to solve memory issue
-    #save_results['F_SSD_both_{:02d}'.format(i)] = F_SSD_both_now
-    #save_results['F_SSD_listen_{:02d}'.format(i)] = F_SSD_listen_now
-    #save_results['F_SSD_silence_{:02d}'.format(i)] = F_SSD_silence_now
 
 np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
 
@@ -189,13 +160,15 @@ np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_patterns = SSD_patterns
         )
 
+######################################
+# plot the resulting EV and patterns #
+######################################
 
-# plot the resulting EV and patterns
-
-# plot the SSD components scalp maps
+# prepare the SSD components scalp maps
 potmaps = [meet.sphere.potMap(chancoords, pat_now,
     projection='stereographic') for pat_now in SSD_patterns]
 
+# define the height ratios of the subplot rows
 h1 = 1
 h2 = 1.3
 h3 = 1
@@ -210,7 +183,7 @@ SNNR_ax.scatter([1], 10*np.log10(SSD_eigvals[0]), c=color1, s=60, zorder=1000)
 SNNR_ax.scatter([2], 10*np.log10(SSD_eigvals[1]), c=color2, s=60, zorder=1000)
 SNNR_ax.scatter([3], 10*np.log10(SSD_eigvals[2]), c=color3, s=60, zorder=1000)
 SNNR_ax.scatter([4], 10*np.log10(SSD_eigvals[3]), c=color4, s=60, zorder=1000)
-SNNR_ax.axhline(0, c='k', lw=1)
+#SNNR_ax.axhline(0, c='k', lw=1)
 SNNR_ax.set_xlim([0.5, len(SSD_eigvals)])
 SNNR_ax.set_xticks(np.r_[1,range(5, len(SSD_eigvals) + 1, 5)])
 SNNR_ax.set_ylabel('SNR (dB)')
@@ -223,11 +196,13 @@ gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
 head_ax = []
 pc = []
 for i, pat in enumerate(potmaps[:4]):
-    try:
-        head_ax.append(fig.add_subplot(gs2[0,i], sharex=head_ax[0],
-            sharey=head_ax[0], frame_on=False, aspect='equal'))
-    except IndexError:
-        head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False, aspect='equal'))
+    head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False,
+        aspect='equal'))
+    # delete all ticks and ticklabels
+    head_ax[-1].tick_params(**blind_ax)
+    head_ax[-1].sharex(head_ax[0])
+    head_ax[-1].sharey(head_ax[0])
+    # scale the color of the pattern
     Z = pat[2]/np.abs(pat[2]).max()
     pc.append(head_ax[-1].pcolormesh(
         *pat[:2], Z, rasterized=True,
@@ -237,10 +212,9 @@ for i, pat in enumerate(potmaps[:4]):
             alpha=0.5, zorder=1001)
     head_ax[-1].set_xlabel(r'\textbf{%d}' % (i + 1) +'\n'+
             '($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(SSD_eigvals[i])))
-    head_ax[-1].tick_params(**blind_ax)
     meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
-head_ax[0].set_ylim([-1.1,1.3])
-head_ax[0].set_xlim([-1.6,1.6])
+head_ax[0].set_ylim([-1.2,1.2])
+head_ax[0].set_xlim([-1.1,1.2])
 
 # add a colorbar
 cbar_ax = fig.add_subplot(gs2[1,:])
@@ -249,14 +223,15 @@ cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
 cbar.ax.set_xticklabels(['-', '0', '+'])
 cbar.ax.axvline(0, c='w', lw=2)
 
-'''spect_ax = fig.add_subplot(gs[2,:])
+spect_ax = fig.add_subplot(gs[2,:])
+
 [spect_ax.plot(f,
-    10*np.log10(SSD_filters[:,i].dot(SSD_filters[:,i].dot(
-        np.mean([t/np.trace(t[...,contrast_idx].mean(-1)).real
-            for t in poststim_norm_csd], 0).real))),
+    10*np.log10(np.mean([t/t[...,contrast_mask != target_mask].mean(
+        -1)[:,np.newaxis]
+        for t in F_SSD_mean], 0)[i]),
         c=colors[i], lw=2) for i in range(4)]
 spect_ax.set_xlim([0.5, 8])
-spect_ax.set_ylim([-1.1, 1.1])
+spect_ax.set_ylim([-6, 12])
 spect_ax.axhline(0, c='k', lw=1)
 spect_ax.set_xlabel('frequency (Hz)')
 spect_ax.set_ylabel('SNR (dB)')
@@ -266,8 +241,23 @@ spect_ax.axvline(snareFreq, color='b', zorder=0, lw=1)
 spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=1)
 spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=1)
 spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=1)
-spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)'''
 
-gs.tight_layout(fig, pad=0.2, h_pad=0.8)
+spect_ax.axvline(4*snareFreq, color='b', zorder=0, lw=1, ls=':')
+spect_ax.axvline(5*snareFreq, color='b', zorder=0, lw=1, ls=':')
+spect_ax.axvline(3*wdBlkFreq, color='r', zorder=0, lw=1, ls=':')
+spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1, ls=':')
+
+gs.tight_layout(fig, pad=0.2, h_pad=0.8)#
+fig.canvas.draw()
+
+# make sure that the heads are round
+head_extent = (head_ax[0].transData.transform((1,1)) -
+        head_ax[0].transData.transform((0,0)))
+if head_extent[0] < head_extent[1]:
+    head_ax[0].set_ylim(np.r_[head_ax[0].get_ylim()] *
+            head_extent[1] / head_extent[0])
+else:
+    head_ax[0].set_xlim(np.r_[head_ax[0].get_xlim()] /
+            (head_extent[1] / head_extent[0]))
 
 fig.savefig(os.path.join(result_folder, 'FFTSSD_patterns.pdf'))
