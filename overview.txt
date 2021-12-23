@@ -11,40 +11,53 @@ a/b/... script can run in parallel
     plots: 'NeuralEntrl_Ss%02dresponse.pdf', 'SelfAssessmentAndResponseSs%02d.pdf'
     data: 'behavioural_results.npz'
 1b. (DSR) eeg_outlier.py
-    plots: 'Channel_spectra_precleaning.pdf', 'ICA_patterns.pdf', 'ICA_spectra.pdf', 'Channel_spectra_postcleaning.pdf'
+    plots: 'Channel_spectra_precleaning.pdf', 'ICA_patterns.pdf',
+      'ICA_spectra.pdf', 'Channel_spectra_postcleaning.pdf'
     data: 'ICA_result.joblib', 'artifact_segments.npy', 'clean_data.npz'
 
 2a. (DSR) prepareFFTSSD.py
     data: 'prepared_FFTSSD.npz'
 2b. (DSR) read_eeg.py
-    plots: 'ERP_all_channels.pdf', 'ERP_CCA_channels.pdf', 'SSD_patterns.pdf', 'OszillationAmp_Performance_Listen.pdf', 'OszillationPhase_Performance_Listen.pdf', 'OszillationAmp_Performance_Silence.pdf', 'OszillationPhase_Performance_Silence.pdf'
+    plots: 'ERP_all_channels.pdf', 'ERP_CCA_channels.pdf', 'SSD_patterns.pdf',
+      'OszillationAmp_Performance_Listen.pdf',
+      'OszillationPhase_Performance_Listen.pdf',
+      'OszillationAmp_Performance_Silence.pdf',
+      'OszillationPhase_Performance_Silence.pdf'
     data: 'eeg_results.npz'
 2c. (DR) sourceRecon.py
     plots: not stored, only plt.show()
 2d. (DR) basicAnalysis_behavioral.py
-    plots: 'performance_background_plot.pdf', 'snare_vs_wdBlk_performance.pdf', 'NeuralEntrl_response.pdf'
+    plots: 'performance_background_plot.pdf', 'snare_vs_wdBlk_performance.pdf',
+      'NeuralEntrl_response.pdf'
 2e. (DR) basicAnalysis_EEG.py
-    plots: 'Channel_spectra_Listening.pdf','Channel_spectra_Silence.pdf', 'Channel_spectra_Listening.pdf', 'Channel_spectra_Silence.pdf'
+    plots: 'Channel_spectra_Listening.pdf','Channel_spectra_Silence.pdf',
+      'Channel_spectra_Listening.pdf', 'Channel_spectra_Silence.pdf'
 2f. (DR) basicAnalysis_EEGvsBehavior.py
-    plots: 'ListeningAmp_Performance.pdf', 'ListeningPhase_Performance.pdf', 'SilenceAmp_Performance.pdf', 'SilencePhase_Performance.pdf'
+    plots: 'ListeningAmp_Performance.pdf', 'ListeningPhase_Performance.pdf',
+      'SilenceAmp_Performance.pdf', 'SilencePhase_Performance.pdf'
 
 3a. (R) calcFFTSSD.py
     plots: 'FFTSSD_patterns.pdf'
-    data: 'F_SSD.npz', 'FFTSSD.npz'
+    data: 'F_SSD_inlier.npz', 'FFTSSD.npz'
 3b. (DR) basicAnalysis_motor.py
-    plots: 'motor/BP_2000mspreresponse.pdf', 'motor/ERD_2000mspreresponse.pdf' (also for each subject)
+    plots: 'motor/BP_2000mspreresponse.pdf',
+      'motor/ERD_2000mspreresponse.pdf' (also for each subject)
     data: 'motor/BP.npz', 'motor/ERD.npz', 'motor/covmat.npz', 'motor/inlier.npz'
 
 4a. (DR) REWB2.py
-    data: ('snare_models.rds', 'wdBlk_models.rds'), Results/models/* e.g. *=snare_both.html
-4b. (DR) SSDMusicCorr.py
-    plots: 'SNNR_exp.pdf'
-4c. (R) bestDipoleFit.py
+    data: F_SSD.npz, ('snare_models.rds', 'wdBlk_models.rds'),
+      Results/models/* e.g. *=snare_both.html
+4b. (R) bestDipoleFit.py
     plots: 'BestDipoleFit_snarePaired.pdf', 'BestDipoleFit_snareSingle.pdf'
-4d. (DR) csp.py
+4c. (DR) csp.py
     plots: 'motor/CSP_patterns.pdf'
     data: 'CSP.npz', 'erdcsp.npz'
 
+5a. (DR) SSDMusicCorr.py
+    plots: 'SNNR_exp.pdf'
+5b. (DR) motorPlots.py
+    plots: 'motor/CSP_patterns.pdf[band]', 'motor/erdcsp_comp[band].pdf',
+      'motor/patternsByTime.pdf'
 
 # other scripts
 helper_function.py: includes some helpful functions
