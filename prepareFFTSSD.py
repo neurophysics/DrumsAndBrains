@@ -183,15 +183,16 @@ contrast_mask = np.all([f>=contrast_freqwin[0], f<=contrast_freqwin[1]], 0)
 
 target_mask = np.zeros(f.shape, bool)
 target_mask[np.argmin((f-snareFreq)**2)] = True
-target_mask[np.argmin((f-2*snareFreq)**2)] = True
+#target_mask[np.argmin((f-2*snareFreq)**2)] = True
 target_mask[np.argmin((f-wdBlkFreq)**2)] = True
 target_mask[np.argmin((f-2*wdBlkFreq)**2)] = True
 
 ## exclude the target frequencies from the contrast mask
 contrast_mask = contrast_mask != target_mask
 
-## calcultae FFT of target
+## calculate FFT of target
 target_F = np.copy(F)
+# normalize total power across all channels per frequency
 target_F[:,~target_mask] = 0
 # covariance matrix should represent mean power of frequencies in target
 target_F[:, target_mask] *= np.sqrt(1/target_mask.sum())

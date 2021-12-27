@@ -230,6 +230,12 @@ spect_ax = fig.add_subplot(gs[2,:])
         -1)[:,np.newaxis]
         for t in F_SSD_mean], 0)[i]),
         c=colors[i], lw=2) for i in range(2)]
+[spect_ax.plot(f,
+    10*np.log10(np.mean([t/t[...,contrast_mask != target_mask].mean(
+        -1)[:,np.newaxis]
+        for t in F_mean], 0)[i]),
+        c='k', alpha=0.1, lw=0.5) for i in range(32)]
+
 spect_ax.set_xlim([0.5, 4])
 spect_ax.set_ylim([-4, 10])
 spect_ax.axhline(0, c='k', lw=1)

@@ -1,5 +1,68 @@
 import numpy as np
 import scipy.linalg
+import pdb
+
+def _prepareRiemannianMap(X, P):
+    # calculate exponential map of tangent vector Si at initial point p
+    Peigval, Peigvect = scipy.linalg.eigh(P)
+    Peigval = np.where(np.isclose(Peigval, 0), 0, Peigval)
+    Pdet = scipy.linalg.det(Peigvect)
+    # assure that the determinant is 1
+    if not np.isclose(np.abs(Pdet), 1):
+        raise AssertionError(
+                'Determinant of eigenvector matrix must be -1 or 1')
+    # swap a column if determinant is -1
+    if Pdet < 0:
+        Peigval[[0,1]] = Peigval[[1,0]]
+        Peigvect[:,[0,1]] = Peigvect[:,[1,0]]
+    g = Peigvect * np.sqrt(Peigval)[np.newaxis]
+    try:
+        ginv = scipy.linalg.inv(g)
+    except scipy.linalg.LinAlgError:
+        ginv = scipy.linalg.pinv(g)
+    Y = ginv @ X @ ginv.T
+    Yeigval, Yeigvect = scipy.linalg.eigh(Y)
+    Ydet = scipy.linalg.det(Yeigvect)
+    # assure that the determinant is 1
+    if not np.isclose(np.abs(Ydet), 1):
+        raise AssertionError(
+                'Determinant of eigenvector matrix must be -1 or 1')
+    # swap a column if determinant is -1
+    if Ydet < 0:
+        Yeigval[[0,1]] = Yeigval[[1,0]]
+        Yeigvect[:,[0,1]] = Yeigvect[:,[1,0]]
+    return g, Yeigvect, Yeigval
+
+def RiemannianExpMap(Si, P):
+    g, Yeigvect, Yeigval = _prepareRiemannianMap(Si, P)
+    return ((g @ Yeigvect) * np.exp(Yeigval)[np.newaxis]) @ (g @ Yeigvect).T
+
+def RiemannianLogMap(Pi, P):
+    g, Yeigvect, Yeigval = _prepareRiemannianMap(Pi, P)
+    #print((Yeigval<0).mean(), Yeigval.min(), Yeigval.max())
+    np.clip(Yeigval, 1E-10, None, Yeigval)
+    return ((g @ Yeigvect) * np.log(Yeigval)[np.newaxis]) @ (g @ Yeigvect).T
+
+def RiemannCovMean(covs, tol=1E-7):
+    """Calculate the geometric mean of covariance matrices in the
+    riemannian sense
+
+    Args:
+        covs (iterable): list/iterable of (positive semi-definite
+            covariance matrices)
+    Returns:
+        cov_mean: geometric mean of the supplied covariance matrices
+    """
+    # initialize by the arithmetic mean
+    P = np.mean(covs, 0)
+    while True:
+        print('\n', np.abs(P).sum(), "\n")
+        logmaps = [RiemannianLogMap(cov_now, P) for cov_now in covs]
+        S = np.mean([RiemannianLogMap(cov_now, P) for cov_now in covs], 0)
+        error = (np.abs(S)**2).sum()
+        if error <= tol: break
+        P = RiemannianExpMap(S, P)
+    return P
 
 def getSessionClocks(fname):
     """Read the timestamps of the clock as EEG sample numbers
