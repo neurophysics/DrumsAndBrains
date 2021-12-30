@@ -198,8 +198,8 @@ for band_idx, band_name in enumerate(band_names):
     SNNR_ax.set_title('resulting SNR after CSP for band ' + band_name)
 
     # plot the four spatial patterns for ERS
-    gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[1,:],
-            height_ratios = [1,0.1], wspace=0, hspace=0.8)
+    gs2 = mpl.gridspec.GridSpecFromSubplotSpec(1,4, gs[1,:],
+        wspace=0, hspace=0.8)
     head_ax = []
     pc = []
     for s, pat in enumerate(potmaps[:4]):
@@ -224,8 +224,8 @@ for band_idx, band_name in enumerate(band_names):
     head_ax[0].set_xlim([-1.6,1.6])
 
     # plot the four spatial patterns for ERD
-    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(2,4, gs[2,:],
-            height_ratios = [1,0.1], wspace=0, hspace=0.8)
+    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(1,4, gs[2,:],
+            wspace=0, hspace=0.8)
     head_ax = []
     pc = []
     for d, pat in enumerate(reversed(potmaps[-4:])): # take last 4, reverse, then enumerate
