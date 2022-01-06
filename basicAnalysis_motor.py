@@ -49,6 +49,7 @@ wdBlkInliers = []
 all_snareHit_times = []
 all_wdBlkHit_times = []
 all_BP = [] #avg over all subjects
+all_BP_trials = [] #BP per trial (32,2500,150)
 all_ERD = [] #avg over all subjects
 cueHit_diff = []
 contrast_cov = []
@@ -173,6 +174,7 @@ while(subj <= N_subjects):
         bbox_transform = fig.transFigure, loc='lower center')
     fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse.pdf'))
     all_BP.append(BP)
+    all_BP_trials.append(all_trials)
 
     # ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
     ERDs = []
@@ -323,8 +325,9 @@ fig.savefig(os.path.join(result_folder, 'motor/ERD_2000mspreresponse.pdf'))
 
 
 save_BP = {}
-for i, bp in enumerate(all_BP):
+for i, (bp, bpt) in enumerate(zip(all_BP, all_BP_trials)):
     save_BP['BP_{:02d}'.format(i)] = bp
+    save_BP['BP_trials_{:02d}'.format(i)] = bpt
 np.savez(os.path.join(result_folder, 'motor/BP.npz'), **save_BP)
 
 save_ERD = {}
