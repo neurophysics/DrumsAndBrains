@@ -218,7 +218,7 @@ for i, pat in enumerate(potmaps[:2]):
     head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
             alpha=0.5, zorder=1001)
     head_ax[-1].set_title(r'\textbf{%d}' % (i + 1) +'\n'+
-            '($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(SSD_eigvals[i])))
+            r'($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(SSD_eigvals[i])))
     meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
 head_ax[0].set_ylim([-1.1,1.2])
 head_ax[0].set_xlim([-1.5,1.5])

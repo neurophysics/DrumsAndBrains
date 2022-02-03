@@ -372,7 +372,7 @@ for band_idx, band_name in enumerate(band_names):
         head_ax[-1].set_xlabel('ERD %d' % (d + 1) + '\n($\mathrm{%.2fdB}$)' % round(
         10*np.log10(ev[-(d+1)]), 2),
                 fontsize=8)
-        head_ax[-1].tick_params(**blind_ax)
+        head_ax[-1].tick_params(**blind_ax) 
         meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
     head_ax[0].set_ylim([-1.1,1.3])
     head_ax[0].set_xlim([-1.6,1.6])
