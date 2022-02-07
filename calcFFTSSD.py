@@ -100,6 +100,53 @@ for i in range(1, N_subjects + 1, 1):
 if np.all([np.all(f[0] == f_now) for f_now in f]):
     f = f[0]
 
+<<<<<<< HEAD
+=======
+## average the covariance matrices across all subjects
+for t, c in zip(target_cov, contrast_cov):
+    # normalize by the trace of the contrast covariance matrix
+    t_now = t.mean(-1)/np.trace(c.mean(-1))
+    c_now = c.mean(-1)/np.trace(c.mean(-1))
+    # averaged over trials => shape (32,32)
+    try:
+        all_target_cov += t_now
+        all_contrast_cov += c_now
+    except: #init
+        all_target_cov = t_now
+        all_contrast_cov = c_now
+
+# calculate SSD
+## EV and filter
+SSD_eigvals, SSD_filters = helper_functions.eigh_rank(
+        all_target_cov, all_contrast_cov)
+
+## patterns
+SSD_patterns = scipy.linalg.solve(
+        SSD_filters.T.dot(all_target_cov).dot(SSD_filters),
+        SSD_filters.T.dot(all_target_cov))
+
+SNNR_i = []
+for t, c in zip(target_cov, contrast_cov):
+    t_power = SSD_filters.T @ t.mean(-1) @ SSD_filters #target power = ignal + noise
+    c_power = SSD_filters.T @ c.mean(-1) @ SSD_filters #contrast power
+    SNNR_i.append(t_power / c_power)
+
+### normalize the patterns such that Cz is always positive
+SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
+
+# average and normalize to plot
+## apply SSD to FFT
+F_SSD_both = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
+
+## average across trials
+F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD_both]
+F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
+
+## average across subjects
+F_SSD_subj_mean = np.mean(F_SSD_mean, axis=0)
+F_subj_mean = np.mean(F_mean, axis=0)
+
+>>>>>>> b5166906b62121da9ddbd3e3103fe8655f9bc103
 ## normalize by mean power of frequencies (except snare/wdblk)
 ## (divide to get SNR => want higher SNR at target frequence)
 ### compute target and contrast mask
@@ -327,6 +374,82 @@ for i, (snareInlier_now, wdBlkInlier_now,
 
 np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
 
+<<<<<<< HEAD
+=======
+## save SSD eigenvalues, filters and patterns in a.npz
+np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
+        SSD_eigvals = SSD_eigvals,
+        SSD_filters = SSD_filters,
+        SSD_patterns = SSD_patterns,
+        SNNR_i = SNNR_i
+        )
+
+######################################
+# plot the resulting EV and patterns #
+######################################
+
+# prepare the SSD components scalp maps
+potmaps = [meet.sphere.potMap(chancoords, pat_now,
+    projection='stereographic') for pat_now in SSD_patterns]
+
+# define the height ratios of the subplot rows
+h1 = 1
+h2 = 1.5
+h3 = 1
+
+fig = plt.figure(figsize=(3.54331,5))
+gs = mpl.gridspec.GridSpec(3,1, height_ratios = [h1,h2,h3])
+
+SNNR_ax = fig.add_subplot(gs[0,:])
+SNNR_ax.plot(range(1,len(SSD_eigvals) + 1), 10*np.log10(SSD_eigvals), 'ko-', lw=2,
+        markersize=5)
+SNNR_ax.scatter([1], 10*np.log10(SSD_eigvals[0]), c=color1, s=60, zorder=1000)
+SNNR_ax.scatter([2], 10*np.log10(SSD_eigvals[1]), c=color2, s=60, zorder=1000)
+#SNNR_ax.scatter([3], 10*np.log10(SSD_eigvals[2]), c=color3, s=60, zorder=1000)
+#SNNR_ax.scatter([4], 10*np.log10(SSD_eigvals[3]), c=color4, s=60, zorder=1000)
+#SNNR_ax.axhline(0, c='k', lw=1)
+SNNR_ax.set_xlim([0.5, len(SSD_eigvals)])
+SNNR_ax.set_xticks(np.r_[1,range(5, len(SSD_eigvals) + 1, 5)])
+SNNR_ax.set_ylabel('SNNR (dB)')
+SNNR_ax.set_xlabel('component (index)')
+SNNR_ax.set_title('SNNR of SSD components')
+
+# plot the four spatial patterns
+gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,2, gs[1,:],
+        height_ratios = [1,0.1])
+head_ax = []
+pc = []
+for i, pat in enumerate(potmaps[:2]):
+    head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False,
+        aspect='equal'))
+    # delete all ticks and ticklabels
+    head_ax[-1].tick_params(**blind_ax)
+    head_ax[-1].sharex(head_ax[0])
+    head_ax[-1].sharey(head_ax[0])
+    # scale the color of the pattern
+    Z = pat[2]/np.abs(pat[2]).max()
+    pc.append(head_ax[-1].pcolormesh(
+        *pat[:2], Z, rasterized=True,
+        cmap='coolwarm', vmin=-1, vmax=1, shading='auto'))
+    head_ax[-1].contour(*pat, levels=[0], colors='w')
+    head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+            alpha=0.5, zorder=1001)
+    head_ax[-1].set_title(r'\textbf{%d}' % (i + 1) +'\n'+
+            r'($\mathrm{SNR=%.2f\ dB}$)' % (10*np.log10(SSD_eigvals[i])))
+    meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
+head_ax[0].set_ylim([-1.1,1.2])
+head_ax[0].set_xlim([-1.5,1.5])
+
+# add a colorbar
+cbar_ax = fig.add_subplot(gs2[1,:])
+cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+        label='amplitude (a.u.)', ticks=[-1,0,1])
+cbar.ax.set_xticklabels(['-', '0', '+'])
+cbar.ax.axvline(0, c='w', lw=2)
+
+spect_ax = fig.add_subplot(gs[2,:])
+
+>>>>>>> b5166906b62121da9ddbd3e3103fe8655f9bc103
 [spect_ax.plot(f,
     10*np.log10(np.mean([t/t[...,contrast_mask != target_mask].mean(
         -1)[:,np.newaxis]
