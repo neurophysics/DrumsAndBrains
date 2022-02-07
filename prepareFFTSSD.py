@@ -31,6 +31,7 @@ import sys
 import os.path
 import helper_functions
 import meet
+import scipy.ndimage
 
 data_folder = sys.argv[1]
 subject = int(sys.argv[2])
@@ -177,45 +178,59 @@ F_listen = slepianFFT(listen_trials, nperseg, axis=1)
 F_silence = slepianFFT(silence_trials, nperseg, axis=1)
 
 ## apply a filter in the Fourier domain to extract only the frequencies
-## of interest, i.e. 3-4 Hz (contrast) and 3.5 Hz (first mutual harmonic of snare and woodblock) (target)
-contrast_freqwin = [1,4]
-contrast_mask = np.all([f>=contrast_freqwin[0], f<=contrast_freqwin[1]], 0)
+## of interest
+# choose the time window (listen, silence, both) here!
+use_F = F
 
-target_mask = np.zeros(f.shape, bool)
-target_mask[np.argmin((f-snareFreq)**2)] = True
-#target_mask[np.argmin((f-2*snareFreq)**2)] = True
-target_mask[np.argmin((f-wdBlkFreq)**2)] = True
-target_mask[np.argmin((f-2*wdBlkFreq)**2)] = True
+# get frequency indices
+snare_idx = np.argmin((f-snareFreq)**2)
+wdBlk_idx = np.argmin((f-wdBlkFreq)**2)
 
-## exclude the target frequencies from the contrast mask
-contrast_mask = contrast_mask != target_mask
+# weight Fourier transform with this to get target data
+target_pattern = [1/3, 2/3, 1/3]
+# weight Fourier transform with this array to get contrast data
+contrast_pattern = [2/6, 1/6, 0, 1/6, 2/6]
 
-## calculate FFT of target
-target_F = np.copy(F)
-# normalize total power across all channels per frequency
-target_F[:,~target_mask] = 0
-# covariance matrix should represent mean power of frequencies in target
-target_F[:, target_mask] *= np.sqrt(1/target_mask.sum())
-
-## calculate FFt of contrast
-contrast_F = np.copy(F)
-contrast_F[:,~contrast_mask] = 0
-# covariance matrix should represent mean power of frequencies in contrast
-contrast_F[:,contrast_mask] *= np.sqrt(1/contrast_mask.sum())
+snare_target_mask = np.zeros_like(f)
+snare_target_mask[snare_idx - len(target_pattern)//2 :
+                  snare_idx + len(target_pattern)//2 + 1] = target_pattern
+wdBlk_target_mask = np.zeros_like(f)
+wdBlk_target_mask[wdBlk_idx - len(target_pattern)//2 :
+                  wdBlk_idx + len(target_pattern)//2 + 1] = target_pattern
+snare_contrast_mask = np.zeros_like(f)
+snare_contrast_mask[snare_idx - len(contrast_pattern)//2 :
+                  snare_idx + len(contrast_pattern)//2 + 1] = contrast_pattern
+wdBlk_contrast_mask = np.zeros_like(f)
+wdBlk_contrast_mask[wdBlk_idx - len(contrast_pattern)//2 :
+                  wdBlk_idx + len(contrast_pattern)//2 + 1] = contrast_pattern
 
 # inverse FFT
 ## signal not periodic but good filter for magnitude response
-target_trials = np.fft.irfft(target_F, n=nperseg, axis=1)
-contrast_trials = np.fft.irfft(contrast_F, n=nperseg, axis=1)
+snare_target_trials = np.fft.irfft(
+        use_F*snare_target_mask[...,np.newaxis], n=nperseg, axis=1)
+wdBlk_target_trials = np.fft.irfft(
+        use_F*wdBlk_target_mask[...,np.newaxis], n=nperseg, axis=1)
+snare_contrast_trials = np.fft.irfft(
+        use_F*snare_contrast_mask[...,np.newaxis], n=nperseg, axis=1)
+wdBlk_contrast_trials = np.fft.irfft(
+        use_F*wdBlk_contrast_mask[...,np.newaxis], n=nperseg, axis=1)
 
 # calculate the covariance matrix of every single trial (shape (32,32,147))
-target_cov = np.einsum('ijk, ljk -> ilk', target_trials, target_trials)
-contrast_cov = np.einsum('ijk, ljk -> ilk', contrast_trials, contrast_trials)
+snare_target_cov = np.einsum('ijk, ljk -> ilk',
+        snare_target_trials, snare_target_trials)
+wdBlk_target_cov = np.einsum('ijk, ljk -> ilk',
+        wdBlk_target_trials, wdBlk_target_trials)
+snare_contrast_cov = np.einsum('ijk, ljk -> ilk',
+        snare_contrast_trials, snare_contrast_trials)
+wdBlk_contrast_cov = np.einsum('ijk, ljk -> ilk',
+        wdBlk_contrast_trials, wdBlk_contrast_trials)
 
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
-        target_cov = target_cov,
-        contrast_cov = contrast_cov,
+        snare_target_cov = snare_target_cov,
+        wdBlk_target_cov = wdBlk_target_cov,
+        snare_contrast_cov = snare_contrast_cov,
+        wdBlk_contrast_cov = wdBlk_contrast_cov,
         snareInlier = snareInlier,
         wdBlkInlier = wdBlkInlier,
         snareInlier_listen = snareInlier_listen,

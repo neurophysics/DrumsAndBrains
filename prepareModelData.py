@@ -34,7 +34,7 @@ wdBlkFreq = 7./4
 delta_range = [1, 4]
 
 # number of SSD_components to use
-N_SSD = 2
+N_SSD = 3
 
 EEG_labels = (['Snare{}'.format(i+1) for i in range(N_SSD)] +
               ['WdBlk{}'.format(i+1) for i in range(N_SSD)])

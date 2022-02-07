@@ -5,6 +5,13 @@ vs the neighbouring frequencies.
 
 As input it requests the result folder
 """
+
+# TODO:
+# Inspect spatial patterns for similarity across subjects, need to be sorted???
+# save filtered single-trial data
+# check source models for each of the patterns
+# re-run statistical model
+
 import numpy as np
 import scipy
 import scipy.linalg
@@ -100,53 +107,6 @@ for i in range(1, N_subjects + 1, 1):
 if np.all([np.all(f[0] == f_now) for f_now in f]):
     f = f[0]
 
-<<<<<<< HEAD
-=======
-## average the covariance matrices across all subjects
-for t, c in zip(target_cov, contrast_cov):
-    # normalize by the trace of the contrast covariance matrix
-    t_now = t.mean(-1)/np.trace(c.mean(-1))
-    c_now = c.mean(-1)/np.trace(c.mean(-1))
-    # averaged over trials => shape (32,32)
-    try:
-        all_target_cov += t_now
-        all_contrast_cov += c_now
-    except: #init
-        all_target_cov = t_now
-        all_contrast_cov = c_now
-
-# calculate SSD
-## EV and filter
-SSD_eigvals, SSD_filters = helper_functions.eigh_rank(
-        all_target_cov, all_contrast_cov)
-
-## patterns
-SSD_patterns = scipy.linalg.solve(
-        SSD_filters.T.dot(all_target_cov).dot(SSD_filters),
-        SSD_filters.T.dot(all_target_cov))
-
-SNNR_i = []
-for t, c in zip(target_cov, contrast_cov):
-    t_power = SSD_filters.T @ t.mean(-1) @ SSD_filters #target power = ignal + noise
-    c_power = SSD_filters.T @ c.mean(-1) @ SSD_filters #contrast power
-    SNNR_i.append(t_power / c_power)
-
-### normalize the patterns such that Cz is always positive
-SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
-
-# average and normalize to plot
-## apply SSD to FFT
-F_SSD_both = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
-
-## average across trials
-F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD_both]
-F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
-
-## average across subjects
-F_SSD_subj_mean = np.mean(F_SSD_mean, axis=0)
-F_subj_mean = np.mean(F_mean, axis=0)
-
->>>>>>> b5166906b62121da9ddbd3e3103fe8655f9bc103
 ## normalize by mean power of frequencies (except snare/wdblk)
 ## (divide to get SNR => want higher SNR at target frequence)
 ### compute target and contrast mask
@@ -357,6 +317,10 @@ for subject in range(len(target_cov)):
         subject_name + 1), 'FFTSSD_patterns.png'))
 1/0
 
+######################################################################
+### This is all some old stuff and needs to be updated ###############
+######################################################################
+"""
 
 # save the results
 save_results = {}
@@ -374,8 +338,6 @@ for i, (snareInlier_now, wdBlkInlier_now,
 
 np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
 
-<<<<<<< HEAD
-=======
 ## save SSD eigenvalues, filters and patterns in a.npz
 np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_eigvals = SSD_eigvals,
@@ -383,6 +345,51 @@ np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
         SSD_patterns = SSD_patterns,
         SNNR_i = SNNR_i
         )
+
+## average the covariance matrices across all subjects
+for t, c in zip(target_cov, contrast_cov):
+    # normalize by the trace of the contrast covariance matrix
+    t_now = t.mean(-1)/np.trace(c.mean(-1))
+    c_now = c.mean(-1)/np.trace(c.mean(-1))
+    # averaged over trials => shape (32,32)
+    try:
+        all_target_cov += t_now
+        all_contrast_cov += c_now
+    except: #init
+        all_target_cov = t_now
+        all_contrast_cov = c_now
+
+# calculate SSD
+## EV and filter
+SSD_eigvals, SSD_filters = helper_functions.eigh_rank(
+        all_target_cov, all_contrast_cov)
+
+## patterns
+SSD_patterns = scipy.linalg.solve(
+        SSD_filters.T.dot(all_target_cov).dot(SSD_filters),
+        SSD_filters.T.dot(all_target_cov))
+
+SNNR_i = []
+for t, c in zip(target_cov, contrast_cov):
+    t_power = SSD_filters.T @ t.mean(-1) @ SSD_filters #target power = ignal + noise
+    c_power = SSD_filters.T @ c.mean(-1) @ SSD_filters #contrast power
+    SNNR_i.append(t_power / c_power)
+
+### normalize the patterns such that Cz is always positive
+SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
+
+# average and normalize to plot
+## apply SSD to FFT
+F_SSD_both = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
+
+## average across trials
+F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD_both]
+F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
+
+## average across subjects
+F_SSD_subj_mean = np.mean(F_SSD_mean, axis=0)
+F_subj_mean = np.mean(F_mean, axis=0)
+
 
 ######################################
 # plot the resulting EV and patterns #
@@ -460,3 +467,4 @@ spect_ax = fig.add_subplot(gs[2,:])
         -1)[:,np.newaxis]
         for t in F_mean], 0)[i]),
         c='k', alpha=0.1, lw=0.5) for i in range(32)]
+"""
