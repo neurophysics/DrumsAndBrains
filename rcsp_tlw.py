@@ -147,7 +147,7 @@ def covariance_csp(c1, c2):
 
 
 def rcsp_tlw(c1, c2, target_cov, source_covs, alpha=0,
-             c1_vs_c2_only=False):
+             subject_weights=True, c1_vs_c2_only=False):
     """Calculate rCSP-tlw
 
     Calculate Regularized Common Spatial Patterns based on Transfer
@@ -175,6 +175,11 @@ def rcsp_tlw(c1, c2, target_cov, source_covs, alpha=0,
         subjects on the CSP calculation. If 0, standard CSP between
         c1 and c2 will be calculated. Larger values will lead to
         increased effect of the source subjects.
+    subject_weights : bool, default=True
+        whether the subjects should have individually determined weights.
+        Defaults to True, and the wheights will be determied according to
+        the similarity of spatial patterns/covariance matrices of the
+        subjects.
     c1_vs_c2_only : bool, default=False
         whether only spatial filters for the maximization of c1 over c2
         should be found or also, vice versa, for c2 over c1.
@@ -202,8 +207,14 @@ def rcsp_tlw(c1, c2, target_cov, source_covs, alpha=0,
         the columns of this array such that `c2_vs_c1_filters[:,0]` is
         the first spatiel filter etc.
     """
+    n = len(source_covs)
     # get the weights between the target subject and all source subjects
-    b_st = get_rcsp_tl_weights(target_cov, source_covs)
+    if subject_weights is True:
+        b_st = get_rcsp_tl_weights(target_cov, source_covs)
+    elif subject_weights is False:
+        b_st = [1/n] * n
+    else:
+        raise ValueError('`subject_weights` must be a boolean')
     # calculate the penalty term
     penalty = alpha * np.sum([
         b_st_now * _take_abs_eigvals(target_cov - source_cov_now)
