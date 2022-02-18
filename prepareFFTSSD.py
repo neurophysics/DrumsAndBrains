@@ -187,7 +187,7 @@ snare_idx = np.argmin((f-snareFreq)**2)
 wdBlk_idx = np.argmin((f-wdBlkFreq)**2)
 
 # weight Fourier transform with this to get target data
-target_pattern = [1/3, 2/3, 1/3]
+target_pattern = [1/9, 2/9, 3/9, 2/9, 1/9]
 # weight Fourier transform with this array to get contrast data
 contrast_pattern = [2/6, 1/6, 0, 1/6, 2/6]
 

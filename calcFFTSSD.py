@@ -83,6 +83,10 @@ for i in range(1, N_subjects + 1, 1):
             wdBlk_target_cov = fi['wdBlk_target_cov']
             snare_contrast_cov = fi['snare_contrast_cov']
             wdBlk_contrast_cov = fi['wdBlk_contrast_cov']
+            # normalize the snare frequency peak and its neighbouring
+            # 'contrast' frequencies and the wdBlk peak and its contrast
+            # frequencies such that both peaks contribute equally in the
+            # SSD optimization
             snare_norm = np.trace(snare_contrast_cov.mean(-1))
             wdBlk_norm = np.trace(wdBlk_contrast_cov.mean(-1))
             target_cov.append(
@@ -133,15 +137,16 @@ def cv_rcsp_tlw(alpha, N_folds, subject, target_cov, contrast_cov):
             for i in range(N_folds)]
     all_target_covs = [np.mean(c, -1) for c in target_cov]
     # initialize empty results array
-    result = np.zeros([len(folds), len(alpha)])
+    result = np.zeros([len(folds), len(alpha), 32])
     for fold_now in range(N_folds):
         train_idx = np.hstack(
                 [folds[j] for j in list(range(fold_now)) +
                                    list(range(fold_now + 1, N_folds))])
+        test_idx = folds[fold_now]
         c1_train = np.mean(target_cov[subject][..., train_idx], -1)
         c2_train = np.mean(contrast_cov[subject][..., train_idx], -1)
-        c1_test = np.mean(target_cov[subject][..., folds[fold_now]], -1)
-        c2_test = np.mean(contrast_cov[subject][..., folds[fold_now]], -1)
+        c1_test = np.mean(target_cov[subject][..., test_idx], -1)
+        c2_test = np.mean(contrast_cov[subject][..., test_idx], -1)
         for alpha_it, alpha_now in enumerate(alpha):
             rcsp_tlw_ratios, rcsp_tlw_filters = rcsp_tlw.rcsp_tlw(
                     c1_train, c2_train,
@@ -149,20 +154,30 @@ def cv_rcsp_tlw(alpha, N_folds, subject, target_cov, contrast_cov):
                     source_covs=all_target_covs[:subject] + all_target_covs[
                         subject + 1:],
                     alpha=alpha_now,
+                    subject_weights=False,
                     c1_vs_c2_only=True)
             # find the testing variance
-            c1_test_var = rcsp_tlw_filters.T @ c1_test @ rcsp_tlw_filters
-            c2_test_var = rcsp_tlw_filters.T @ c2_test @ rcsp_tlw_filters
-            var_ratios = np.diag(c1_test_var / c2_test_var)
-            result[fold_now, alpha_it] = var_ratios[-1]
+            c1_test_var = np.diag(rcsp_tlw_filters.T @ c1_test @ rcsp_tlw_filters)
+            c2_test_var = np.diag(rcsp_tlw_filters.T @ c2_test @ rcsp_tlw_filters)
+            var_ratios = np.clip(c1_test_var[~np.isclose(c2_test_var, 0)] / c2_test_var[~np.isclose(c2_test_var,0)], 0, None)
+            result[fold_now, alpha_it,-len(var_ratios):] = var_ratios
     return result
 
 for subject in range(len(target_cov)):
-    cv_result = cv_rcsp_tlw(alpha, N_folds, subject, target_cov, contrast_cov)
-    # find the largest alpha that is within the optimum cross-validation result
-    # - 1 standard error
+    if subject >= 10:
+        subject_name = subject + 1
+    else:
+        subject_name = subject
+    print('Running cross-validation for subject {}'.format(subject_name))
+    cv_result_all = cv_rcsp_tlw(alpha, N_folds, subject, target_cov,
+            contrast_cov)
+    cv_result = cv_result_all[..., -1]
+    # find the largest alpha that is within the optimum cross-validation
+    # result - 1 standard error
     threshold = np.max(cv_result.mean(0) - cv_result.std(0)/np.sqrt(N_folds))
-    best_alpha = np.max(alpha[cv_result.mean(0) >= threshold])
+    best_alpha_idx = np.argmax(alpha[cv_result.mean(0) >= threshold])
+    best_alpha=alpha[best_alpha_idx]
+    # plot the cross-validation curve 
     fig = plt.figure()
     plt.semilogx(alpha, cv_result.mean(0), 'k-', label='mean')
     plt.semilogx(alpha, cv_result.mean(0) + cv_result.std(0)/np.sqrt(N_folds),
@@ -174,9 +189,6 @@ for subject in range(len(target_cov)):
     plt.axhline(threshold, c='k')
     plt.axvline(best_alpha, c='r')
     fig.legend(loc='upper right')
-    subject_name = subject
-    if subject > 10:
-        subject_name += 1
     plt.gca().set_title('RCSP with transfer learning, subject {}'.format(
         subject_name + 1))
     fig.tight_layout()
@@ -191,14 +203,30 @@ for subject in range(len(target_cov)):
                         source_covs=all_target_covs[:subject] + all_target_covs[
                             subject + 1:],
                         alpha=best_alpha,
+                        subject_weights=False,
                         c1_vs_c2_only=True)
+    # take the cross-validation SNR as parameter to plot and sort the
+    # components according to the cross-validation result
+    c1 = np.mean(target_cov[subject], -1)
+    c2 = np.mean(contrast_cov[subject], -1)
+    # find the variance ratio (SNR) of the resulting spatial filters
+    c1_var = np.diag(rcsp_tlw_filters.T @ c1 @ rcsp_tlw_filters)
+    c2_var = np.diag(rcsp_tlw_filters.T @ c2 @ rcsp_tlw_filters)
+    # remove component with zero variance
+    rcsp_tlw_ratios = np.clip(c1_var[~np.isclose(c2_var, 0)] /
+                              c2_var[~np.isclose(c2_var, 0)], 0, None)
+    rcsp_tlw_filters = rcsp_tlw_filters[:, ~np.isclose(c2_var, 0)]
+    component_order = np.argsort(rcsp_tlw_ratios)
+    rcsp_tlw_filters = rcsp_tlw_filters[:, component_order]
+    rcsp_tlw_ratios = rcsp_tlw_ratios[component_order]
     # get the spatial patterns
     rcsp_tlw_patterns = scipy.linalg.solve(
             rcsp_tlw_filters.T.dot(all_target_covs[subject]).dot(
                 rcsp_tlw_filters),
             rcsp_tlw_filters.T.dot(all_target_covs[subject]))
     ### normalize the patterns such that Cz is always positive
-    rcsp_tlw_patterns*=np.sign(rcsp_tlw_patterns[:,np.asarray(channames)=='CZ'])
+    rcsp_tlw_patterns *= np.sign(rcsp_tlw_patterns[
+        :,np.asarray(channames)=='CZ'])
     ## save SSD eigenvalues, filters and patterns in a.npz
     np.savez(os.path.join(result_folder, 'S{:02d}'.format(subject_name + 1),
         'rcsp_tlw.npz'),
@@ -226,16 +254,16 @@ for subject in range(len(target_cov)):
     gs = mpl.gridspec.GridSpec(3,1, height_ratios = [h1,h2,h3])
     SNNR_ax = fig.add_subplot(gs[0,:])
     SNNR_ax.plot(range(1,len(rcsp_tlw_ratios) + 1),
-            (rcsp_tlw_ratios[::-1]), 'ko-', lw=2, markersize=5)
-    SNNR_ax.scatter([1], (rcsp_tlw_ratios[-1]), c=color1, s=60,
-            zorder=1000)
-    SNNR_ax.scatter([2], (rcsp_tlw_ratios[-2]), c=color2, s=60,
-            zorder=1000)
-    SNNR_ax.scatter([3], (rcsp_tlw_ratios[-3]), c=color3, s=60,
-            zorder=1000)
+            (10*np.log10(rcsp_tlw_ratios[::-1])), 'ko-', lw=2, markersize=5)
+    SNNR_ax.scatter([1], 10*np.log10(rcsp_tlw_ratios[-1]), c=color1,
+            s=60, zorder=1000)
+    SNNR_ax.scatter([2], 10*np.log10(rcsp_tlw_ratios[-2]), c=color2,
+            s=60, zorder=1000)
+    SNNR_ax.scatter([3], 10*np.log10(rcsp_tlw_ratios[-3]), c=color3,
+            s=60, zorder=1000)
     SNNR_ax.set_xlim([0.5, len(rcsp_tlw_ratios)])
     SNNR_ax.set_xticks(np.r_[1,range(5, len(rcsp_tlw_ratios) + 1, 5)])
-    SNNR_ax.set_ylabel('regularized SSD quotient')
+    SNNR_ax.set_ylabel('SNNR (dB)')
     SNNR_ax.set_xlabel('component (index)')
     SNNR_ax.set_title('SNNR of SSD components')
     # plot the four spatial patterns
@@ -259,7 +287,8 @@ for subject in range(len(target_cov)):
         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                 alpha=0.5, zorder=1001)
         head_ax[-1].set_title(r'\textbf{%d}' % (i + 1) +'\n'+
-                '($\mathrm{quotient=%.2f}$)' % ((rcsp_tlw_ratios[-(i + 1)])))
+                '($\mathrm{%.2f dB}$)' % ((10*np.log10(
+                    rcsp_tlw_ratios[-(i + 1)]))))
         meet.sphere.addHead(head_ax[-1], ec=colors[i], zorder=1000, lw=3)
     head_ax[0].set_ylim([-1.1,1.2])
     head_ax[0].set_xlim([-1.5,1.5])
@@ -281,7 +310,7 @@ for subject in range(len(target_cov)):
             c='k', alpha=0.1, lw=0.5) for i, comp in enumerate(F_mean[:32])]
 
     spect_ax.set_xlim([0.5, 4])
-    spect_ax.set_ylim([-4, 10])
+    spect_ax.set_ylim([-10, 15])
     spect_ax.axhline(0, c='k', lw=1)
     spect_ax.set_xlabel('frequency (Hz)')
     spect_ax.set_ylabel('SNNR (dB)')
@@ -320,7 +349,6 @@ for subject in range(len(target_cov)):
 ######################################################################
 ### This is all some old stuff and needs to be updated ###############
 ######################################################################
-"""
 
 # save the results
 save_results = {}
@@ -338,59 +366,7 @@ for i, (snareInlier_now, wdBlkInlier_now,
 
 np.savez(os.path.join(result_folder, 'F_SSD.npz'), **save_results, f=f)
 
-## save SSD eigenvalues, filters and patterns in a.npz
-np.savez(os.path.join(result_folder, 'FFTSSD.npz'),
-        SSD_eigvals = SSD_eigvals,
-        SSD_filters = SSD_filters,
-        SSD_patterns = SSD_patterns,
-        SNNR_i = SNNR_i
-        )
-
-## average the covariance matrices across all subjects
-for t, c in zip(target_cov, contrast_cov):
-    # normalize by the trace of the contrast covariance matrix
-    t_now = t.mean(-1)/np.trace(c.mean(-1))
-    c_now = c.mean(-1)/np.trace(c.mean(-1))
-    # averaged over trials => shape (32,32)
-    try:
-        all_target_cov += t_now
-        all_contrast_cov += c_now
-    except: #init
-        all_target_cov = t_now
-        all_contrast_cov = c_now
-
-# calculate SSD
-## EV and filter
-SSD_eigvals, SSD_filters = helper_functions.eigh_rank(
-        all_target_cov, all_contrast_cov)
-
-## patterns
-SSD_patterns = scipy.linalg.solve(
-        SSD_filters.T.dot(all_target_cov).dot(SSD_filters),
-        SSD_filters.T.dot(all_target_cov))
-
-SNNR_i = []
-for t, c in zip(target_cov, contrast_cov):
-    t_power = SSD_filters.T @ t.mean(-1) @ SSD_filters #target power = ignal + noise
-    c_power = SSD_filters.T @ c.mean(-1) @ SSD_filters #contrast power
-    SNNR_i.append(t_power / c_power)
-
-### normalize the patterns such that Cz is always positive
-SSD_patterns*=np.sign(SSD_patterns[:,np.asarray(channames)=='CZ'])
-
-# average and normalize to plot
-## apply SSD to FFT
-F_SSD_both = [np.tensordot(SSD_filters, F_now, axes=(0,0)) for F_now in F]
-
-## average across trials
-F_SSD_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F_SSD_both]
-F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
-
-## average across subjects
-F_SSD_subj_mean = np.mean(F_SSD_mean, axis=0)
-F_subj_mean = np.mean(F_mean, axis=0)
-
-
+"""
 ######################################
 # plot the resulting EV and patterns #
 ######################################

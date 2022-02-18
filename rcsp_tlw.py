@@ -177,7 +177,7 @@ def rcsp_tlw(c1, c2, target_cov, source_covs, alpha=0,
         increased effect of the source subjects.
     subject_weights : bool, default=True
         whether the subjects should have individually determined weights.
-        Defaults to True, and the wheights will be determied according to
+        Defaults to True, and the weights will be determied according to
         the similarity of spatial patterns/covariance matrices of the
         subjects.
     c1_vs_c2_only : bool, default=False
