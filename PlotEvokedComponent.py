@@ -4,10 +4,8 @@ import scipy
 import scipy.linalg
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-mpl.rcParams['text.latex.preamble'] = [
-    r'\usepackage{amssymb}',
-    r'\usepackage{amsmath}',
-    r'\usepackage{xcolor}']
+plt.rc('text.latex',
+    preamble=r'\usepackage{amsmath} \usepackage{amssymb} \usepackage{xcolor}')
 import sys
 import os.path
 import helper_functions
@@ -20,6 +18,8 @@ from scipy.optimize import fmin_l_bfgs_b as _minimize
 parser = argparse.ArgumentParser(description='Calculate PCO')
 parser.add_argument('result_folder', type=str, default='./Results/',
         help='the folder to store all results', nargs='?')
+parser.add_argument('data_folder', type=str, default='./Data/',
+        help='the folder to store all data', nargs='?')
 args = parser.parse_args()
 
 mpl.rcParams['axes.labelsize'] = 7
@@ -58,32 +58,101 @@ wdBlkFreq = 3./bar_duration
 N_channels = len(channames)
 # read the oscillatory data from the silence period
 
-for i in xrange(1, N_subjects + 1, 1):
+# for i in range(1, N_subjects + 1, 1):
+#     try:
+#         with np.load(os.path.join(args.result_folder, 'S%02d' % i)
+#                 + '/prepare_FFTcSPoC.npz', 'r') as fl:
+#             try:
+#                 snare_listen_trials += fl['snare_listen_trials'].sum(-1)
+#                 snare_silence_trials += fl['snare_silence_trials'].sum(-1)
+#                 wdBlk_listen_trials += fl['wdBlk_listen_trials'].sum(-1)
+#                 wdBlk_silence_trials += fl['wdBlk_silence_trials'].sum(-1)
+#                 snare_N += fl['snare_listen_trials'].shape[-1]
+#                 wdBlk_N += fl['wdBlk_listen_trials'].shape[-1]
+#             except NameError:
+#                 snare_listen_trials = fl['snare_listen_trials'].sum(-1)
+#                 snare_silence_trials = fl['snare_silence_trials'].sum(-1)
+#                 wdBlk_listen_trials = fl['wdBlk_listen_trials'].sum(-1)
+#                 wdBlk_silence_trials = fl['wdBlk_silence_trials'].sum(-1)
+#                 snare_N = fl['snare_listen_trials'].shape[-1]
+#                 wdBlk_N = fl['wdBlk_listen_trials'].shape[-1]
+#     except IOError:
+#         print('Warning: Subject %02d could not be loaded!' %i)
+#
+#
+# listen_avg = (snare_listen_trials + wdBlk_listen_trials)/(
+#         snare_N + wdBlk_N)
+# silence_avg = (snare_silence_trials + wdBlk_silence_trials)/(
+#         snare_N + wdBlk_N)
+
+all_listen = []
+all_silence = []
+snare_N = 0
+wdBlk_N = 0
+for i in range(1, N_subjects + 1, 1):
     try:
-        with np.load(os.path.join(args.result_folder, 'S%02d' % i)
-                + '/prepare_FFTcSPoC.npz', 'r') as fl:
-            try:
-                snare_listen_trials += fl['snare_listen_trials'].sum(-1)
-                snare_silence_trials += fl['snare_silence_trials'].sum(-1)
-                wdBlk_listen_trials += fl['wdBlk_listen_trials'].sum(-1)
-                wdBlk_silence_trials += fl['wdBlk_silence_trials'].sum(-1)
-                snare_N += fl['snare_listen_trials'].shape[-1]
-                wdBlk_N += fl['wdBlk_listen_trials'].shape[-1]
-            except NameError:
-                snare_listen_trials = fl['snare_listen_trials'].sum(-1)
-                snare_silence_trials = fl['snare_silence_trials'].sum(-1)
-                wdBlk_listen_trials = fl['wdBlk_listen_trials'].sum(-1)
-                wdBlk_silence_trials = fl['wdBlk_silence_trials'].sum(-1)
-                snare_N = fl['snare_listen_trials'].shape[-1]
-                wdBlk_N = fl['wdBlk_listen_trials'].shape[-1]
+        with np.load(
+            os.path.join(args.result_folder, 'S%02d' % i, 'eeg_results.npz'),
+            ) as f:
+            snareInlier = f['snareInlier']
+            wdBlkInlier = f['wdBlkInlier']
+
+        with np.load(
+            os.path.join(args.result_folder, 'S%02d' % i, 'behavioural_results.npz'),
+                'r', allow_pickle = True, encoding = 'latin1') as f:
+            snareCue_nearestClock = f['snareCue_nearestClock']
+            snareCue_DevToClock = f['snareCue_DevToClock']
+            wdBlkCue_nearestClock = f['wdBlkCue_nearestClock']
+            wdBlkCue_DevToClock = f['wdBlkCue_DevToClock']
+            bar_duration = f['bar_duration']
+
+        with np.load(
+            os.path.join(args.data_folder, 'S%02d' % i, 'clean_data.npz'),
+            allow_pickle = True, encoding = 'latin1') as npzfile:
+                EEG = npzfile['clean_data']
+                artifact_mask = npzfile['artifact_mask']
+        if os.path.exists(os.path.join(
+            args.data_folder, 'S%02d' % i, 'S{:02d}_eeg_all_files.vmrk'.format(i))):
+            marker_fname = os.path.join(
+                    args.data_folder, 'S%02d' % i, 'S{:02d}_eeg_all_files.vmrk'.format(i))
+        else:
+            marker_fname = os.path.join(args.data_folder, 'S%02d' % i, 'S%02d_eeg.vmrk' % i)
+
+        eeg_clocks = helper_functions.getSessionClocks(marker_fname)
     except IOError:
         print('Warning: Subject %02d could not be loaded!' %i)
+    # now, find the sample of each
+    eeg_clocks = [c for c in eeg_clocks if len(c) > 100]
+    snareCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
+            snareCue_nearestClock, snareCue_DevToClock)
+    wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
+            wdBlkCue_nearestClock, wdBlkCue_DevToClock)
+    # get each begin of listen and silence period
+    snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
+    wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
+    snareSilenceMarker = snareCue_pos - int(bar_duration*s_rate)
+    wdBlkSilenceMarker = wdBlkCue_pos - int(bar_duration*s_rate)
+    # rereference to the average EEG amplitude
+    EEG -= EEG.mean(0)
+    # epoch to listening
+    all_win = [0, int(4*bar_duration*s_rate)]
+    # !! takes snare and wdblk together so not weighted by number of trials
+    all_l = meet.epochEEG(EEG,
+            np.r_[snareListenMarker[snareInlier],
+                wdBlkListenMarker[wdBlkInlier]],
+            all_win)
+    all_listen.append(all_l.mean(-1)) #trial avg
+    all_s = meet.epochEEG(EEG,
+            np.r_[snareSilenceMarker[snareInlier],
+                wdBlkSilenceMarker[wdBlkInlier]],
+            all_win)
+    all_silence.append(all_s.mean(-1))
+    wdBlk_N += snareInlier.sum()
+    snare_N += wdBlkInlier.sum()
 
 
-listen_avg = (snare_listen_trials + wdBlk_listen_trials)/(
-        snare_N + wdBlk_N)
-silence_avg = (snare_silence_trials + wdBlk_silence_trials)/(
-        snare_N + wdBlk_N)
+listen_avg = sum(all_listen) / len(all_listen)
+silence_avg = sum(all_silence) / len(all_silence)
 
 avg = np.hstack([listen_avg, silence_avg])
 t = np.arange(avg.shape[-1])/float(s_rate)
@@ -248,4 +317,3 @@ fig.savefig(os.path.join(args.result_folder,
     'EvokedComponent.pdf'))
 fig.savefig(os.path.join(args.result_folder,
     'EvokedComponent.png'))
-

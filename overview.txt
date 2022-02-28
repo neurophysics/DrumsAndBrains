@@ -43,6 +43,8 @@ a/b/... script can run in parallel
     plots: 'motor/BP_2000mspreresponse.pdf',
       'motor/ERD_2000mspreresponse.pdf' (also for each subject)
     data: 'motor/BP.npz', 'motor/ERD.npz', 'motor/covmat.npz', 'motor/inlier.npz'
+3c. PlotEvokedComponents.py
+    plots: 'EvokedComponent.pdf'
 
 4a. (DR) REWB2.py
     data: F_SSD.npz, ('snare_models.rds', 'wdBlk_models.rds'),
@@ -69,6 +71,5 @@ stepdown_p.py: Calculate corrected p values
 temporary.py: add artifacts for subject 02 and 12 (one-time and already done)
 gamlss.R: R script with design matrix, different model calculations (gamlss)
 lm_tests.R: R script, contains different lm models
-PlotEvokedComponents.py: plots for cSpoC
 REWBmodel.py: older version of REWB2.py
 SPoC
