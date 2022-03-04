@@ -53,48 +53,49 @@ F_SSDs = []
 convolve_F_SSDs = [] # contrast power to neighbouring frequencies
 delta_F_SSDs = [] # include total delta power
 
+# load the results from the multisubject CSP
+with np.load(os.path.join(result_folder, 'mtCSP.npz')) as fi:
+         SNNR_per_subject = fi['SNNR_per_subject']
+         subject_filters = fi['subject_filters']
+
+idx = 0
 for i in range(1, N_subjects + 1, 1):
+    print(i, idx)
+    SSD_filters = subject_filters[idx]
     try:
-        with np.load(os.path.join(result_folder, 'S%02d' % i)
-                + '/rcsp_tlw.npz', 'r') as fi:
-            SSD_eigvals = fi['rcsp_tlw_ratios']
-            SSD_filters = fi['rcsp_tlw_filters']
-            SSD_patterns = fi['rcsp_tlw_patterns']
-        # standardize the SSD filters to make power comparable .......
-        1/0
         with np.load(os.path.join(result_folder, 'S%02d' % i)
                 + '/prepared_FFTSSD.npz', 'r') as fi:
             f = fi['f']
+            # get the frequencies indices
+            snare_idx = np.argmin((f - snareFreq)**2)
+            wdBlk_idx = np.argmin((f - wdBlkFreq)**2)
+            delta_idx = [np.argmin((f - d)**2) for d in delta_range]
             #######################################################
             # calculate and append power at requested frequencies #
             #######################################################
             if condition == 'both':
                 F_SSD = np.abs(np.tensordot(SSD_filters, fi['F'], axes=(0,0)))
-                snareInlier.append(fi['snareInlier_{:02d}'.format(i)])
-                wdBlkInlier.append(fi['wdBlkInlier_{:02d}'.format(i)])
+                snareInlier.append(fi['snareInlier'])
+                wdBlkInlier.append(fi['wdBlkInlier'])
             else:
                 F_SSD = np.abs(np.tensordot(SSD_filters, fi['F_{}'.format(
                     condition)], axes=(0,0)))
-                snareInlier.append(fi['snareInlier_{}_{:02d}'.format(
-                    condition, i)])
-                wdBlkInlier.append(fi['wdBlkInlier_{}_{:02d}'.format(
-                    condition, i)])
-            convolve_F_SSD = scipy.ndimage.convolve1d(
-                F_SSD, np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
-            delta_F_SSD = np.mean(np.abs(F_SSD[:,delta_idx[0]:delta_idx[1]]),
-                axis=1)
-            # append to data lists
-            F_SSDs.append(F_SSD[:N_SSD, (snare_idx, wdBlk_idx)])
-            convolve_F_SSDs.append(convolve_F_SSD[:N_SSD,
-                (snare_idx, wdBlk_idx)])
-            delta_F_SSDs.append(delta_F_SSD[:N_SSD])
-    except ValueError:
+                snareInlier.append(fi['snareInlier_{}'.format(
+                    condition)])
+                wdBlkInlier.append(fi['wdBlkInlier_{}'.format(
+                    condition)])
+        convolve_F_SSD = scipy.ndimage.convolve1d(
+            F_SSD, np.array([-0.25, -0.25, 1, -0.25, -0.25]), axis=1)
+        delta_F_SSD = np.mean(np.abs(F_SSD[:,delta_idx[0]:delta_idx[1]]),
+            axis=1)
+        # append to data lists
+        F_SSDs.append(F_SSD[:N_SSD, (snare_idx, wdBlk_idx)])
+        convolve_F_SSDs.append(convolve_F_SSD[:N_SSD,
+            (snare_idx, wdBlk_idx)])
+        delta_F_SSDs.append(delta_F_SSD[:N_SSD])
+        idx += 1  # if there was no error increase the subect idx
+    except FileNotFoundError:
         print(('Warning: Subject %02d could not be loaded!' %i))
-
-snare_idx = np.argmin((f - snareFreq)**2)
-wdBlk_idx = np.argmin((f - wdBlkFreq)**2)
-delta_idx = [np.argmin((f - delta_range[0])**2),
-             np.argmin((f - delta_range[1])**2)]
 
 # take log to transform to a linear scale (not needed for convolution)
 F_SSDs = [np.log(F_SSD_now) for F_SSD_now in F_SSDs]

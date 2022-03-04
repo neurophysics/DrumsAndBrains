@@ -6,12 +6,6 @@ vs the neighbouring frequencies.
 As input it requests the result folder
 """
 
-# TODO:
-# Inspect spatial patterns for similarity across subjects, need to be sorted???
-# save filtered single-trial data
-# check source models for each of the patterns
-# re-run statistical model
-
 import numpy as np
 import scipy
 import scipy.linalg
@@ -94,7 +88,7 @@ for i in range(1, N_subjects + 1, 1):
                                      wdBlk_target_cov / wdBlk_norm))
             contrast_cov.append(0.5 * (snare_contrast_cov / snare_norm +
                                        wdBlk_contrast_cov / wdBlk_norm))
-            F.append(fi['F'])
+            F.append(fi['F_silence'])
             f.append(fi['f'])
             snareInlier.append(fi['snareInlier'])
             wdBlkInlier.append(fi['wdBlkInlier'])
@@ -125,7 +119,7 @@ import mtCSP
 
 # cross validate the regularization parameter
 lam1 = 0
-lam2 = 0.05
+lam2 = 0.01
 
 get_filters = 10
 

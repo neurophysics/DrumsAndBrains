@@ -180,7 +180,7 @@ F_silence = slepianFFT(silence_trials, nperseg, axis=1)
 ## apply a filter in the Fourier domain to extract only the frequencies
 ## of interest
 # choose the time window (listen, silence, both) here!
-use_F = F
+use_F = F_silence
 
 # get frequency indices
 snare_idx = np.argmin((f-snareFreq)**2)
