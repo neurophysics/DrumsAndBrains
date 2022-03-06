@@ -116,6 +116,8 @@ Results/FFTSSD.npz
 sa_nyhead.mat
 .RData
 .Rhistory
+.DS_Store
+._*
 snare_models.rds
 wdBlk_models.rds
 Results/allEEG_silence.npz
