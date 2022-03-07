@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import random
 import statsmodels.api as sm
 import meet
+import pdb
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -30,7 +31,7 @@ snareFreq = 7./6
 wdBlkFreq = 7./4
 
 # number of SSD_components to use
-N_SSD = 2
+N_SSD = 3
 
 # # load the SSD results
 # with np.load(os.path.join(result_folder, 'FFTSSD.npz')) as f:
@@ -340,17 +341,17 @@ for ssd_type in ['both', 'listen', 'silence']:
                 float(row['WdBlk2_between']),
                 float(row['WdBlk3_between'])))
             snare_F_SSD_within.append(
-                (float(row['Snare1_within_standard']),
-                float(row['Snare2_within_standard']),
-                float(row['Snare3_within_standard']),
-                float(row['WdBlk1_within_standard']),
-                float(row['WdBlk2_within_standard']),
-                float(row['WdBlk3_within_standard'])))
+                (float(row['Snare1_within']),
+                float(row['Snare2_within']),
+                float(row['Snare3_within']),
+                float(row['WdBlk1_within']),
+                float(row['WdBlk2_within']),
+                float(row['WdBlk3_within'])))
             snare_deviation.append(float(row['deviation']))
             snare_trial_idx.append(int(row['trial']))
             snare_session_idx.append(int(row['session']))
             snare_subj.append(int(row['subject']))
-            snare_musicality.append(float(row['deviation']))
+            snare_musicality.append(float(row['musicality']))
     snare_data = {}
     for i,l in enumerate(EEG_labels):
         snare_data[l+'_between'] = robjects.vectors.FloatVector(
@@ -361,7 +362,7 @@ for ssd_type in ['both', 'listen', 'silence']:
     snare_data['musicality'] = robjects.vectors.FloatVector(snare_musicality)
     snare_data['trial'] = robjects.vectors.FloatVector(snare_trial_idx)
     snare_data['session'] = robjects.vectors.FloatVector(snare_session_idx)
-    snare_data['precision'] = robjects.vectors.FloatVector(snare_musicality)
+    snare_data['precision'] = robjects.vectors.FloatVector(np.abs(snare_deviation))
 
     wdBlk_F_SSD_between = []
     wdBlk_F_SSD_within = []
@@ -382,17 +383,17 @@ for ssd_type in ['both', 'listen', 'silence']:
                 float(row['WdBlk2_between']),
                 float(row['WdBlk3_between'])))
             wdBlk_F_SSD_within.append(
-                (float(row['Snare1_within_standard']),
-                float(row['Snare2_within_standard']),
-                float(row['Snare3_within_standard']),
-                float(row['WdBlk1_within_standard']),
-                float(row['WdBlk2_within_standard']),
-                float(row['WdBlk3_within_standard'])))
+                (float(row['Snare1_within']),
+                float(row['Snare2_within']),
+                float(row['Snare3_within']),
+                float(row['WdBlk1_within']),
+                float(row['WdBlk2_within']),
+                float(row['WdBlk3_within'])))
             wdBlk_deviation.append(float(row['deviation']))
             wdBlk_trial_idx.append(int(row['trial']))
             wdBlk_session_idx.append(int(row['session']))
             wdBlk_subj.append(int(row['subject']))
-            wdBlk_musicality.append(float(row['deviation']))
+            wdBlk_musicality.append(float(row['musicality']))
 
     wdBlk_data = {}
     for i,l in enumerate(EEG_labels):
@@ -404,7 +405,7 @@ for ssd_type in ['both', 'listen', 'silence']:
     wdBlk_data['musicality'] = robjects.vectors.FloatVector(wdBlk_musicality)
     wdBlk_data['trial'] = robjects.vectors.FloatVector(wdBlk_trial_idx)
     wdBlk_data['session'] = robjects.vectors.FloatVector(wdBlk_session_idx)
-    wdBlk_data['precision'] = robjects.vectors.FloatVector(wdBlk_musicality)
+    wdBlk_data['precision'] = robjects.vectors.FloatVector(np.abs(wdBlk_deviation))
 
     # # add EEG
     # for i,l in enumerate(EEG_labels):
@@ -456,8 +457,8 @@ for ssd_type in ['both', 'listen', 'silence']:
     #                 group = 'subject'))
     # # standardize, this took some googling, since R's scale function from rpy2
     # # returnd just a Matrix and not a data frame
-    # Rsnare_data = effectsize.standardize(Rsnare_data)
-    # RwdBlk_data = effectsize.standardize(RwdBlk_data)
+    Rsnare_data = effectsize.standardize(Rsnare_data)
+    RwdBlk_data = effectsize.standardize(RwdBlk_data)
 
     #################################
     # generate the necessary models #
