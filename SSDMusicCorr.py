@@ -46,7 +46,7 @@ musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 #    with np.load(os.path.join(result_folder, 'S%02d' % i, 'rcsp_tlw.npz'), 'r') as fi:
 #        SNNR_i.append(np.mean(fi['rcsp_tlw_ratios'][-1:]))
 with np.load(os.path.join(result_folder, 'mtCSP.npz'), 'r') as fi:
-    SNNR_i = fi['SNNR_per_subject'][:,0:3].mean(-1)
+    SNNR_i = fi['SNNR_per_subject'][:,:].mean(-1)
 
 # convert to dB
 SNNR_i = 10*np.log10(SNNR_i)

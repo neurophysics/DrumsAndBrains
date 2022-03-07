@@ -119,35 +119,46 @@ import mtCSP
 
 # cross validate the regularization parameter
 lam1 = 0
-lam2 = 0.01
+lam2 = 0.5
 
 get_filters = 10
 
-for it in trange(get_filters):
-    if it == 0:
-        quot_now, filters_now = mtCSP.maximize_mtCSP(
-                [c.mean(-1) for c in target_cov],
-                [c.mean(-1) for c in contrast_cov],
-                lam1,
-                lam2,
-                iterations=10)
-        quot = [quot_now]
-        all_filters = filters_now.reshape(-1, 1)
-    else:
-        quot_now, filters_now = mtCSP.maximize_mtCSP(
-                [c.mean(-1) for c in target_cov],
-                [c.mean(-1) for c in contrast_cov],
-                lam1,
-                lam2,
-                old_W = all_filters,
-                iterations=10)
-        quot.append(quot_now)
-        all_filters = np.hstack([all_filters, filters_now.reshape(-1, 1)])
-
-# calculate the composite filters for every subject
-subject_filters = [all_filters[:N_channels] +
-                   all_filters[(i + 1) * N_channels:(i + 2) * N_channels]
-                   for i in range(len(target_cov))]
+try:
+    with np.load(os.path.join(result_folder, 'mtCSP.npz'), 'r') as fi:
+             subject_filters=fi['subject_filters']
+except:
+    # get whitening matrix for the average target covariance matrix
+    target_cov_avg = np.mean([c.mean(-1) for c in target_cov], 0)
+    rank = np.linalg.matrix_rank(target_cov_avg)
+    eigval, eigvect = scipy.linalg.eigh(target_cov_avg)
+    W = eigvect[:,-rank:]/np.sqrt(eigval[-rank:])
+    for it in trange(get_filters):
+        if it == 0:
+            quot_now, filters_now = mtCSP.maximize_mtCSP(
+                    [W.T @ c.mean(-1) @ W for c in target_cov],
+                    [W.T @ c.mean(-1) @ W for c in contrast_cov],
+                    lam1,
+                    lam2,
+                    iterations=20)
+            quot = [quot_now]
+            all_filters = filters_now.reshape(-1, 1)
+        else:
+            quot_now, filters_now = mtCSP.maximize_mtCSP(
+                    [W.T @ c.mean(-1) @ W for c in target_cov],
+                    [W.T @ c.mean(-1) @ W for c in contrast_cov],
+                    lam1,
+                    lam2,
+                    old_W = all_filters,
+                    iterations=20)
+            quot.append(quot_now)
+            all_filters = np.hstack([all_filters, filters_now.reshape(-1, 1)])
+    # transform the filters
+    all_filters = np.vstack([W @ all_filters[i * rank : (i + 1) * rank]
+        for i in range(len(target_cov) + 1)])
+    # calculate the composite filters for every subject
+    subject_filters = [all_filters[:N_channels] +
+                       all_filters[(i + 1) * N_channels:(i + 2) * N_channels]
+                       for i in range(len(target_cov))]
 
 # calculate the SNNR for every component and subject
 SNNR_per_subject = np.array([
@@ -173,9 +184,10 @@ F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 # plot the resulting EV and patterns #
 ######################################
 # calculate the spatial pattern from the global pattern (first 32 coefficients) and the average
-# of the target coveriance matrix
+# of the target covariance matrix
 
 global_filters = all_filters[:N_channels]
+#global_filters = np.mean(subject_filters, 0)
 global_target_covariance = np.mean([c.mean(-1) for c in target_cov], 0)
 
 # get the spatial patterns
