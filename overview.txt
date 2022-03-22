@@ -5,6 +5,7 @@ Legend
 (S) run separately for all subjects (needs Subject number)
 (R) needs Result folder
 (A) needs number of all subjects (21)
+(C) needs condition (both/listen/silence)
 a/b/... script can run in parallel
 
 1a. (DSR) read_aif.py
@@ -36,9 +37,9 @@ a/b/... script can run in parallel
     plots: 'ListeningAmp_Performance.pdf', 'ListeningPhase_Performance.pdf',
       'SilenceAmp_Performance.pdf', 'SilencePhase_Performance.pdf'
 
-3a. (R) calcFFTSSD.py
-    plots: 'FFTSSD_patterns.pdf'
-    data: 'F_SSD_inlier.npz', 'FFTSSD.npz'
+3a. (R) calcMultisubjectFFTSSD.py (uses mtCSP.py)
+    plots: 'FFTSSD_patterns_mtCSP.pdf'
+    data: 'mtCSP.npz'
 3b. (DR) basicAnalysis_motor.py
     plots: 'motor/BP_2000mspreresponse.pdf',
       'motor/ERD_2000mspreresponse.pdf' (also for each subject)
@@ -46,18 +47,19 @@ a/b/... script can run in parallel
 3c. PlotEvokedComponents.py
     plots: 'EvokedComponent.pdf'
 
-4a. (DR) REWB2.py
-    data: F_SSD.npz, ('snare_models.rds', 'wdBlk_models.rds'),
-      Results/models/* e.g. *=snare_both.html
+4a. (DRC) prepareModelData.py
 4b. (R) bestDipoleFit.py
     plots: 'BestDipoleFit_snarePaired.pdf', 'BestDipoleFit_snareSingle.pdf'
 4c. (DR) csp.py
     plots: 'motor/CSP_patterns.pdf'
     data: 'CSP.npz', 'erdcsp.npz'
 
-5a. (DR) SSDMusicCorr.py
+5a. lmmelsm.R
+    data: 
+    plots:
+5b. (DR) SSDMusicCorr.py
     plots: 'SNNR_exp.pdf'
-5b. (DR) motorPlots.py
+5c. (DR) motorPlots.py
     plots: 'motor/CSP_patterns.pdf[band]', 'motor/erdcsp_comp[band].pdf',
       'motor/patternsByTime.pdf'
 
@@ -72,4 +74,8 @@ temporary.py: add artifacts for subject 02 and 12 (one-time and already done)
 gamlss.R: R script with design matrix, different model calculations (gamlss)
 lm_tests.R: R script, contains different lm models
 REWBmodel.py: older version of REWB2.py
-SPoC
+SPoC.py: not using SPoC anymore
+calcFFTSSD.py: SSD, replaced by calcMultisubjectFFTSSD.py
+rCSP-tlw.py: used by calcFFTSSD, replaced by calcMultisubjectFFTSSD.py
+REWB2.py: now calculating models with lmmelsm.R (made .rds and .html files)
+brms.R: now calculating models with lmmelsm.R
