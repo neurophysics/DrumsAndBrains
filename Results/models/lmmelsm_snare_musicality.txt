@@ -1,0 +1,72 @@
+
+-----
+Diagnostic Checks
+-----
+
+Divergent Transitions: Failed
+	40  divergences
+Convergence: Passed
+*** Diagnostics failed. Do not interpret estimates. ***
+
+-----
+
+-----
+Location Intercepts
+-----
+
+      item   Mean Median     SD   Q2.5 Q97.5
+ deviation 0.0798 0.0794 0.0211 0.0386 0.123
+
+-----
+Location model (Fixed effects)
+-----
+
+Variable : deviation
+  predictor    Mean  Median     SD    Q2.5    Q97.5
+ musicality -0.0266 -0.0255 0.0132 -0.0557 -0.00327
+
+
+-----
+(Log) Scale Intercepts
+-----
+
+      item  Mean Median     SD  Q2.5 Q97.5
+ deviation -2.92  -2.92 0.0909 -3.09 -2.73
+
+-----
+Scale model (Fixed effects)
+-----
+
+Variable : deviation
+  predictor   Mean Median     SD   Q2.5 Q97.5
+ musicality -0.456 -0.453 0.0681 -0.602 -0.33
+
+
+-----
+Between-group scale model
+-----
+
+Variable : deviation
+ param  predictor   Mean Median    SD   Q2.5   Q97.5
+    mu musicality -0.572 -0.585 0.208 -0.945 -0.1265
+ logsd musicality -0.454 -0.448 0.276 -1.017  0.0731
+
+
+-----
+Random effect standard deviations
+	Note: Between-group scale model used.
+	'mu' and 'logsd' represent RE-SDs when between-group covariates are zero.
+-----
+
+    factor param   Mean Median     SD   Q2.5 Q97.5
+ deviation    mu 0.0823 0.0801 0.0161 0.0574  0.12
+ deviation logsd 0.3608 0.3507 0.0762 0.2416  0.54
+
+-----
+Random effect correlations (Posterior Means (Lower) and SDs (Upper))
+	Note: See summary(out)$summary$Omega_mean_logsd for full summary.
+-----
+
+                deviation_mu deviation_logsd
+deviation_mu           1.000            0.21
+deviation_logsd        0.365            1.00
