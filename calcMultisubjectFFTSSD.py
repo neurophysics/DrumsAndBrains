@@ -142,7 +142,7 @@ except:
                     iterations=20)
             quot = [quot_now]
             all_filters = filters_now.reshape(-1, 1)
-        else:
+        else: #force other filters to be orthogonal
             quot_now, filters_now = mtCSP.maximize_mtCSP(
                     [W.T @ c.mean(-1) @ W for c in target_cov],
                     [W.T @ c.mean(-1) @ W for c in contrast_cov],
@@ -186,7 +186,8 @@ F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 # calculate the spatial pattern from the global pattern (first 32 coefficients) and the average
 # of the target covariance matrix
 
-global_filters = all_filters[:N_channels]
+global_filters = all_filters[:N_channels] #this wont work if mtCSP.npz already existed before!
+global_filters = subject_filter[0][:N_channels] #should be equivalent, for each subject also includes the global one
 #global_filters = np.mean(subject_filters, 0)
 global_target_covariance = np.mean([c.mean(-1) for c in target_cov], 0)
 
