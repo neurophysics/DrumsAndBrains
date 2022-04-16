@@ -1,5 +1,5 @@
 """
-executes common spatial pattern algorithm on ERD data
+executes multisubject common spatial pattern algorithm on ERD data
 """
 import numpy as np
 import sys
@@ -7,8 +7,11 @@ import os.path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy
-import meet
 import helper_functions
+import meet
+from tqdm import tqdm, trange
+import mtCSP
+
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -20,7 +23,7 @@ chancoords = meet.sphere.getStandardCoordinates(channames)
 chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
         projection='stereographic')
 chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
-
+N_channels = len(channames)
 
 ##### read ERD data ####
 # ERD (ERS) = percentage of power decrease (increase):
@@ -58,9 +61,15 @@ while True:
 band_names = ['[' + str(b[0]) + '-' + str(b[1]) + ']' for b in fbands]
 
 ##### try reading CSP, if not calculate it #####
-CSP_eigvals = []
-CSP_filters = []
-CSP_patterns = []
+#regularization parameters for mtCSP
+lam1 = 0 # penalizes the size of the global filter
+lam2 = 0.5 # penalizes the size of the specific filter
+lam2_cand = np.logspace(-5,5,num=11)
+get_filters = 5
+
+CSP_eigvals = [ ] #5[(10,)], (get_filters,) for each band
+CSP_filters = [] #5[20[(32,10)]], [(N_channels,get_filters) for each subject] for each band
+CSP_patterns = [] #5[21[(10,32)]], [(get_filters,N_channels) for each subject(+1 global in front)] for each band
 try:
     i=0
     while True:
@@ -75,38 +84,107 @@ try:
             break
     print('CSP succesfully read.')
 except FileNotFoundError: # read ERD data and calculate CSP
-    for band_idx, band_name in enumerate(band_names):
-        target_cov_a = [t[band_idx] for t in target_covs]
+    for band_idx, band_name in enumerate(band_names[0]):
         contrast_cov_a = [t[band_idx] for t in contrast_covs]
+        target_cov_a = [t[band_idx] for t in target_covs]
+        target_cov_avg = np.mean([c.mean(-1) for c in target_cov_a], 0) #trial and subject avg
+        # get whitening matrix for the average target covariance matrix
+        rank = np.linalg.matrix_rank(target_cov_avg)
+        eigval, eigvect = scipy.linalg.eigh(target_cov_avg)
+        W = eigvect[:,-rank:]/np.sqrt(eigval[-rank:])
+        v_norm = []
+        for lam2 in lam2_cand:
+            for it in trange(get_filters): #last 5 filters are ERD (contrast, target)
+                if it == 0:
+                    quot_now, filters_now = mtCSP.maximize_mtCSP(
+                            [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
+                            [W.T @ c.mean(-1) @ W for c in target_cov_a],
+                            lam1,
+                            lam2,
+                            iterations=20)
+                    quot = [quot_now]
+                    all_filters = filters_now.reshape(-1, 1)
+                else: #force other filters to be orthogonal
+                    quot_now, filters_now = mtCSP.maximize_mtCSP(
+                            [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
+                            [W.T @ c.mean(-1) @ W for c in target_cov_a],
+                            lam1,
+                            lam2,
+                            old_W = all_filters,
+                            iterations=20)
+                    quot.append(quot_now)
+                    all_filters = np.hstack([all_filters, filters_now.reshape(-1, 1)])
+            #erd und ers also orthogonal to each other to reduce later covariability
+            # for it in trange(get_filters): #first 5 filters are ERS (target, contrast)
+            #     if it == 0:
+            #         quot_now, filters_now = mtCSP.maximize_mtCSP(
+            #                 [W.T @ c.mean(-1) @ W for c in target_cov_a],
+            #                 [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
+            #                 lam1,
+            #                 lam2,
+            #                 iterations=20)
+            #         quot = [quot_now]
+            #         all_filters = filters_now.reshape(-1, 1)
+            #     else: #force other filters to be orthogonal
+            #         quot_now, filters_now = mtCSP.maximize_mtCSP(
+            #                 [W.T @ c.mean(-1) @ W for c in target_cov_a],
+            #                 [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
+            #                 lam1,
+            #                 lam2,
+            #                 old_W = all_filters,
+            #                 iterations=20)
+            #         quot.append(quot_now)
+            #         all_filters = np.hstack([all_filters, filters_now.reshape(-1, 1)])
 
-        ## average the covariance matrices across all subjects
-        for t, c in zip(target_cov_a, contrast_cov_a):
-            # normalize by the trace of the contrast covariance matrix
-            t_now = t.mean(-1)/np.trace(c.mean(-1))
-            c_now = c.mean(-1)/np.trace(c.mean(-1))
-            try:
-                all_target_cov += t_now
-                all_contrast_cov += c_now
-            except: #init
-                all_target_cov = t_now
-                all_contrast_cov = c_now
+            # transform the filters
+            all_filters = np.vstack([W @ all_filters[i * rank : (i + 1) * rank]
+                for i in range(len(target_cov_a) + 1)]) #(21*32,5)
+            # calculate the composite filters for every subject
+            subject_filters = [all_filters[:N_channels] +
+                               all_filters[(i + 1) * N_channels:(i + 2) * N_channels]
+                               for i in range(len(target_cov_a))]
+            CSP_filters.append(subject_filters) #(20,32,10)
 
-        ##### calculate CSP #####
-        ## EV and filter
-        CSP_eigval, CSP_filter = helper_functions.eigh_rank(all_target_cov,
-                all_contrast_cov)
-        CSP_eigvals.append(CSP_eigval)
-        CSP_filters.append(CSP_filter)
+            # calculate the SNNR (EV equivalent)for every component and subject
+            SNNR_per_subject = np.array([
+                np.diag((filt.T @ target_now.mean(-1) @ filt) /
+                        (filt.T @ contrast_now.mean(-1) @ filt))
+                for (filt, target_now, contrast_now) in
+                zip(subject_filters, target_cov_a, contrast_cov_a)])
+            SNNR = SNNR_per_subject.mean(0)
+            CSP_eigvals.append(SNNR) #(10,)
 
-        # patterns
-        CSP_pattern = scipy.linalg.solve(
-                CSP_filter.T.dot(all_target_cov).dot(CSP_filter),
-                CSP_filter.T.dot(all_target_cov))
+            # patterns
+            CSP_pattern_subjects = [scipy.linalg.solve(
+                    CSP_filter.T.dot(target_subj.mean(-1)).dot(CSP_filter),
+                    CSP_filter.T.dot(target_subj.mean(-1)))
+                    for CSP_filter, target_subj in zip(subject_filters, target_cov_a)]
+            global_filters = all_filters[:N_channels]
+            CSP_pattern_global = scipy.linalg.solve(
+                    global_filters.T.dot(target_cov_avg).dot(global_filters),
+                    global_filters.T.dot(target_cov_avg))
+            CSP_pattern = np.vstack([[CSP_pattern_global],CSP_pattern_subjects])
+            ### normalize the patterns such that Cz is always positive
+            CSP_pattern = [p*np.sign(p[:,np.asarray(channames)=='CZ'])
+                    for p in CSP_pattern]
+            CSP_patterns.append(CSP_pattern) #(21, 5, 32)
 
-        ### normalize the patterns such that Cz is always positive
-        CSP_pattern*=np.sign(CSP_pattern[:,np.asarray(channames)=='CZ'])
-        CSP_patterns.append(CSP_pattern)
+            #plot filters over channel (should be similar enough)
+            for s in range(N_subjects-1):
+                f_now = subject_filters[s][:,0]
+                plt.plot(channames, (f_now-np.mean(f_now))/np.std(f_now))
+            plt.savefig(os.path.join(result_folder,'motor/CSP_filters{}_lam{}.pdf'.format(band_names[0],lam2)))
+            # looking at first filter of ERD for now
+            # villeicht all_filters stattdessen? Gunnar meinte, nur die individuellen filter!
+            v_norm.append(
+                np.sqrt(np.sum(np.square(np.array(subject_filters)[:,:,0]))))
 
+        # plot SNNR and ||v||2 for first filter (ERD)
+        plt.figure()
+        plt.scatter(np.log([x[0] for x in CSP_eigvals]), np.log(v_norm), label=str(lam2)) #one point per lambda
+        plt.legend()
+        plt.savefig(os.path.join(result_folder,'motor/CSP_Lcurve.pdf'))
+    1/0
     save_results = {}
     for (band_now, eigvals_now, filters_now, patterns_now) in zip(
         band_names, CSP_eigvals, CSP_filters, CSP_patterns):
@@ -117,7 +195,6 @@ except FileNotFoundError: # read ERD data and calculate CSP
         band_names=band_names, **save_results)
     print('CSP succesfully calculated.')
 
-
 ##### try reading applied ERDCSP, if not apply CSP to EEG (takes a while) #####
 ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, CSPcomp,time)
 ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject,each shape (Nband, Ntrial)
@@ -126,7 +203,7 @@ try:
     i=0
     while True:
         try:
-            with np.load(os.path.join(result_folder,'motor/erdcsp2.npz')) as f:
+            with np.load(os.path.join(result_folder,'motor/erdcsp.npz')) as f:
                 ERD_CSP.append(f['ERDCSP_{:02d}'.format(i)])
                 ERDCSP_trial.append(f['ERDCSP_trial_{:02d}'.format(i)])
                 ERSCSP_trial.append(f['ERSCSP_trial_{:02d}'.format(i)])
@@ -169,7 +246,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
             b, a = scipy.signal.butter(3, Wn, btype='bandpass')
             eeg_filtbp = scipy.signal.filtfilt(b, a, eeg)
             # apply CSP to eeg data
-            EEG_CSP_subj = np.tensordot(CSP_filters[band_idx], eeg_filtbp,
+            EEG_CSP_subj = np.tensordot(CSP_filters[band_idx][idx], eeg_filtbp,
                 axes=(0,0))
             # Hilbert-Transform, absolute value (could also be abs**2)
             eeg_filtHil = np.abs(scipy.signal.hilbert(EEG_CSP_subj, axis=-1))**2
