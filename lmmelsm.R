@@ -5,7 +5,7 @@
 # skripte für daten durchlaufen lassen
 library('LMMELSM')
 
-snare_dat <- read.csv("Results/snare_data_silence.csv", sep=',')
+snare_dat <- read.csv("Results/snare_data_listen.csv", sep=',')
 
 fit <- lmmelsm(
 	       list(
@@ -13,4 +13,4 @@ fit <- lmmelsm(
 	location ~ musicality + trial + session + Snare1_between + Snare2_between + Snare3_between + Snare1_within + Snare2_within + Snare3_within,
 	scale ~ musicality + trial + session + Snare1_between + Snare2_between + Snare3_between + Snare1_within + Snare2_within + Snare3_within,
 	between ~ musicality + trial + session + Snare1_between + Snare2_between + Snare3_between + Snare1_within + Snare2_within + Snare3_within),
-	group = subject, snare_dat, cores=8)
+	group = subject, snare_dat, cores=8, iter=10000, control=list(adapt_delta=0.99))
