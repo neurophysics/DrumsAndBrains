@@ -301,7 +301,7 @@ for ssd_type in ['both', 'listen', 'silence']:
     parameters = importr('parameters')
     lme4 = importr('lme4')
     sjPlot = importr('sjPlot')
-    effectsize = importr('effectsize')
+    datawizard = importr('datawizard')
 
     # snare_subject = np.hstack([np.ones(F_SSD_now.shape[-1], int)*(i + 1)
     #     for i, F_SSD_now in enumerate(snare_F_SSD)])
@@ -457,8 +457,8 @@ for ssd_type in ['both', 'listen', 'silence']:
     #                 group = 'subject'))
     # # standardize, this took some googling, since R's scale function from rpy2
     # # returnd just a Matrix and not a data frame
-    Rsnare_data = effectsize.standardize(Rsnare_data)
-    RwdBlk_data = effectsize.standardize(RwdBlk_data)
+    Rsnare_data = datawizard.standardize(Rsnare_data)
+    RwdBlk_data = datawizard.standardize(RwdBlk_data)
 
     #################################
     # generate the necessary models #

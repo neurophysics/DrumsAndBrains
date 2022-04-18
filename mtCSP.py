@@ -90,10 +90,10 @@ def get_target_covs(covs):
     ----------
     covs : iterable
         an iterable of N elements containing the covariance matrices from
-        the target condition - one for each of N source subjects. 
+        the target condition - one for each of N source subjects.
         The covariance matrices need to be positive (semi-)definite
         square matrices
-    
+
     Returns
     -------
     target_covs : iterable
@@ -113,7 +113,7 @@ def get_contrast_covs(covs, lam1, lam2):
     ----------
     covs : iterable
         an iterable of N elements containing the covariance matrices from
-        the target condition - one for each of N source subjects. 
+        the target condition - one for each of N source subjects.
         The covariance matrices need to be positive (semi-)definite
         square matrices
     lam1 : float
@@ -161,7 +161,7 @@ def _fun_jac(w, target_covs, contrast_covs, factor=1):
         the derivative of the objective function with respect to w (multiplied
         by `factor`)
     """
-    rs_num = [w @ c1 @ w for c1 in target_covs]  # the numerator of rs
+    rs_num = [w @ c1 @ w for c1 in target_covs]  # the numerator of rs (.T not needed because 1D array)
     rs_denom = [w @ c2 @ w for c2 in contrast_covs]  # the denominator of rs
     rs = [num / denom for num, denom in zip(rs_num, rs_denom)]
     obj = sum(rs)  # the objective function
@@ -170,7 +170,7 @@ def _fun_jac(w, target_covs, contrast_covs, factor=1):
     return factor * obj, factor * np.asarray(obj_d)
 
 def constraint(w, n_subjects, old_W=None):
-    """Enfoce orthogonality of spatial filters for every subject
+    """Enforce orthogonality of spatial filters for every subject
     """
     n_channels = len(w) // (n_subjects + 1)
     if old_W is None:
@@ -189,7 +189,7 @@ def constraint_d(w, n_subjects, old_W=None):
     else:
         W = np.hstack([old_W.reshape(len(w), -1), w[:, np.newaxis]])
     deriv = [single_constraint_d(
-                                 W[:n_channels] + 
+                                 W[:n_channels] +
                                  W[(i + 1) * n_channels:(i + 2) * n_channels])
                                  for i in range(n_subjects)]
     return np.hstack([sum(deriv), np.hstack(deriv)])
@@ -202,7 +202,7 @@ def single_constraint(W):
 def single_constraint_d(W):
     deviation = W.T @ W - np.eye(W.shape[-1])
     constraint_d = (4 * deviation[-1] * W).sum(-1)
-    return constraint_d 
+    return constraint_d
 
 def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
     """ Calculate a single multisubject-CSP filter
@@ -270,4 +270,3 @@ if __name__ == "__main__":
     quot2, w2 = maximize_mtCSP(c1, c2, lam1, lam2, old_W=w1)
     quot3, w3 = maximize_mtCSP(c1, c2, lam1, lam2, old_W=np.vstack([w1, w2]).T)
     W = np.vstack([w1, w2, w3]).T
-

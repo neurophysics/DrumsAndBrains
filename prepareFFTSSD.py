@@ -3,7 +3,7 @@ prepare the SSD for a single subject
 
 This script reads the EEG and behavioural data.
 
-The Fourier transform is applied to the listen trials (first three bars
+The Fourier transform is applied to the silence trials (first three bars
 of the stimulus) after padding to 12 s to result in a frequency resolution
 of 1/6 Hz.
 
