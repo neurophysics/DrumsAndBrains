@@ -84,7 +84,7 @@ try:
             break
     print('CSP succesfully read.')
 except FileNotFoundError: # read ERD data and calculate CSP
-    for band_idx, band_name in enumerate(band_names[0]):
+    for band_idx, band_name in enumerate(band_names):
         contrast_cov_a = [t[band_idx] for t in contrast_covs]
         target_cov_a = [t[band_idx] for t in target_covs]
         target_cov_avg = np.mean([c.mean(-1) for c in target_cov_a], 0) #trial and subject avg
@@ -96,6 +96,8 @@ except FileNotFoundError: # read ERD data and calculate CSP
         for lam2 in lam2_cand:
             for it in trange(get_filters): #last 5 filters are ERD (contrast, target)
                 if it == 0:
+                    print('Calculating ERD filter {} of {}'.format(
+                        it+1, get_filters))
                     quot_now, filters_now = mtCSP.maximize_mtCSP(
                             [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
                             [W.T @ c.mean(-1) @ W for c in target_cov_a],
@@ -117,6 +119,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
             #erd und ers also orthogonal to each other to reduce later covariability
             # for it in trange(get_filters): #first 5 filters are ERS (target, contrast)
             #     if it == 0:
+            #         print('Calculating ERS filter {} of {}'.format(it+1, get_filters))
             #         quot_now, filters_now = mtCSP.maximize_mtCSP(
             #                 [W.T @ c.mean(-1) @ W for c in target_cov_a],
             #                 [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
@@ -184,7 +187,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
         plt.scatter(np.log([x[0] for x in CSP_eigvals]), np.log(v_norm), label=str(lam2)) #one point per lambda
         plt.legend()
         plt.savefig(os.path.join(result_folder,'motor/CSP_Lcurve.pdf'))
-    1/0
+        1/0 #stop after one band
     save_results = {}
     for (band_now, eigvals_now, filters_now, patterns_now) in zip(
         band_names, CSP_eigvals, CSP_filters, CSP_patterns):
