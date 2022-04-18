@@ -92,7 +92,6 @@ except FileNotFoundError: # read ERD data and calculate CSP
         rank = np.linalg.matrix_rank(target_cov_avg)
         eigval, eigvect = scipy.linalg.eigh(target_cov_avg)
         W = eigvect[:,-rank:]/np.sqrt(eigval[-rank:])
-        v_norm = []
         for lam2 in lam2_cand:
             for it in trange(get_filters): #last 5 filters are ERD (contrast, target)
                 if it == 0:
@@ -177,14 +176,12 @@ except FileNotFoundError: # read ERD data and calculate CSP
                 f_now = subject_filters[s][:,0]
                 plt.plot(channames, (f_now-np.mean(f_now))/np.std(f_now))
             plt.savefig(os.path.join(result_folder,'motor/CSP_filters{}_lam{}.pdf'.format(band_names[0],lam2)))
-            # looking at first filter of ERD for now
-            # villeicht all_filters stattdessen? Gunnar meinte, nur die individuellen filter!
-            v_norm.append(
-                np.sqrt(np.sum(np.square(np.array(subject_filters)[:,:,0]))))
 
         # plot SNNR and ||v||2 for first filter (ERD)
+        v_norm = [np.sqrt(np.sum(np.square(np.array(f)[:,:,0]))) for f in CSP_filters]
         plt.figure()
-        plt.scatter(np.log([x[0] for x in CSP_eigvals]), np.log(v_norm), label=str(lam2)) #one point per lambda
+        for i,l in enumerate(lam2_cand):
+            plt.scatter(np.log(CSP_eigvals[i][0]), np.log(v_norm[i]), label=str(l)) #one point per lambda
         plt.legend()
         plt.savefig(os.path.join(result_folder,'motor/CSP_Lcurve.pdf'))
         1/0 #stop after one band
