@@ -134,8 +134,5 @@ fit_wdBlk3_within <- uni_lmmelms_fct(x = "WdBlk3_within", data=wdBlk_data)
 sink("Results/models/lmmelsm_wdBlk_WdBlk3_within.txt")
 print(summary(fit_wdBlk3_within))
 
-
-
 # (not working) apply for all of wdBlk_data except first two (subject, deviation)
 # uni_fits <- lapply(wdBlk_data[,-2:-1], uni_lmmelms_fct, data=wdBlk_data) 
-        
