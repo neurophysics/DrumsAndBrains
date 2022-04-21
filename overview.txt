@@ -6,7 +6,7 @@ Legend
 (R) needs Result folder
 (A) needs number of all subjects (21)
 (C) needs condition (both/listen/silence)
-a/b/... script can run in parallel
+a/b/... script can run in parallel (not dependent on each other)
 
 1a. (DSR) read_aif.py
     plots: 'NeuralEntrl_Ss%02dresponse.pdf', 'SelfAssessmentAndResponseSs%02d.pdf'
@@ -53,6 +53,9 @@ a/b/... script can run in parallel
 4c. (DR) csp.py
     plots: 'motor/CSP_patterns.pdf'
     data: 'CSP.npz', 'erdcsp.npz'
+4d. (DR) lda.py
+    plots: 'motor/LDApattern.pdf'
+    data: 'motor/lda.npy'
 
 5a. lmmelsm.R
     data: 
@@ -62,6 +65,11 @@ a/b/... script can run in parallel
 5c. (DR) motorPlots.py
     plots: 'motor/CSP_patterns.pdf[band]', 'motor/erdcsp_comp[band].pdf',
       'motor/patternsByTime.pdf'
+5d. (DR) preareModelData_motor.py
+
+6a. lmmelsm_motor.R
+    data:
+    plots:
 
 # other scripts
 helper_function.py: includes some helpful functions

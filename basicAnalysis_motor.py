@@ -1,5 +1,8 @@
 """
-calculates BP an ERD
+3b. (DR) basicAnalysis_motor.py
+    plots: 'motor/BP_2000mspreresponse.pdf',
+      'motor/ERD_2000mspreresponse.pdf' (also for each subject)
+    data: 'motor/BP.npz', 'motor/ERD.npz', 'motor/covmat.npz', 'motor/inlier.npz'
 """
 import numpy as np
 import sys
