@@ -15,6 +15,7 @@ result_folder = sys.argv[2]
 N_subjects = 21
 
 ## plot
+plt.rcParams.update({'font.size': 8})
 color0 = '#543005'.upper() #dark brown
 color1 = '#8c510a'.upper()
 color2 = '#bf812d'.upper()
@@ -77,14 +78,15 @@ while True: #loop over subjects
         break
 
 ##### read CSP #####
-CSP_eigvals = [] #stores EV per band, each shape (CSPcomp,)=(32,)
-CSP_filters = [] #stores filters per band, each shape (CSPcomp,CSPcomp)=(32,32)
-CSP_patterns = [] #store spatterns per band, each shape (CSPcomp,CSPcomp)=(32,32)
+# always first ERD, then ERS filter
+CSP_eigvals = [] #stores EV per band, each shape (N_filters*2,)=(10,)
+CSP_filters = [] #stores filters per band, each shape (N_subjects,;N_channels,N_filters*2)=(20,32,10)
+CSP_patterns = [] #store spatterns per band, each shape (N_subjects+1global,N_filters*2,N_channels)=(21,10,32)
 try:
     i=0 #loop over bands
     while True:
         try:
-            with np.load(os.path.join(result_folder,'motor/CSP.npz')) as f:
+            with np.load(os.path.join(result_folder,'motor/mtCSP.npz')) as f:
                 band_names = f['band_names']
                 CSP_eigvals.append(f['CSP_eigvals{:s}'.format(band_names[i])])
                 CSP_filters.append(f['CSP_filters{:s}'.format(band_names[i])])
@@ -96,8 +98,11 @@ try:
 except FileNotFoundError: # read ERD data and calculate CSP
     print('Please run basicAnalysis_motor.py and csp.py first.')
 
+N_filters = int(CSP_filters[0].shape[-1]/2) # have erd and ers
+N_bands = len(band_names)
+
 ##### read BP and ERD_CSP ######
-ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, CSPcomp,time)
+ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, N_filters*2,time)
 ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject,each shape (Nband, Ntrial)
 ERSCSP_trial = [] # same for ERS
 try:
@@ -115,18 +120,38 @@ try:
 except FileNotFoundError: # read ERD data and calculate CSP
     print('Please run csp.py first.')
 
-##### plot ERDCSP components #####
+
+##### mtCSP_filter_optLam2.pdf: plot filter for lam2=3  #####
+# currently only for ERD, add for ERS?
+fig, axs = plt.subplots(N_bands, 2, figsize=(10,10),
+        sharex=True, sharey=True)
+fig.subplots_adjust(top=0.94, bottom=0.05, left=0.05, right=0.99, hspace=0.3)
+fig.suptitle(r'Best mtCSP filter for every subject with lam2=3', fontsize=12)
+for band_idx, band_name in enumerate(band_names):
+    axs[band_idx,0].set_title('ERD, {} Hz'.format(band_name[1:-1]))
+    for s in range(N_subjects-1):
+        f_now = CSP_filters[band_idx][s,:,0]
+        axs[band_idx,0].plot(channames, (f_now-np.mean(f_now))/np.std(f_now))
+axs[band_idx,0].set_xlabel('channel')
+for band_idx, band_name in enumerate(band_names):
+    axs[band_idx,1].set_title('ERS, {} Hz'.format(band_name[1:-1]))
+    for s in range(N_subjects-1):
+        f_now = CSP_filters[band_idx][s,:,N_filters] #ERS filter after ERD filter
+        axs[band_idx,1].plot(channames, (f_now-np.mean(f_now))/np.std(f_now))
+plt.xticks(ticks=range(len(channames)),labels=[])
+axs[band_idx,1].set_xlabel('channel')
+fig.savefig(os.path.join(result_folder, 'motor/mtCSP_filter_optLam2.pdf'))
+
+
+##### erdmtcsp_comp[1-4].pdf: plot ERDCSP components #####
 # look at plot to determine number of components
-for i,ev in enumerate(CSP_eigvals):
-    plt.plot(ev, 'o')
-    plt.title('CSP EV band {}, small ERD, large ERS'.format(band_names[1]))
-    #plt.show()
+# for i,ev in enumerate(CSP_eigvals):
+#     plt.plot(ev, 'o')
+#     plt.title('CSP EV band {}, small ERD, large ERS'.format(band_names[1]))
+#     plt.show()
 # first argument is pre movement so
-# old, just use 5 for each now
-CSP_ERDnums = [2,5,5,5,5] # e.g. [:3] # small EV 2 or 5 mostly both work
-CSP_ERSnums = [4,4,4,4,5] #e.g. [-4:] # large EV
-CSP_ERDnum = 5
-CSP_ERSnum = 5
+CSP_ERDnum = N_filters
+CSP_ERSnum = N_filters
 
 for band_idx, band_name in enumerate(band_names):
     # average over subjects
@@ -134,21 +159,21 @@ for band_idx, band_name in enumerate(band_names):
     ev = CSP_eigvals[band_idx]
 
     # normalize
-    ERD_CSP_subjmean /= ERD_CSP_subjmean[:,0:750].mean(1)[:,np.newaxis] #baseline avg should be 100%
+    ERD_CSP_subjmean /= ERD_CSP_subjmean[:,base_idx].mean(1)[:,np.newaxis] #baseline avg should be 100%
     ERD_CSP_subjmean *= 100 # ERD in percent
 
     # plot CSP components
     erd_t = range(win[0], win[1])
     plt.figure()
     # plot in order from top to bottom
-    for s in range(CSP_ERSnum): #0,1,2,3
-        plt.plot(erd_t, ERD_CSP_subjmean[s,:].T,
-            label='ERS %d' % (s+1) + ' ($\mathrm{EV=%.2fdB}$)' % round(
-            10*np.log10(ev[s]),2), color=colors[s])
-    for d in range(-CSP_ERDnum,0,1): #-3,-2,-1
+    for s in range(CSP_ERSnum): #0,1,2,3,4
+        plt.plot(erd_t, ERD_CSP_subjmean[N_filters+s,:].T,
+            label='ERS %d' % (s+1) + ' ($\mathrm{%.2fdB}$)' % round(
+            10*np.log10(ev[N_filters+s]),2), color=colors[s])
+    for d in range(CSP_ERDnum-1,-1,-1): #4,3,2,1,0
         plt.plot(erd_t, ERD_CSP_subjmean[d,:].T,
-            label='ERD %d' % (-d) + ' ($\mathrm{EV=%.2fdB}$)' % round(
-            10*np.log10(ev[d]), 2), color=colors[d])
+            label='ERD %d' % (d+1) + ' ($\mathrm{%.2fdB}$)' % round(
+            10*np.log10(ev[d]), 2), color=colors[-(d+1)])
     plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T,
         c='black', alpha=0.1)
     plt.axvspan(base_ms[0], base_ms[-1], alpha=0.3, color=colors[4],
@@ -157,21 +182,21 @@ for band_idx, band_name in enumerate(band_names):
         label='target period')
     plt.legend(fontsize=8)
     plt.xlabel('time around response [ms]', fontsize=10)
-    plt.ylabel('CSP filtered EEG, relative amplitude [%]', fontsize=10)
-    plt.title('subj.-avg. and eeg-applied CSP components {} Hz]'.format(
+    plt.ylabel('CSP filtered EEG, relative amplitude [\%]', fontsize=10)
+    plt.title('subj.-avg. and eeg-applied CSP filter {} Hz]'.format(
         band_name[:-1]), fontsize=12)
     plt.savefig(os.path.join(result_folder,
-        'motor/erdcsp_comp{}.pdf'.format(band_name)))
+        'motor/erdmtcsp_comp{}.pdf'.format(band_name)))
 
 
-##### plot EV and CSP patterns #####
+##### mtCSP_patterns[1-4].pdf:  plot EV and global CSP patterns #####
 # this, especially calculating the potmaps, takes a while
 potmaps_csp = []
 for band_idx, band_name in enumerate(band_names):
     ev = CSP_eigvals[band_idx]
 
     potmaps = [meet.sphere.potMap(chancoords, pat_now,
-        projection='stereographic') for pat_now in CSP_patterns[band_idx]]
+        projection='stereographic') for pat_now in CSP_patterns[band_idx][0]]
     potmaps_csp.append(potmaps)
     h1 = 1 #ev
     h2 = 1.3 #ERS
@@ -278,7 +303,7 @@ for band_idx, band_name in enumerate(band_names):
     gs.tight_layout(fig, pad=0.5)#, pad=0.2, h_pad=0.8
 
     fig.savefig(os.path.join(result_folder,
-        'motor/CSP_patterns{}.pdf'.format(band_name)))
+        'motor/mtCSP_patterns{}.pdf'.format(band_name)))
 
 ##### plot combination of above plots: components with patterns above and below ####
 for band_idx, band_name in enumerate(band_names):
@@ -372,7 +397,7 @@ for band_idx, band_name in enumerate(band_names):
         head_ax[-1].set_xlabel('ERD %d' % (d + 1) + '\n($\mathrm{%.2fdB}$)' % round(
         10*np.log10(ev[-(d+1)]), 2),
                 fontsize=8)
-        head_ax[-1].tick_params(**blind_ax) 
+        head_ax[-1].tick_params(**blind_ax)
         meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
     head_ax[0].set_ylim([-1.1,1.3])
     head_ax[0].set_xlim([-1.6,1.6])
@@ -386,11 +411,11 @@ for band_idx, band_name in enumerate(band_names):
 
     gs.tight_layout(fig, pad=0.5, h_pad=0.8)#, pad=0.2, h_pad=0.8
     fig.savefig(os.path.join(result_folder,
-        'motor/CSP{}.pdf'.format(band_name)))
+        'motor/mtCSP{}.pdf'.format(band_name)))
 plt.close('all')
 
-
-##### plot BP and ERP patterns over time fro each subject #####
+1/0
+##### plot BP and ERP patterns over time for each subject #####
 times = [-1000,-750,-500,-250,0] #ms relative to response
 time_idx = [t-win[0]-1 for t in times] #win is -2000 to 500
 for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is missing
@@ -484,3 +509,4 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
     gs.tight_layout(fig, pad=0.5, h_pad=0.2)
     plt.savefig(os.path.join(result_folder,'S%02d'% subj,
         'motor_patternsByTime.pdf'))
+plt.close('all')
