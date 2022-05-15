@@ -47,10 +47,12 @@ with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'r') as infile:
 left_handed = [True if i<0 else False for i in LQ]
 
 ##### plot 2 sec preresponse for each channel #####
-snareInliers = []
-wdBlkInliers = []
+all_snareHit_inlier = []
+all_wdBlkHit_inlier = []
 all_snareHit_times = []
 all_wdBlkHit_times = []
+all_snareInlier = []
+all_wdBlkInlier = []
 all_BP = [] #avg over all subjects
 all_BP_trials = [] #BP per trial (32,2500,150)
 all_ERD = [] #avg over all subjects
@@ -120,16 +122,18 @@ while(subj <= N_subjects):
             wdBlkCue_nearestClock, wdBlkCue_DevToClock)
     snare_cueHitdiff = ((0.5 * bar_duration + snare_deviation) * s_rate)
     wdBlk_cueHitdiff = ((2./3 * bar_duration + wdBlk_deviation) * s_rate)
-    snareHit_times = snareCue_pos + snare_cueHitdiff
-    wdBlkHit_times = wdBlkCue_pos + wdBlk_cueHitdiff
+    snareHit_times_unmasked = snareCue_pos + snare_cueHitdiff
+    wdBlkHit_times_unmasked = wdBlkCue_pos + wdBlk_cueHitdiff
 
     # store time difference between Cues and response for plot
     cueHit_diff.append(np.hstack([snare_cueHitdiff, wdBlk_cueHitdiff]))
 
-    snareHit_times_outlier = np.isnan(snareHit_times)
-    wdBlkHit_times_outlier = np.isnan(wdBlkHit_times)
-    snareHit_times = snareHit_times[~snareHit_times_outlier].astype(int)
-    wdBlkHit_times = wdBlkHit_times[~wdBlkHit_times_outlier].astype(int)
+    snareHit_inlier = ~np.isnan(snareHit_times_unmasked)
+    wdBlkHit_inlier = ~np.isnan(wdBlkHit_times_unmasked)
+    all_snareHit_inlier.append(snareHit_inlier)
+    all_wdBlkHit_inlier.append(wdBlkHit_inlier)
+    snareHit_times = snareHit_times_unmasked[snareHit_inlier].astype(int)
+    wdBlkHit_times = wdBlkHit_times_unmasked[wdBlkHit_inlier].astype(int)
     all_snareHit_times.append(snareHit_times)
     all_wdBlkHit_times.append(wdBlkHit_times)
 
@@ -140,8 +144,8 @@ while(subj <= N_subjects):
         win), 0)
     wdBlkInlier = np.all(meet.epochEEG(artifact_mask, wdBlkHit_times,
         win), 0)
-    snareInliers.append(snareInlier)
-    wdBlkInliers.append(wdBlkInlier)
+    all_snareInlier.append(snareInlier)
+    all_wdBlkInlier.append(wdBlkInlier)
 
     all_trials = meet.epochEEG(eeg,
             np.r_[snareHit_times[snareInlier],
@@ -354,8 +358,11 @@ np.savez(os.path.join(result_folder, 'motor/covmat.npz'),
 
 # store the inlier of the hit responses
 save_inlier = {}
-for i, (snI, wbI) in enumerate(zip(snareInliers, wdBlkInliers)):
-    save_inlier['snareInlier_response_{:02d}'.format(i)] = snI
-    save_inlier['wdBlkInlier_response_{:02d}'.format(i)] = wbI
+for i, (shI, whI, sI, wI) in enumerate(zip(all_snareHit_inlier,
+        all_wdBlkHit_inlier,all_snareInlier, all_wdBlkInlier)):
+    save_inlier['snareHit_inlier_{:02d}'.format(i)] = shI
+    save_inlier['wdBlkHit_inlier_{:02d}'.format(i)] = whI
+    save_inlier['snareInlier_response_{:02d}'.format(i)] = sI
+    save_inlier['wdBlkInlier_response_{:02d}'.format(i)] = wI
     save_inlier['win'] = win
 np.savez(os.path.join(result_folder, 'motor/inlier.npz'), **save_inlier)
