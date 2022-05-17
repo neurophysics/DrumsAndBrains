@@ -12,6 +12,8 @@ import helper_functions
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
 N_subjects = 21
+act_idx_lda = range(1400,1900) #-600 to -100ms
+base_idx_lda = range(500) #-2 to -1.5
 
 ###### read BP ######
 # unprocessed, just epoched eeg by hittimes
@@ -33,8 +35,8 @@ with np.load(os.path.join(result_folder, 'motor/inlier.npz'), 'r') as f:
 all_BP = np.concatenate(all_BP, axis=-1) #now shape (channels,trials) = (32,2500,20*1xx)
 all_BP = all_BP - all_BP[:,:1400,:].mean(1)[:,np.newaxis,:]
 # divide into classes, both shape (channels, trials)
-BP = all_BP[:,1400:1900,:].mean(1) #-800 to -100ms
-contrast = all_BP[:,:500,:].mean(1) #-2 to -1.2
+BP = all_BP[:,act_idx_lda,:].mean(1)
+contrast = all_BP[:,base_idx_lda,:].mean(1)
 
 # center classwise, estimate cov on all features at once
 Xpool = np.hstack([BP-BP.mean(-1)[:,np.newaxis],
@@ -45,6 +47,7 @@ cfilt = np.linalg.pinv(C).dot(contrast.mean(-1) - BP.mean(-1))
 # alternatively, use gunnars LDA:
 #cfilt,diff = g.LDA(all_BP[:,:,:1900]), smooth=500)ull
 np.save(os.path.join(result_folder, 'motor/lda.npy'), cfilt)
+np.save(os.path.join(result_folder, 'motor/lda_idx.npy'), [base_idx_lda,act_idx_lda])
 
 ##### plots #####
 #check component

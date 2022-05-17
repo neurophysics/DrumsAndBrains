@@ -48,17 +48,18 @@ a/b/... script can run in parallel (not dependent on each other)
     plots: 'EvokedComponent.pdf'
 
 4a. (DRC) prepareModelData.py
+    data: 'snare_data_both.csv' (wdblk, listen, silence respectively)
 4b. (R) bestDipoleFit.py
     plots: 'BestDipoleFit_snarePaired.pdf', 'BestDipoleFit_snareSingle.pdf'
 4c. (DR) csp.py
     plots: 'motor/CSP_patterns.pdf'
-    data: 'CSP.npz', 'erdcsp.npz'
+    data: 'CSP.npz', 'ERDCSP.npz'
 4d. (DR) lda.py
     plots: 'motor/LDApattern.pdf'
     data: 'motor/lda.npy'
 
 5a. lmmelsm.R
-    data: 
+    data:
     plots:
 5b. (DR) SSDMusicCorr.py
     plots: 'SNNR_exp.pdf'
@@ -66,7 +67,7 @@ a/b/... script can run in parallel (not dependent on each other)
     plots: 'motor/CSP_patterns.pdf[band]', 'motor/erdcsp_comp[band].pdf',
       'motor/patternsByTime.pdf'
 5d. (DR) preareModelData_motor.py
-
+    data: 'snare_data_motor.csv'. 'wdBlk_data_motor.csv'
 6a. lmmelsm_motor.R
     data:
     plots:

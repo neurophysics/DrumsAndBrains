@@ -288,7 +288,7 @@ def getEntryFromMultipleArrays(arrays):
 
     Args: arrays: list of N 1d arrays. These mustall have the same
                 length
-    
+
     Returns: item_generator: a generator that returns a list of single entries
              from all arrays
     """
@@ -309,7 +309,7 @@ def writeDictionaryToCSV(datadict, trial_type):
         # loop through the items
         for row in getEntryFromMultipleArrays(datadict.values()):
             writer.writerow(row)
-    
+
 # for snare #
 #############
 snare_data = {}
@@ -349,4 +349,3 @@ wdBlk_data['session'] = np.hstack(wdBlk_session_idx)
 wdBlk_data['deviation'] = np.hstack(wdBlk_deviation)
 
 writeDictionaryToCSV(wdBlk_data, 'wdBlk')
-
