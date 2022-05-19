@@ -33,7 +33,7 @@ with np.load(os.path.join(result_folder, 'motor/inlier.npz'), 'r') as f:
 
 # stitch all subjects together so we have many trials
 all_BP = np.concatenate(all_BP, axis=-1) #now shape (channels,trials) = (32,2500,20*1xx)
-all_BP = all_BP - all_BP[:,:1400,:].mean(1)[:,np.newaxis,:]
+all_BP = all_BP - all_BP[:,:1400,:].mean(1)[:,np.newaxis,:] #baseline here up to 1400, only changes plot not filter
 # divide into classes, both shape (channels, trials)
 BP = all_BP[:,act_idx_lda,:].mean(1)
 contrast = all_BP[:,base_idx_lda,:].mean(1)

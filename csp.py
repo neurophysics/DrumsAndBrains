@@ -260,7 +260,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
             # apply CSP to eeg data
             EEG_CSP_subj = np.tensordot(CSP_filters[band_idx][idx], eeg_filtbp,
                 axes=(0,0)) #(N_filters, 2770660)
-            # Hilbert-Transform, absolute value (could also be abs**2)
+            # Hilbert-Transform, power
             eeg_filtHil = np.abs(scipy.signal.hilbert(EEG_CSP_subj, axis=-1))**2 #(N_filters, 2770660)
             # normalize s.t.2000ms preresponse are 100%
             snareHit_times = all_snareHit_times[idx]
@@ -268,7 +268,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
             all_trials_filt = meet.epochEEG(eeg_filtHil,
                     np.r_[snareHit_times[snareInlier[idx]],
                         wdBlkHit_times[wdBlkInlier[idx]]],
-                    win) # (ERDcomp, time, trials) = (31, 2500, 143)
+                    win) # (N_filters*2, time, trials) = (10, 2500, 143)
             # calculate trial averaged ERDCSP
             ERD_CSP_subj_band = all_trials_filt.mean(-1) # trial average (N_filters,2500)
 
@@ -277,14 +277,12 @@ except FileNotFoundError: # read ERD data and calculate CSP
             ERD_CSP_subj.append(ERD_CSP_subj_band)
 
             # calculate ERD in percent per subject and trial
-            ERDCSP_allCSP_trial = (np.mean(all_trials_filt[:,act_idx], axis=1
-                    ) - np.mean(all_trials_filt[:,base_idx], axis=1)
+            ERDCSP_allCSP_trial = np.mean(all_trials_filt[:,act_idx], axis=1
+                    #) - np.mean(all_trials_filt[:,base_idx], axis=1)
                     ) / np.mean(all_trials_filt[:,base_idx], axis=1) * 100
             # only keep min/max value i.e. best component
-            ERDCSP_trial_band.append(
-                ERDCSP_allCSP_trial[np.argmin(np.min(ERDCSP_allCSP_trial, axis=1))])
-            ERSCSP_trial_band.append(
-                ERDCSP_allCSP_trial[np.argmax(np.max(ERDCSP_allCSP_trial, axis=1))])
+            ERDCSP_trial_band.append(ERDCSP_allCSP_trial[0,:])
+            ERSCSP_trial_band.append(ERDCSP_allCSP_trial[N_filters,:])
             # end for each band
 
         ERD_CSP.append(ERD_CSP_subj)

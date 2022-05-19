@@ -72,17 +72,16 @@ try:
 except KeyError:
     print('lda.npy or lda_idx.npy not found. Please run lda.py first.')
 
-# for each label we will have on value per subject and trial (20,1xx)
-N_bands = ERDCSP_trial[0].shape[0]
-EEG_labels = (['BP'] +
-    ['ERD{}'.format(i+1) for i in range(N_bands)] +
-    ['ERS{}'.format(i+1) for i in range(N_bands)])
-
 #apply lda to bp
 BPlda = [np.tensordot(cfilt, b, axes=(0,0)) for b in all_BP] #each shape (2500, 143) now
 #convert BP to decrease/increase value i.e. activation avg - baseline avg
 BPLDA = [a[act_idx_lda].mean(0) - a[base_idx_lda].mean(0) for a in BPlda] #(143,) each
 
+# for each label we will have on value per subject and trial (20,1xx)
+N_bands = ERDCSP_trial[0].shape[0]
+EEG_labels = (['BP'] +
+    ['ERD{}'.format(i+1) for i in range(N_bands)] +
+    ['ERS{}'.format(i+1) for i in range(N_bands)])
 ###############################################################################
 # load/prepare behavioral data
 # get performance session and trial indices and separate trials into snare
@@ -186,33 +185,27 @@ while True:
 
             # snare_trial_idx relates to 150 trials => need 150 trial version
             # First, combine Hit inlier and eeg inlier
-            a = list(snareInlier_now)
-            snareInlier_combined = [a.pop(0)
-                if snareHit_inlier_now[i]==True else False
-                for i in range(len(snareHit_inlier_now))]
-            b = list(wdBlkInlier_now)
-            wdBlkInlier_combined = [b.pop(0)
-                if wdBlkHit_inlier_now[i]==True else False
-                for i in range(len(wdBlkHit_inlier_now))]
-            # Then, combine snare and wdblk inlier in teh right order
+            snareInlier_combined = snareHit_inlier_now.copy() #init as longer array
+            snareInlier_combined[snareHit_inlier_now] = snareInlier_now.copy() #where it is true, take values from smalelr array
+            wdBlkInlier_combined = wdBlkHit_inlier_now.copy() #init as longer array
+            wdBlkInlier_combined[wdBlkHit_inlier_now] = wdBlkInlier_now.copy() #where it is true, take values from smalelr array
+            # Then, combine snare and wdblk inlier in the right order
             snarewdBlkHit_inlier = np.hstack(
                 [snareInlier_combined,wdBlkInlier_combined])
             allHit_inlier = snarewdBlkHit_inlier[np.argsort(all_trial_idx)] #argsort gives order of trials
             # add nan at invalid trials to get to shape (5,150)
-            res = [] #erd
-            res2 = [] #ers
-            for b in range(N_bands):
-                val = list(ERDCSP_trial[idx][b,:])
-                res.append([val.pop(0) if allHit_inlier[i]==True else np.nan
-                    for i in range(len(allHit_inlier))])
-                val2 = list(ERSCSP_trial[idx][b,:])
-                res2.append([val2.pop(0) if allHit_inlier[i]==True else np.nan
-                    for i in range(len(allHit_inlier))])
+            # erd
+            res = np.zeros([N_bands,len(allHit_inlier)])
+            res[:,allHit_inlier] = ERDCSP_trial[idx]
+            res[:,~allHit_inlier] = np.nan
             ERDCSP_trial_150.append(np.vstack(res))
+            res2 = np.zeros([N_bands,len(allHit_inlier)])
+            res2[:,allHit_inlier] = ERSCSP_trial[idx]
+            res2[:,~allHit_inlier] = np.nan
             ERSCSP_trial_150.append(np.vstack(res2))
-            val3 = list(BPLDA[idx])
-            res3 = [val3.pop(0) if allHit_inlier[i]==True else np.nan
-                for i in range(len(allHit_inlier))]
+            res3 = np.zeros(allHit_inlier.shape)
+            res3[allHit_inlier] = BPLDA[idx]
+            res3[~allHit_inlier] = np.nan
             BPLDA_150.append(np.array(res3))
 
             # get the session indices
@@ -241,6 +234,22 @@ while True:
 # create data dictionary for storing as csv and subsequent R processing #
 #########################################################################
 
+def addEEGtoDict(datadict, labels, data):
+    for i, l, in enumerate(labels):
+        datadict[l] = np.hstack([data_now[i] for data_now in data])
+        # add within data
+        datadict[l + '_within'] = np.hstack([
+            data_now[i] - np.mean(data_now[i])
+            for data_now in data])
+        # standardize for each subject
+        datadict[l + '_within_standard'] = np.hstack([
+            (data_now[i] - np.mean(data_now[i]))/np.std(data_now[i])
+            for data_now in data])
+        # add between data
+        datadict[l + '_between'] = np.hstack([
+            np.ones_like(data_now[i]) * np.mean(data_now[i])
+            for data_now in data])
+
 def getEntryFromMultipleArrays(arrays):
     """Get a list of single entry of multiple 1d-arrays
 
@@ -256,7 +265,6 @@ def getEntryFromMultipleArrays(arrays):
     N = N[0]
     for i in range(N):
         yield [a[i] for a in arrays]
-
 
 def writeDictionaryToCSV(datadict, trial_type):
     with open(os.path.join(result_folder, '{}_data_motor.csv'.format(
@@ -287,20 +295,23 @@ subject_idx_wdBlk = np.hstack([np.ones(erd.shape[-1], int)*i
     for i, erd in enumerate(ERDCSP_wdBlk)])
 
 
-
 # for snare #
 #############
-data = {} #2745 trials
-# have [20*(5,143)] need 5 lists each 20*xx=1275 trials
-erd_data = np.vstack( #(5,20)
-    [np.hstack([erd[i] for erd in ERDCSP_snare]) for i in range(N_bands)])
-ers_data = np.vstack(
-    [np.hstack([ers[i] for ers in ERSCSP_snare]) for i in range(N_bands)])
+data = {} #1275 trials
+# have [20*(5,1xx)] need 5 lists each 20*xx=1275 trials
+# erd_data = np.vstack( #(5,1275)
+#     [np.hstack([erd[i] for erd in ERDCSP_snare]) for i in range(N_bands)])
+# ers_data = np.vstack(
+#     [np.hstack([ers[i] for ers in ERSCSP_snare]) for i in range(N_bands)])
 
 # add EEG to dictionary
-all_EEG = np.vstack([np.hstack(BPLDA_snare), erd_data, ers_data]) #(11,20)
-for i, l, in enumerate(EEG_labels):
-    data[l] = all_EEG[i,:]
+# take log for ERD and ERS because they are right skewed
+all_EEG = [np.vstack([a.reshape(1,-1), np.log(b), np.log(c)])
+    for a,b,c in zip(BPLDA_snare, ERDCSP_snare, ERSCSP_snare)] #[20*(11,58)]
+
+# for i, l, in enumerate(EEG_labels):
+#     data[l] = all_EEG[i,:]
+addEEGtoDict(data, EEG_labels, all_EEG)
 # add subject index
 data['subject'] = np.array([s+1 if s<10 else s+2 for s in subject_idx_snare])
 # add musicality
@@ -316,16 +327,8 @@ writeDictionaryToCSV(data, 'snare')
 # for woodblock #
 #################
 wdBlk_data = {}
-# have [20*(5,143)] need 5 lists each 20*xx=1275 trials
-erd_data = np.vstack( #(5,20)
-    [np.hstack([erd[i] for erd in ERDCSP_wdBlk]) for i in range(N_bands)])
-ers_data = np.vstack(
-    [np.hstack([ers[i] for ers in ERSCSP_wdBlk]) for i in range(N_bands)])
-
-# add EEG to dictionary
-all_EEG = np.vstack([np.hstack(BPLDA_wdBlk), erd_data, ers_data]) #(11,20)
-for i, l, in enumerate(EEG_labels):
-    data[l] = all_EEG[i,:]
+all_EEG = [np.vstack([a.reshape(1,-1), np.log(b), np.log(c)])
+    for a,b,c in zip(BPLDA_snare, ERDCSP_snare, ERSCSP_snare)] #[20*(11,58)]
 # add subject index
 data['subject'] = np.array([s+1 if s<10 else s+2 for s in subject_idx_wdBlk])
 # add musicality
