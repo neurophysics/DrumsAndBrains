@@ -2,7 +2,8 @@
 # see Devlaminck et al. 2011 - Multisubject learning for 
 # common spatial patterns in motor-imagery BCI
 # setting cores higher than numbe rof chains makes no sense
-# setwd('/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains')
+# 
+setwd('/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains')
 
 library('LMMELSM')
 
@@ -10,15 +11,20 @@ library('LMMELSM')
 file = "Results/snare_data_motor.csv"
 snare_data <- read.csv(file, sep=',')
 
+# todo: add within and between
+# only take alpha and beta erd and delta ers?
 fit_motor_snareAll <- lmmelsm(
   list(
     observed ~ deviation,
-    location ~ musicality + trial + session + BP + ERD1 + ERD2 + ERD3 + ERD4 +
-      ERD5 + ERS1 + ERS2 + ERS3 + ERS4 + ERS5,
-    scale ~ musicality + trial + session + BP + ERD1 + ERD2 + ERD3 + ERD4 +
-      ERD5 + ERS1 + ERS2 + ERS3 + ERS4 + ERS5,
-    between ~ musicality + trial + session + BP + ERD1 + ERD2 + ERD3 + ERD4 +
-      ERD5 + ERS1 + ERS2 + ERS3 + ERS4 + ERS5),
+    location ~ musicality + trial + session + BP_within + BP_between + 
+      ERD3_within + ERD3_between + ERD4_within + ERD4_between +
+      ERS1_within + ERS1_between + ERS2_within + ERS2_between,
+    scale ~ musicality + trial + session + BP_within + BP_between + 
+      ERD3_within + ERD3_between + ERD4_within + ERD4_between +
+      ERS1_within + ERS1_between + ERS2_within + ERS2_between,
+    between ~ musicality + trial + session + BP_within + BP_between + 
+      ERD3_within + ERD3_between + ERD4_within + ERD4_between +
+      ERS1_within + ERS1_between + ERS2_within + ERS2_between),
   group = subject, data = snare_data, cores=8, iter=10000)
 sink("Results/motor/lmmelsm_motor_snare_all.txt")
 print(summary(fit_motor_snareAll))
@@ -45,43 +51,44 @@ fit_motor_session <- uni_lmmelms_fct(x = "session", data=snare_data)
 sink("Results/motor/lmmelsm_motor_snare_session.txt")
 print(summary(fit_motor_session))
 
-fit_motor_BP <- uni_lmmelms_fct(x = "BP", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_BP.txt")
+fit_motor_BP <- uni_lmmelms_fct(x = "BP_within", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_BP_within.txt")
 print(summary(fit_motor_BP))
 
-fit_motor_ERD1 <- uni_lmmelms_fct(x = "ERD1", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD1.txt")
-print(summary(fit_motor_ERD1))
-fit_motor_ERS1 <- uni_lmmelms_fct(x = "ERS1", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERS1.txt")
+fit_motor_BPbw <- uni_lmmelms_fct(x = "BP_between", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_BP_between.txt")
+print(summary(fit_motor_BPbw))
+
+fit_motor_ERS1 <- uni_lmmelms_fct(x = "ERS1_within", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERS1_within.txt")
 print(summary(fit_motor_ERS1))
 
-fit_motor_ERD2 <- uni_lmmelms_fct(x = "ERD2", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD2.txt")
-print(summary(fit_motor_ERD2))
-fit_motor_ERS2 <- uni_lmmelms_fct(x = "ERS2", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERS2.txt")
+fit_motor_ERS1bw <- uni_lmmelms_fct(x = "ERS1_between", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERS1_between.txt")
+print(summary(fit_motor_ERS1bw))
+
+fit_motor_ERS2 <- uni_lmmelms_fct(x = "ERS2_within", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERS2_within.txt")
 print(summary(fit_motor_ERS2))
 
-fit_motor_ERD3 <- uni_lmmelms_fct(x = "ERD3", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD3.txt")
+fit_motor_ERS2bw <- uni_lmmelms_fct(x = "ERS2_between", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERS2_between.txt")
+print(summary(fit_motor_ERS2bw))
+
+fit_motor_ERD3 <- uni_lmmelms_fct(x = "ERD3_within", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERD3_within.txt")
 print(summary(fit_motor_ERD3))
-fit_motor_ERS3 <- uni_lmmelms_fct(x = "ERS3", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERS3.txt")
-print(summary(fit_motor_ERS3))
 
-fit_motor_ERD4 <- uni_lmmelms_fct(x = "ERD4", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD4.txt")
+fit_motor_ERD3bw <- uni_lmmelms_fct(x = "ERD3_between", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERD3_between.txt")
+print(summary(fit_motor_ERD3bw))
+
+fit_motor_ERD4 <- uni_lmmelms_fct(x = "ERD4_within", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERD4_within.txt")
 print(summary(fit_motor_ERD4))
-fit_motor_ERS4 <- uni_lmmelms_fct(x = "ERS4", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERS4.txt")
-print(summary(fit_motor_ERS4))
 
-fit_motor_ERD5 <- uni_lmmelms_fct(x = "ERD5", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD5.txt")
-print(summary(fit_motor_ERD5))
-fit_motor_ERS5 <- uni_lmmelms_fct(x = "ERS5", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERS5.txt")
-print(summary(fit_motor_ERS5))
+fit_motor_ERD4_bw <- uni_lmmelms_fct(x = "ERD4_between", data=snare_data)
+sink("Results/motor/lmmelsm_motor_snare_ERD4_between.txt")
+print(summary(fit_motor_ERD4_bw))
 
 sink() # to free memory
