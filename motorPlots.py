@@ -63,7 +63,7 @@ base_ms = [t+win[0] for t in base_idx] #-2000 to 500 milliseconds
 act_ms = [t+win[0] for t in act_idx] #-2000 to 500
 
 ##### read unfiltered BP adn ERD #####
-BPs = [] #stores BP per subject, each shape (Ncomp, time)=(32,2500)
+BPs = [] #stores BP per subject, each shape (N_channel, time)=(32,2500)
 ERDs = [] #stores ERD per subject, each shape (band,Ncomp, time)=(5,32,2500)
 i=0
 while True: #loop over subjects
@@ -99,6 +99,8 @@ try:
 except FileNotFoundError: # read ERD data and calculate CSP
     print('Please run basicAnalysis_motor.py and csp.py first.')
 
+cfilt = np.load(os.path.join(result_folder,'motor/lda.npy'))
+
 N_filters = int(CSP_filters[0].shape[-1]/2) # have erd and ers
 CSP_ERDnum = N_filters
 CSP_ERSnum = N_filters
@@ -122,6 +124,58 @@ try:
     print('ERDCSP succesfully read.')
 except FileNotFoundError: # read ERD data and calculate CSP
     print('Please run csp.py first.')
+1/0
+##### BPLDA.pdf: plot filter for lam2=3  #####
+BPlda = [np.tensordot(cfilt, b, axes=(0,0)) for b in BPs] #each shape (2500,) now
+# plot for each subject
+s_rate=1000
+all_cueHit_diff_mean = []
+all_cueHit_diff_sd = []
+for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is missing
+    if subj_idx < 10: #subject idx 10 already belongs to subject 12
+        subj = subj_idx+1
+    else:
+        subj = subj_idx+2
+    # find hit area
+    with np.load(os.path.join(result_folder,'S%02d'%subj, 'behavioural_results.npz'),
+            'r', allow_pickle=True, encoding='latin1') as f:
+        bar_duration = f['bar_duration']
+        snare_deviation = f['snare_deviation']
+        wdBlk_deviation = f['wdBlk_deviation']
+    snare_cueHitdiff = ((0.5 * bar_duration + snare_deviation) * s_rate)
+    wdBlk_cueHitdiff = ((2./3 * bar_duration + wdBlk_deviation) * s_rate)
+    cueHit_diff = np.hstack([snare_cueHitdiff, wdBlk_cueHitdiff])
+    cueHit_diff_mean = np.nanmean(cueHit_diff)
+    all_cueHit_diff_mean.append(cueHit_diff_mean)
+    cueHit_diff_sd = np.nanstd(cueHit_diff)
+    all_cueHit_diff_sd.append(cueHit_diff_sd)
+
+    plt.figure()
+    plt.plot(erd_t, BPlda[subj_idx])
+    plt.title('LDA filtered BP, Subject %02d'%subj)
+    plt.axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
+        -(cueHit_diff_mean+cueHit_diff_sd),
+        alpha=0.3, color='red', label='mean cue time ± sd')
+    plt.axvline(0, lw=0.5, c='k')
+    plt.axhline(0, lw=0.5, c='r', ls=':')
+    plt.legend()
+    plt.xlabel('time around response [ms]')
+    plt.ylabel('amplitude [a.u.]')
+    plt.savefig(os.path.join(result_folder, 'S%02d'% subj, 'motor_BPLDA.pdf'))
+# plot subject averaged
+plt.figure()
+plt.plot(erd_t, np.mean(BPlda,axis=0))
+plt.title('LDA filtered BP, subj.-avg.')
+plt.axvline(0, lw=0.5, c='k')
+plt.axhline(0, lw=0.5, c='r', ls=':')
+plt.axvspan(-(np.mean(all_cueHit_diff_mean)-np.mean(cueHit_diff_sd)),
+    -(np.mean(cueHit_diff_mean)+np.mean(cueHit_diff_sd)),
+    alpha=0.3, color='red', label='mean cue time ± sd')
+plt.xlabel('time around response [ms]')
+plt.ylabel('amplitude [a.u.]')
+plt.legend()
+plt.savefig(os.path.join(result_folder, 'motor/BPLDA.pdf'))
+plt.close('all')
 
 
 ##### mtCSP_filter_optLam2.pdf: plot filter for lam2=3  #####
@@ -416,7 +470,123 @@ for band_idx, band_name in enumerate(band_names):
     gs.tight_layout(fig, pad=0.5, h_pad=0.8)#, pad=0.2, h_pad=0.8
     fig.savefig(os.path.join(result_folder,
         'motor/mtCSP{}.pdf'.format(band_name)))
-plt.close('all')
+
+##### plot mtCSP{}.pdf for each subject: combination of above plots, components with patterns above and below ####
+for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is missing
+    if subj_idx < 10: #subject idx 10 already belongs to subject 12
+        subj = subj_idx+1
+    else:
+        subj = subj_idx+2
+    print('Plotting mtCSP_band.px for subject ', subj)
+    for band_idx, band_name in enumerate(band_names):
+        ev = CSP_eigvals[band_idx]
+        potmaps = [meet.sphere.potMap(chancoords, pat_now,
+            projection='stereographic') for pat_now in CSP_patterns[band_idx][subj_idx+1]] #+1 because first one is global
+        h1 = 2. #ERS
+        h2 = 5. #component plot
+        h3 = 2. #ERD
+        h4 = 0.08 #colorbar
+
+        fig = plt.figure(figsize = (5.5,7))
+        gs = mpl.gridspec.GridSpec(4,1, height_ratios = [h1,h2,h3,h4], top=0.99,
+            bottom = 0.1, hspace=0.0)
+
+        # plot the five spatial patterns for ERS
+        gs1 = mpl.gridspec.GridSpecFromSubplotSpec(2,5, gs[0,:], #two rows to have some space below
+                height_ratios=[1,0.1], wspace=0, hspace=0.7)
+        head_ax = []
+        pc = []
+        for s, pat in enumerate(potmaps[N_filters:]): #last half are ERS
+            try:
+                head_ax.append(fig.add_subplot(gs1[0,s], sharex=head_ax[0],
+                    sharey=head_ax[0], frame_on=False, aspect='equal'))
+            except IndexError:
+                head_ax.append(fig.add_subplot(gs1[0,s], frame_on=False, aspect='equal'))
+            Z = pat[2]/np.abs(pat[2]).max()
+            pc.append(head_ax[-1].pcolormesh(
+                *pat[:2], Z, rasterized=True, cmap='coolwarm',
+                vmin=-1, vmax=1, shading='auto'))
+            head_ax[-1].contour(*pat, levels=[0], colors='w')
+            head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                    alpha=0.5, zorder=1001)
+            head_ax[-1].set_xlabel('ERS %d' % (s + 1) +'\n'+
+                    '($\mathrm{SNR=%.2fdB}$)' % (10*np.log10(ev[N_filters+s])),
+                    fontsize=8)
+            head_ax[-1].tick_params(**blind_ax)
+            meet.sphere.addHead(head_ax[-1], ec=colors[s], zorder=1000, lw=3)
+        head_ax[0].set_ylim([-1.1,1.3])
+        head_ax[0].set_xlim([-1.6,1.6])
+
+        # plot the components over time
+        gs2 = mpl.gridspec.GridSpecFromSubplotSpec(1,1, gs[1,:],
+            wspace=0, hspace=0.7)
+        comp_ax = fig.add_subplot(gs2[0,0])
+
+        # take subject mean and normalize
+        ERD_CSP_subj = ERD_CSP[subj_idx][band_idx]
+        ERD_CSP_subj /= ERD_CSP_subj[:,base_idx].mean(1)[:,np.newaxis] #baseline avg should be 100%
+        ERD_CSP_subj *= 100 # ERD in percent
+
+        for s in range(CSP_ERSnum): #0,1,2,3,4
+            comp_ax.plot(erd_t, ERD_CSP_subj[N_filters+s,:].T,
+                label='ERS %d' % (s+1) + ' ($\mathrm{%.2fdB}$)' % round(
+                10*np.log10(ev[N_filters+s]),2), color=colors[s])
+        for d in range(CSP_ERDnum-1,-1,-1): #4,3,2,1,0
+            comp_ax.plot(erd_t, ERD_CSP_subj[d,:].T,
+                label='ERD %d' % (d+1) + ' ($\mathrm{%.2fdB}$)' % round(
+                10*np.log10(ev[d]), 2), color=colors[-(d+1)])
+        comp_ax.plot(erd_t, ERD_CSP_subj[CSP_ERSnum:-CSP_ERDnum,:].T,
+            c='black', alpha=0.1)
+        comp_ax.axvspan(base_ms[0], base_ms[-1], alpha=0.3, color=colors[4],
+            label='contrast period')
+        comp_ax.axvspan(act_ms[0], act_ms[-1], alpha=0.3, color=colors[5],
+            label='target period')
+        handles, labels = plt.gca().get_legend_handles_labels()
+        order = [0,1,2,3,4,10,5,6,7,8,9,11]
+        comp_ax.legend([handles[idx] for idx in order],
+            [labels[idx] for idx in order], loc='upper left', fontsize=8, ncol=2)
+        comp_ax.set_xlabel('time around response [ms]', fontsize=10)
+        comp_ax.set_ylabel('CSP filtered EEG, relative amplitude [dB]', fontsize=10)
+        comp_ax.set_title('subj.-avg. and eeg-applied CSP components {} Hz]'.format(
+            band_name[:-1]), fontsize=12)
+
+        # plot the five spatial patterns for ERD
+        gs3 = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[2,:],
+                wspace=0, hspace=0.7)
+        head_ax = []
+        pc = []
+        for d, pat in enumerate(potmaps[:N_filters]): # first half are ERD
+            try:
+                head_ax.append(fig.add_subplot(gs3[0,d], sharex=head_ax[0],
+                    sharey=head_ax[0], frame_on=False, aspect='equal'))
+            except IndexError:
+                head_ax.append(fig.add_subplot(gs3[0,d], frame_on=False, aspect='equal'))
+            Z = pat[2]/np.abs(pat[2]).max()
+            pc.append(head_ax[-1].pcolormesh(
+                *pat[:2], Z, rasterized=True, cmap='coolwarm',
+                vmin=-1, vmax=1, shading='auto'))
+            head_ax[-1].contour(*pat, levels=[0], colors='w')
+            head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                    alpha=0.5, zorder=1001)
+            head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n'+
+                    '($\mathrm{SNR=%.2fdB}$)' % (10*np.log10(ev[d])),
+                    fontsize=8)
+            head_ax[-1].tick_params(**blind_ax)
+            meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
+        head_ax[0].set_ylim([-1.1,1.3])
+        head_ax[0].set_xlim([-1.6,1.6])
+
+        # add a colorbar
+        cbar_ax = fig.add_subplot(gs[3,:])
+        cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+                label='amplitude (a.u.)', ticks=[-1,0,1])
+        cbar.ax.set_xticklabels(['-', '0', '+'])
+        cbar.ax.axvline(0, c='w', lw=2)
+
+        gs.tight_layout(fig, pad=0.5, h_pad=0.8)#, pad=0.2, h_pad=0.8
+        fig.savefig(os.path.join(result_folder,'S%02d'% subj,
+            'motor_mtCSP{}.pdf'.format(band_name)))
+    plt.close('all')
 
 
 ##### plot BP and ERP patterns over time for each subject #####
