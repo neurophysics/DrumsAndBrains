@@ -64,11 +64,12 @@ except FileNotFoundError: # read ERD data and calculate CSP
     print('erdcsp.npz or BP.npz not found. Please run csp.py first.')
 
 try:
-    cfilt = np.load(os.path.join(result_folder,'motor/lda.npy'))
+    cfilt = np.load(os.path.join(
+        result_folder,'motor/lda.npy'), allow_pickle=True)
     # base_idx_lda is range(500) ie -2 to -1.5s
     # act_idx_lda is range(1400:1900) ie -600 to -100ms
     [base_idx_lda,act_idx_lda] = np.load(
-        os.path.join(result_folder,'motor/lda_idx.npy'))
+        os.path.join(result_folder,'motor/lda_idx.npy'),  allow_pickle=True)
 except KeyError:
     print('lda.npy or lda_idx.npy not found. Please run lda.py first.')
 

@@ -1,5 +1,6 @@
 """
 executes multisubject common spatial pattern algorithm on ERD data
+stores: mtCSP.npz, ERDCSP.npz
 """
 import numpy as np
 import sys
@@ -30,7 +31,7 @@ N_channels = len(channames)
 # ERD% = (A-R)/R*100
 # A event period power 1250-2000 (i.e.(-750 to 0 because we want pre stimulus)))
 # R reference period power 0-750 (i.e. -2000:-1250 samples)
-# erd data is already referenced to the average eeg amplitude, bandpass filtered
+# erd data is already referenced to electrode tp10, bandpass filtered
 # with order 6, normalized s.t. 2 sec pre responce are 100%, trial-averaged
 snareInlier = [] # list of 20 subjects, each shape ≤75
 wdBlkInlier = []
@@ -63,8 +64,8 @@ band_names = ['[' + str(b[0]) + '-' + str(b[1]) + ']' for b in fbands]
 ##### try reading CSP, if not calculate it #####
 #regularization parameters for mtCSP
 lam1 = 0 # penalizes the size of the global filter
-lam2 = 0.5 # penalizes the size of the specific filter
-lam2_cand = [3] #supposed ot be a list
+#lam2 = 0.5 # penalizes the size of the specific filter
+lam2_cand = [2.5] #supposed to be a list
 N_filters = 5
 
 CSP_eigvals = [ ] #5[(10,)], (N_filters,) for each band
@@ -94,6 +95,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
         W = eigvect[:,-rank:]/np.sqrt(eigval[-rank:])
         v_norm = []
         for lam2 in lam2_cand:
+            print('Lambda 2 is ',lam2)
             for it in trange(N_filters): #first 5 filters are ERD (contrast, target)
                 print('\nCalculating ERD filter {} of {}\n'.format(
                     it+1, N_filters))
@@ -175,7 +177,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
                     for p in CSP_pattern]
             CSP_patterns.append(CSP_pattern) #(21, 5, 32)
 
-        ## the following was used to check for optimal lambda2
+        # # the following was used to check for optimal lambda2
         #     #plot filters over channel (should be similar enough)
         #     #könnt emit ins paper von dem lamda wert, den wir dann nehmen
         #     plt.figure()
@@ -185,17 +187,19 @@ except FileNotFoundError: # read ERD data and calculate CSP
         #     plt.savefig(os.path.join(result_folder,'motor/CSP_filters{}_lam{}.pdf'.format(band_names[0],round(lam2))))
         #
         # # plot SNNR and ||v||2 for first filter (ERD)
-        # plt.figure()
-        # plt.plot(np.log([c[0] for c in CSP_eigvals]), np.log(v_norm)) #to have connection line
-        # for i,l in enumerate(lam2_cand):
-        #     plt.scatter(np.log(CSP_eigvals[i][0]), np.log(v_norm[i]), label=str(round(l))) #one point per lambda (for labels)
+        # plt.figure() #take inverse (see SNNR above)
+        # l = np.log([1/c[0] for c in CSP_eigvals])
+        # plt.plot([l[0], l[len(l)-1]],[np.log(v_norm)[0],np.log(v_norm)[-1]], c='k') #straight helpline
+        # plt.plot(l, np.log(v_norm)) # connecting points
+        # for i,k in enumerate(lam2_cand):
+        #     plt.scatter(np.log(1/CSP_eigvals[i][0]), np.log(v_norm[i]), label=str(round(k,2))) #one point per lambda (for labels)
         # plt.legend()
-        # plt.xlabel('SNNR')
-        # plt.ylabel('vnorm')
-        # plt.title('ERD (smaller values are better)') #steepest gives optimal value
-        # plt.savefig(os.path.join(result_folder,'motor/CSP_Lcurve1-10.pdf'))
-        # np.save(os.path.join(result_folder, 'motor/vnorm1-10.npy'), v_norm)
-        # np.save(os.path.join(result_folder, 'motor/CSP_eigvals1-10.npy'), CSP_eigvals)
+        # plt.xlabel('log (SNNR)')
+        # plt.ylabel('log (vnorm)')
+        # plt.title('ERD, component 1') #steepest gives optimal value
+        # plt.savefig(os.path.join(result_folder,'motor/CSP_Lcurve2-3.pdf'))
+        # np.save(os.path.join(result_folder, 'motor/vnorm2-3.npy'), v_norm)
+        # np.save(os.path.join(result_folder, 'motor/CSP_eigvals2-3.npy'), CSP_eigvals)
 
     save_results = {}
     for (band_now, eigvals_now, filters_now, patterns_now) in zip(
@@ -237,7 +241,8 @@ except FileNotFoundError: # read ERD data and calculate CSP
                 + '/clean_data.npz', 'r') as fi:
             eeg = fi['clean_data'] # shape (32, 2901860)
             artifact_mask = fi['artifact_mask']
-        eeg -= eeg.mean(0) # rereference to the average EEG amplitude
+        tp10_idx = channames.index('TP10')
+        eeg -= eeg[tp10_idx] # reference to TP10
         # for lefthanded subjects, switch electrodes
         if left_handed[idx]:
             #print('subject '+str(subj)+' is left-handed. Switching electrodes...')

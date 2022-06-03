@@ -127,3 +127,5 @@ Results/PolyrhythmResults2019.key
 Results/motor/covmat.npz
 Results/motor/ERD.npz
 Results/motor/BP.npz
+Results/motor/old_5bands/
+Results/motor/old_CSP/

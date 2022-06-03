@@ -42,8 +42,10 @@ a/b/... script can run in parallel (not dependent on each other)
     data: 'mtCSP.npz'
 3b. (DR) basicAnalysis_motor.py
     plots: 'motor/BP_2000mspreresponse.pdf',
-      'motor/ERD_2000mspreresponse.pdf' (also for each subject)
-    data: 'motor/BP.npz', 'motor/ERD.npz', 'motor/covmat.npz', 'motor/inlier.npz'
+      'motor/ERD_2000mspreresponse.pdf' (also for each subject),
+      'motor/channelSpectra0-30.pdf', 'motor/channelSpectra_ERD0-30.pdf'
+    data: 'motor/ERD_p', 'motor/BP.npz', 'motor/ERD.npz',
+      'motor/covmat.npz', 'motor/inlier.npz'
 3c. PlotEvokedComponents.py
     plots: 'EvokedComponent.pdf'
 
@@ -53,9 +55,8 @@ a/b/... script can run in parallel (not dependent on each other)
     plots: 'BestDipoleFit_snarePaired.pdf', 'BestDipoleFit_snareSingle.pdf'
 4c. (DR) csp.py
     plots: 'motor/CSP_patterns.pdf'
-    data: 'CSP.npz', 'ERDCSP.npz'
+    data: 'mtCSP.npz', 'ERDCSP.npz'
 4d. (DR) lda.py
-    plots: 'motor/LDApattern.pdf'
     data: 'motor/lda.npy'
 
 5a. lmmelsm.R
@@ -64,10 +65,12 @@ a/b/... script can run in parallel (not dependent on each other)
 5b. (DR) SSDMusicCorr.py
     plots: 'SNNR_exp.pdf'
 5c. (DR) motorPlots.py
-    plots: 'motor/CSP_patterns.pdf[band]', 'motor/erdcsp_comp[band].pdf',
-      'motor/patternsByTime.pdf'
-5d. (DR) preareModelData_motor.py
+    plots: 'motor/BPLDA.pdf', 'motor/mtCSP_filter_optLam2.pdf',
+      'motor/mtCSP_patterns[band].pdf', 'motor/erdmtcsp_comp[band].pdf',
+      'motor/mtCSP[band].pdf', 'motor/patternsByTime.pdf'
+5d. (DR) prepareModelData_motor.py
     data: 'snare_data_motor.csv'. 'wdBlk_data_motor.csv'
+
 6a. lmmelsm_motor.R
     data:
     plots:
@@ -88,3 +91,13 @@ calcFFTSSD.py: SSD, replaced by calcMultisubjectFFTSSD.py
 rCSP-tlw.py: used by calcFFTSSD, replaced by calcMultisubjectFFTSSD.py
 REWB2.py: now calculating models with lmmelsm.R (made .rds and .html files)
 brms.R: now calculating models with lmmelsm.R
+
+# motor Pipeline (necessary for model)
+1a. (DSR) read_aif.py
+1b. (DSR) eeg_outlier.py
+3b. (DR) basicAnalysis_motor.py
+4c. (DR) csp.py
+4d. (DR) lda.py
+5c. (DR) motorPlots.py
+5d. (DR) prepareModelData_motor.py
+6a. lmmelsm_motor.R

@@ -1,17 +1,25 @@
 """
 3b. (DR) basicAnalysis_motor.py
     plots: 'motor/BP_2000mspreresponse.pdf',
-      'motor/ERD_2000mspreresponse.pdf' (also for each subject)
-    data: 'motor/BP.npz', 'motor/ERD.npz', 'motor/covmat.npz', 'motor/inlier.npz'
+      'motor/ERD_2000mspreresponse.pdf' (+ for each subject),
+      'motor/channelSpectra0-30.pdf'
+      'motor/channelSpectra_ERD0-30.pdf'
+    data: 'motor/ERD_P.npy',
+        'motor/BP.npz',
+        'motor/ERD.npz',
+        'motor/covmat.npz',
+        'motor/inlier.npz'
 """
 import numpy as np
 import sys
 import csv
 import os.path
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import meet
 import helper_functions
 import scipy as sp
+import random
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -24,7 +32,8 @@ color4 = '#1f78b4'.upper()
 color3 = '#33a02c'.upper()
 color2 = '#b2df8a'.upper()
 color1 = '#a6cee3'.upper()
-colors = [color1, color2, color3, color4, 'grey']
+colors5 = [color1, color2, color3, color4, 'grey']
+colors2 = ['k', 'crimson']
 
 # target frequencies
 snareFreq = 7./6
@@ -36,6 +45,18 @@ chancoords = meet.sphere.getStandardCoordinates(channames)
 chancoords = meet.sphere.projectCoordsOnSphere(chancoords)
 chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
         projection='stereographic')
+Nc = len(channames)
+channames_topo4x8 = [
+    'F7','FP1','FP2','F8',
+    'F3','AFZ','FZ','F4',
+    'FC5','FC1','FC2','FC6',
+    'T7','C3','C4','T8',
+    'CP1','CZ','PZ','CP2',
+    'TP9','CP5','CP6','TP10',
+    'P7','P3','P4','P8',
+    'PO3','O1','O2','PO4']
+topo_idx = np.array([channames.index(elem) for elem in channames_topo4x8])
+# np.array(channames)[topo_idx]==np.array(channames_topo4x8) is True
 
 # get LQR data
 LQ = []
@@ -59,12 +80,19 @@ all_ERD = [] #avg over all subjects
 cueHit_diff = []
 contrast_cov = []
 target_cov = []
-fbands = [[1,4], [4,8], [8,12], [12,20], [20,40]]
+fbands = [[7,12], [15,25]] #chosen after looking at spectra
 win = [-2000, 500]
 base_idx = range(750) #corresponds to -2000 to -1250ms
 act_idx = range(1250,2000) #corresponds to -750 to 0ms
+act_idx_lda = range(1400,1900) #-600 to -100ms
+
 idx = 0 #index to asses eeg (0 to 19)
 subj = 1 #index for subject number (1 to 10, 12 to 21)
+if len(fbands)==2:
+    colors = colors2
+else:
+    colors=colors5
+
 while(subj <= N_subjects):
     print(subj)
     # skip subject without eeg data
@@ -79,7 +107,10 @@ while(subj <= N_subjects):
             + '/clean_data.npz', 'r') as fi:
         eeg = fi['clean_data'] # shape (32, 2901860)
         artifact_mask = fi['artifact_mask']
-    eeg -= eeg.mean(0) # rereference to the average EEG amplitude
+    tp10_idx = channames.index('TP10')
+    tp9_idx = channames.index('TP9')
+    eeg -= (eeg[tp10_idx]+eeg[tp9_idx])/2 # reference to average of TP10 and TP9
+
     # for lefthanded subjects, switch electrodes
     if left_handed[idx]:
         #print('subject '+str(subj)+' is left-handed. Switching electrodes...')
@@ -102,6 +133,7 @@ while(subj <= N_subjects):
     eeg_clocks = helper_functions.getSessionClocks(marker_fname)
     eeg_clocks = [c for c in eeg_clocks if len(c) > 100]
     assert len(eeg_clocks) == 6, '6 sessions expected'
+
 
     with np.load(os.path.join(save_folder, 'behavioural_results.npz'),
             'r', allow_pickle=True, encoding='latin1') as f:
@@ -139,6 +171,7 @@ while(subj <= N_subjects):
 
     cueHit_diff_mean = np.nanmean(cueHit_diff[-1])
     cueHit_diff_sd = np.nanstd(cueHit_diff[-1])
+
     #plot 2000ms pre response for each channel
     snareInlier = np.all(meet.epochEEG(artifact_mask, snareHit_times,
         win), 0)
@@ -147,113 +180,138 @@ while(subj <= N_subjects):
     all_snareInlier.append(snareInlier)
     all_wdBlkInlier.append(wdBlkInlier)
 
-    all_trials = meet.epochEEG(eeg,
-            np.r_[snareHit_times[snareInlier],
-                wdBlkHit_times[wdBlkInlier]],
-            win)
-    BP = all_trials.mean(-1) # trial average, now shape (channels, time)
-    BP -= np.mean(BP[:,0], axis=0) #should be 0 at time -2000
-    Nc = len(channames)
+    try: # to read BP (32,2500)
+        with np.load(os.path.join(result_folder, 'motor/BP.npz'),
+            'r') as f_BP:
+            BP = f_BP['BP_{:02d}'.format(idx)]
+            all_trials = f_BP['BP_trials_{:02d}'.format(idx)]
+    except FileNotFoundError:
+        all_trials = meet.epochEEG(eeg,
+                np.r_[snareHit_times[snareInlier],
+                    wdBlkHit_times[wdBlkInlier]],
+                win)
+        BP = all_trials.mean(-1) # trial average, now shape (channels, time)
+        BP -= np.mean(BP[:,base_idx], axis=1)[:,np.newaxis] #avg of base window is 0 for each channel
+    all_BP_trials.append(all_trials)
+    all_BP.append(BP)
+
+    BP_topo = np.array(BP)[topo_idx] #reorder for topological plot
     fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
             sharex=True, sharey=True)
     fig.subplots_adjust(top=0.94, bottom=0.08, left=0.11, right=0.95, hspace=0.2)
     fig.suptitle('BP: 2000 ms preresponse, trial-avg.', fontsize=14)
     for c in range(Nc):
-        axs[c//4, c%4].plot(range(*win), BP[c], linewidth=1, c='k')
-        axs[c//4, c%4].set_title(channames[c], fontsize=8, pad=2)
-        axs[c//4, c%4].axvline(0, lw=0.5, c='k')
-        axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
+        axs[c//4, c%4].plot(range(*win), BP_topo[c], linewidth=1, c='k')
+        axs[c//4, c%4].set_title(channames_topo4x8[c], fontsize=8, pad=2)
+        axs[c//4, c%4].axvline(0, lw=0.5, c='r')
+        axs[c//4, c%4].axhline(0, lw=0.5, c='k', ls=':')
         axs[c//4, c%4].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
             -(cueHit_diff_mean+cueHit_diff_sd),
-            alpha=0.3, color='red', label='mean cue time ± sd')
+            alpha=1, color='bisque', label='mean cue time ± sd')
+        axs[c//4, c%4].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
+            alpha=0.5, color='lightsalmon', label='activation window') #_ gets ignored as label# y lim+label
     # y label
     axs[0,0].text(0.04, 0.5, s='amplitude [$\mu$V]',
         transform = fig.transFigure, rotation='vertical',
         ha='left', va='center', clip_on=False)
     # x label
-    axs[0,0].text(0.5, 0.035, s='time around response [ms]',
+    axs[0,0].text(0.5, 0.04, s='time around response [ms]',
         transform = fig.transFigure,
         ha='center', va='bottom', clip_on=False)
     # legend
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles)) #delete doubles
-    plt.legend(by_label.values(), by_label.keys(), bbox_to_anchor=[0.5, 0.0],
-        bbox_transform = fig.transFigure, loc='lower center')
+    plt.legend(by_label.values(), by_label.keys(), bbox_to_anchor=[0.5, 0.01],
+        bbox_transform = fig.transFigure, loc='lower center', ncol=2)
     fig.savefig(os.path.join(save_folder, 'motor_BP_2000mspreresponse.pdf'))
-    all_BP.append(BP)
-    all_BP_trials.append(all_trials)
 
-    # ERD in frequency bands 1-4, 4-8, 8-12, 12-20, 20-40
-    ERDs = []
-    contrast_cov_subj = []
-    target_cov_subj = []
-    for band in fbands:#later loop over all frequency bands
-    # 1. band-pass filters with order 6 (3 into each direction)
-        Wn = np.array(band) / s_rate * 2
-        b, a = sp.signal.butter(3, Wn, btype='bandpass')
-        eeg_filtbp = sp.signal.filtfilt(b, a, eeg)
-        # calculate covariance matrices for csp
-        all_trials_filtbp = meet.epochEEG(eeg_filtbp,
-                np.r_[snareHit_times[snareInlier],
-                    wdBlkHit_times[wdBlkInlier]],
-                win)
-        contrast_trials = all_trials_filtbp[:, base_idx,:] # baseline activity
-        target_trials = all_trials_filtbp[:, act_idx,:] # pre-response activity (ERD/S)
-        target_cov_now = np.einsum(
-            'ijk, ljk -> ilk', target_trials, target_trials)
-        contrast_cov_now = np.einsum(
-            'ijk, ljk -> ilk', contrast_trials, contrast_trials)
-        contrast_cov_subj.append(contrast_cov_now)
-        target_cov_subj.append(target_cov_now)
 
-        #2. Hilbert-Transform, absolute value
-        eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filtbp, axis=-1))
-        #3. Normalisieren, so dass 1-2 sek prä-response 100% sind und dann averagen
-        all_trials_filt = meet.epochEEG(eeg_filtHil,
-                np.r_[snareHit_times[snareInlier],
-                    wdBlkHit_times[wdBlkInlier]],
-                win)
-        # calculate ERD
-        ERD = all_trials_filt.mean(-1) #trial avg
-        avg_idx = np.all([np.arange(*win)>=-2000, np.arange(*win)<-1000],0)
-        ERD /= ERD[:,avg_idx].mean(-1)[:,np.newaxis]
-        #ERD *= 100
-        ERD = 20*np.log10(ERD) #in db
-        ERDs.append(ERD)
-    contrast_cov.append(contrast_cov_subj)
-    target_cov.append(target_cov_subj)
+    # ERD in frequency bands
+    try: # to read ERD [N_fbands*(32,2500)]
+        with np.load(os.path.join(result_folder, 'motor/ERD.npz'),
+            'r') as f_ERD:
+            ERDs = list(f_ERD['ERD_{:02d}'.format(idx)])
+    except FileNotFoundError: #calculate ERD and covmats
+        ERDs = []
+        contrast_cov_subj = []
+        target_cov_subj = []
+        for band in fbands:#later loop over all frequency bands
+        # 1. band-pass filters with order 6 (3 into each direction)
+            Wn = np.array(band) / s_rate * 2
+            b, a = sp.signal.butter(3, Wn, btype='bandpass')
+            eeg_filtbp = sp.signal.filtfilt(b, a, eeg)
+            # calculate covariance matrices for csp
+            all_trials_filtbp = meet.epochEEG(eeg_filtbp,
+                    np.r_[snareHit_times[snareInlier],
+                        wdBlkHit_times[wdBlkInlier]],
+                    win)
+            contrast_trials = all_trials_filtbp[:, base_idx,:] # baseline activity
+            target_trials = all_trials_filtbp[:, act_idx,:] # pre-response activity (ERD/S)
+            target_cov_now = np.einsum(
+                'ijk, ljk -> ilk', target_trials, target_trials)
+            contrast_cov_now = np.einsum(
+                'ijk, ljk -> ilk', contrast_trials, contrast_trials)
+            contrast_cov_subj.append(contrast_cov_now)
+            target_cov_subj.append(target_cov_now)
 
-    fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,10),
+            #2. Hilbert-Transform, absolute value
+            eeg_filtHil = np.abs(sp.signal.hilbert(eeg_filtbp, axis=-1))
+            #3. Normalisieren, so dass 1-2 sek prä-response 100% sind und dann averagen
+            all_trials_filt = meet.epochEEG(eeg_filtHil,
+                    np.r_[snareHit_times[snareInlier],
+                        wdBlkHit_times[wdBlkInlier]],
+                    win)
+            # calculate ERD
+            ERD = all_trials_filt.mean(-1) #trial avg
+            ERD /= ERD[:,base_idx].mean(-1)[:,np.newaxis]
+            #ERD *= 100
+            ERD = 20*np.log10(ERD) #in db
+            ERDs.append(ERD)
+        contrast_cov.append(contrast_cov_subj)
+        target_cov.append(target_cov_subj)
+
+    Nw = 4 #width i.e. number of columns
+    fig, axs = plt.subplots(int(np.ceil(Nc/Nw)), Nw, figsize=(7,10), #+1 for legend
             sharex=True, sharey=True)
-    fig.subplots_adjust(top=0.94, bottom=0.07, left=0.11, right=0.95, hspace=0.3)
+    fig.subplots_adjust(top=0.94, bottom=0.08, left=0.11, right=0.95, hspace=0.3)
     fig.suptitle('ERD: 2000 ms preresponse, trial-avg.', fontsize=12)
     for c in range(Nc):
-        for i,ERD in enumerate(ERDs):
-            axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1, c=colors[i],
+        for i,ERD in enumerate(ERDs): #for each band
+            ERD_topo = np.array(ERD)[topo_idx]
+            axs[c//Nw, c%Nw].plot(range(*win), ERD_topo[c], linewidth=1, c=colors[i],
                 label = '_'*c + str(fbands[i][0])+'-'+str(fbands[i][1]) +' Hz')
-        axs[c//3, c%3].set_title(channames[c], fontsize=8, pad=2)
-        axs[c//3, c%3].axvline(0, lw=0.5, c='k')
-        axs[c//3, c%3].axhline(0, lw=0.5, c='r', ls=':')
-        axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
-            -(cueHit_diff_mean+cueHit_diff_sd), alpha=0.3, color='red',
+        axs[c//Nw, c%Nw].set_title(channames_topo4x8[c], fontsize=8, pad=2)
+        axs[c//Nw, c%Nw].axvline(0, lw=0.5, c='r')
+        axs[c//Nw, c%Nw].axhline(0, lw=0.5, c='k', ls=':')
+        axs[c//Nw, c%Nw].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
+            -(cueHit_diff_mean+cueHit_diff_sd),
+            alpha=1, color='bisque',
             label='_'*c + 'mean cue time ± sd') #_ gets ignored as label
+        axs[c//Nw, c%Nw].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
+            alpha=0.5, color='lightsalmon',
+            label='_'*c + 'activation window') #_ gets ignored as label
     # y lim+label
     #axs[0,0].set_ylim([-3.5,3.5])
     axs[0,0].text(0.035, 0.5, s='amplitude [dB]',
         transform = fig.transFigure, rotation='vertical',
         ha='left', va='center', clip_on=False)
     # x label
-    axs[0,0].text(0.5, 0.02, s='time around response [ms]',
+    axs[0,0].text(0.5, 0.04, s='time around response [ms]',
         transform = fig.transFigure,
         ha='center', va='bottom', clip_on=False)
     # legend in last (empty) axes
-    axs[c//3,2].axis('off')
+    # [axs[c//Nw+1,i].axis('off') for i in range(Nw)]
     lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
     lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
-    axs[c//3,2].legend(lines, labels, bbox_to_anchor=[0.5,1.1],
-        loc='upper center', fontsize=8)
-    fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse.pdf'))
-
+    # axs[c//Nw+1,1].legend(lines[:int(np.ceil(len(fbands)/2))],
+    #     labels[:int(np.ceil(len(fbands)/2))], bbox_to_anchor=[0.5,1.1],
+    #     loc='upper center', fontsize=8)
+    # axs[c//Nw+1,2].legend(lines[int(np.ceil(len(fbands)/2)):],
+    #     labels[int(np.ceil(len(fbands)/2)):], bbox_to_anchor=[0.5,1.1],
+    #     loc='upper center', fontsize=8)
+    plt.legend(lines, labels, bbox_to_anchor=[0.5, -0.0],
+        bbox_transform = fig.transFigure, loc='lower center', ncol=len(lines))
+    fig.savefig(os.path.join(save_folder, 'motor_ERD_2000mspreresponse_new.pdf'))
     all_ERD.append(ERDs)
 
     idx += 1
@@ -263,23 +321,27 @@ while(subj <= N_subjects):
 ## plot for all subjects
 cueHit_diff_mean = np.nanmean(np.hstack(cueHit_diff))
 cueHit_diff_sd = np.nanstd(np.hstack(cueHit_diff))
+
+##### motor/ERD_2000mspreresponse.pdf #####
 # plot BP for all subjects
-all_BP_avg = np.mean(all_BP, axis=0)
-fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(8,12),
+all_BP_avg = np.mean(all_BP, axis=0)[topo_idx]
+fig, axs = plt.subplots(int(np.ceil(Nc/4)), 4, figsize=(7,10),
         sharex=True, sharey=True)
 fig.tight_layout()
-fig.subplots_adjust(top=0.94, bottom=0.08, left=0.11, right=0.95, hspace=0.2)
+fig.subplots_adjust(top=0.94, bottom=0.07, left=0.11, right=0.95, hspace=0.3)
 fig.suptitle('BP: 2000 ms preresponse, subj.- and trial-avg.', fontsize=14)
 for c in range(Nc):
     axs[c//4, c%4].plot(range(*win), all_BP_avg[c], linewidth=1, c='k')
-    axs[c//4, c%4].set_title(channames[c], fontsize=8, pad=2)
-    axs[c//4, c%4].axhline(0, lw=0.5, c='r', ls=':')
-    axs[c//4, c%4].axvline(0, lw=0.5, c='k')
+    axs[c//4, c%4].set_title(channames_topo4x8[c], fontsize=8, pad=2)
+    axs[c//4, c%4].axhline(0, lw=0.5, c='k', ls=':')
+    axs[c//4, c%4].axvline(0, lw=0.5, c='r')
     axs[c//4, c%4].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
         -(cueHit_diff_mean+cueHit_diff_sd),
-        alpha=0.3, color='red', label='mean cue time ± sd')
+        alpha=1, color='bisque', label='mean cue time ± sd')
+    axs[c//4, c%4].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
+        alpha=0.5, color='lightsalmon', label='activation window')
 # y label
-axs[0,0].text(0.04, 0.5, s='amplitude [$\mu$V]',
+axs[0,0].text(0.035, 0.5, s='amplitude [$\mu$V]',
     transform = fig.transFigure, rotation='vertical',
     ha='left', va='center', clip_on=False)
 # x label
@@ -290,46 +352,136 @@ axs[0,0].text(0.5, 0.035, s='time around response [ms]',
 handles, labels = plt.gca().get_legend_handles_labels()
 by_label = dict(zip(labels, handles)) #delete doubles
 plt.legend(by_label.values(), by_label.keys(), bbox_to_anchor=[0.5, 0.0],
-        bbox_transform = fig.transFigure, loc='lower center')
+        bbox_transform = fig.transFigure, loc='lower center', ncol=2)
 fig.savefig(os.path.join(result_folder, 'motor/BP_2000mspreresponse.pdf'))
 
+##### motor/ERD_2000mspreresponse.pdf #####
 # plot ERD for all subjects
-all_ERD_avg = [ np.mean([i[j] for i in all_ERD], axis=0)
+Nw = 4 #width i.e. number of columns
+all_ERD_avg = [np.mean([i[j][topo_idx] for i in all_ERD], axis=0)
     for j in range(len(fbands))] # for each band, average over subjects
 
-fig, axs = plt.subplots(int(np.ceil(Nc/3)), 3, figsize=(7,10),
+fig, axs = plt.subplots(int(np.ceil(Nc/Nw)), Nw, figsize=(7,10), #+1 for legend
         sharex=True, sharey=True)
 fig.subplots_adjust(top=0.94, bottom=0.07, left=0.11, right=0.95, hspace=0.3)
-fig.suptitle('ERD: 2000 ms preresponse, subj.- and trial-avg.', fontsize=12)
+fig.suptitle('ERD: 2000 ms preresponse, trial-avg.', fontsize=14)
 for c in range(Nc):
     for i,ERD in enumerate(all_ERD_avg):
-        axs[c//3, c%3].plot(range(*win), ERD[c], linewidth=1, c=colors[i],
+        axs[c//Nw, c%Nw].plot(range(*win), ERD[c], linewidth=1, c=colors[i],
             label = '_'*c + str(fbands[i][0])+'-'+str(fbands[i][1]) +' Hz')
-    axs[c//3, c%3].set_title(channames[c], fontsize=8, pad=2)
-    axs[c//3, c%3].axvline(0, lw=0.5, c='k')
-    axs[c//3, c%3].axhline(0, lw=0.5, c='r', ls=':')
-    axs[c//3, c%3].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
-        -(cueHit_diff_mean+cueHit_diff_sd), alpha=0.3, color='red',
-        label='_'*c + 'mean cue time ± sd')
-    axs[c//3, c%3].tick_params(axis='x', labelsize=8)
-    axs[c//3, c%3].tick_params(axis='y', labelsize=8)
-# y lim+label
-axs[0,0].set_ylim([-3.5,3.5])
+    axs[c//Nw, c%Nw].set_title(channames_topo4x8[c], fontsize=8, pad=2)
+    axs[c//Nw, c%Nw].axvline(0, lw=0.5, c='r')
+    axs[c//Nw, c%Nw].axhline(0, lw=0.5, c='k', ls=':')
+    axs[c//Nw, c%Nw].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
+        -(cueHit_diff_mean+cueHit_diff_sd),
+        alpha=1, color='bisque',
+        label='_'*c + 'mean cue time ± sd') #_ gets ignored as label
+    axs[c//Nw, c%Nw].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
+        alpha=0.5, color='lightsalmon',
+            label='_'*c + 'activation window') #_ gets ignored as label
+#axs[0,0].set_ylim([-3.5,3.5])
 axs[0,0].text(0.035, 0.5, s='amplitude [dB]',
     transform = fig.transFigure, rotation='vertical',
     ha='left', va='center', clip_on=False)
 # x label
-axs[0,0].text(0.5, 0.02, s='time around response [ms]',
+axs[0,0].text(0.5, 0.035, s='time around response [ms]',
     transform = fig.transFigure,
     ha='center', va='bottom', clip_on=False)
-# legend in last (empty) axes
-axs[c//3,2].axis('off')
 lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
-axs[c//3,2].legend(lines, labels, bbox_to_anchor=[0.5,1.1],
-    loc='upper center', fontsize=8)
+plt.legend(lines, labels, bbox_to_anchor=[0.5, -0.0],
+    bbox_transform = fig.transFigure, loc='lower center', ncol=len(lines))
 fig.savefig(os.path.join(result_folder, 'motor/ERD_2000mspreresponse.pdf'))
 
+
+# plot channel spectra to determine frequency bands
+data = np.concatenate(all_BP_trials,axis=-1)[topo_idx]
+F, psd_pre_act = sp.signal.welch(
+        data[:,act_idx], fs=s_rate, nperseg=2000, nfft=2000, scaling='density', axis=1)
+F, psd_pre_base = sp.signal.welch(
+        data[:,base_idx], fs=s_rate, nperseg=2000, nfft=2000, scaling='density', axis=1)
+
+##### motor/ERD_p.npy #####
+# bootstrap to calculate p-value for act vs base
+try:
+    ERD_p = np.load(os.path.join(result_folder,'motor/ERD_p.npy'))
+except FileNotFoundError:
+    # ERD for each channel and frequency:
+    ERD_cf = psd_pre_act.mean(-1) / psd_pre_base.mean(-1)
+    N_trials = psd_pre_act.shape[-1]
+    N_bootstrap = 1000
+    # same for bootstrap ERD, sampling N_trials with replacement
+    ERD_bootstrap = np.array(
+            [np.concatenate([psd_pre_act, psd_pre_base], -1)
+                    [...,np.random.choice(N_trials, N_trials)].mean(-1
+            )/np.concatenate([psd_pre_act, psd_pre_base], -1)
+                    [...,np.random.choice(N_trials, N_trials)].mean(-1)
+        for _ in range(N_bootstrap)])
+    #p-value: how often is bootstrap stronger, two-tailed (use log)
+    ERD_p = np.sum(np.abs(np.log(ERD_bootstrap)) <= np.abs(
+        np.log(ERD_cf)), axis=0)/(N_bootstrap + 1)
+    np.save(os.path.join(result_folder, 'motor/ERD_p.npy'), ERD_p)
+
+grid = [8,4] # plot with 8 rows and 4 columns
+
+##### motor/channelSpectra0-30.pdf #####
+fig = plt.figure(figsize=(10,10))
+gs = mpl.gridspec.GridSpec(grid[0], grid[1], height_ratios = grid[0]*[1])
+ax = []
+for i, (psd_act_now,psd_base_now) in enumerate(
+    zip(psd_pre_act.mean(-1),psd_pre_base.mean(-1))):
+    if i == 0:
+        ax.append(fig.add_subplot(gs[0,0]))
+    else:
+        ax.append(fig.add_subplot(gs[i//4,i%4], sharex=ax[0], sharey=ax[0]))
+    ax[-1].plot(F, np.sqrt(psd_act_now)*1000, c='lightsalmon', label='act')
+    ax[-1].plot(F, np.sqrt(psd_base_now)*1000, c='k', label='base')
+    ax[-1].grid(ls=':', alpha=0.8)
+    ax[-1].set_title(channames_topo4x8[i])
+    ax[-1].fill_between(F, 0, 1, where=ERD_p[i]<0.05, alpha=0.2, color='k',
+        transform=ax[-1].get_xaxis_transform(), label='p$<$0.05')
+    if i>grid[0]*grid[1] - (grid[1]+1): #last row
+        ax[-1].set_xlabel('frequency (Hz)')
+    if i%(grid[1]*2) == 0: #first column, every other row
+        ax[-1].set_ylabel('linear spectral density')
+ax[-1].set_yscale('log')
+ax[-1].set_xticks([1,5,10,20,50,100])
+ax[-1].xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
+plt.legend(loc='lower left',ncol=2)
+#ax[-1].set_ylim([1E1, 1E5])
+ax[-1].set_xticks(range(0,30,2))
+ax[-1].set_xlim(xmin=0,xmax=30)
+fig.suptitle('Channel Spectra, subj.-avg., ref. is (TP9+TP10)/2', size=14)
+gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
+fig.savefig(os.path.join(result_folder,'motor/channelSpectra0-30.pdf'))
+plt.close(fig)
+
+##### motor/channelSpectra_ERD0-30.pdf #####
+fig = plt.figure(figsize=(10,10))
+gs = mpl.gridspec.GridSpec(grid[0],grid[1], height_ratios = grid[0]*[1])
+ax = []
+for i, (psd_act_now,psd_base_now) in enumerate(
+    zip(psd_pre_act.mean(-1),psd_pre_base.mean(-1))):
+    if i == 0:
+        ax.append(fig.add_subplot(gs[0,0]))
+    else:
+        ax.append(fig.add_subplot(gs[i//4,i%4], sharex=ax[0], sharey=ax[0]))
+    ax[-1].plot(F, psd_act_now / psd_base_now *100, c='r', label='act')
+    #ax[-1].plot(F, ERD_p[i], c='r', label='act')
+    #ax[-1].axhline(0.05)
+    ax[-1].grid(ls=':', alpha=0.8)
+    ax[-1].set_title(channames_topo4x8[i])
+    if i>grid[0]*grid[1] - (grid[1]+1): #last row
+        ax[-1].set_xlabel('frequency (Hz)')
+    if i%grid[1] == 0: #first column
+        ax[-1].set_ylabel('ERD/S [\%]')
+ax[-1].set_xticks(range(0,30,2))
+ax[-1].set_xlim(xmin=0,xmax=30)
+ax[-1].xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
+fig.suptitle('Channel Spectra, subj.-avg., is (TP9+TP10)/2', size=14)
+gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
+fig.savefig(os.path.join(result_folder,'motor/channelSpectra_ERD0-30.pdf'))
+plt.close(fig)
 
 save_BP = {}
 for i, (bp, bpt) in enumerate(zip(all_BP, all_BP_trials)):
@@ -354,7 +506,8 @@ np.savez(os.path.join(result_folder, 'motor/covmat.npz'),
     fbands=fbands,
     left_handed=left_handed,
     base_idx = base_idx, #corresponds to -2000 to -1250ms
-    act_idx = act_idx) #corresponds to -750 to 0ms)
+    act_idx = act_idx, #corresponds to -750 to 0ms)
+    act_idx_lda = act_idx_lda) #-600 to -100ms
 
 # store the inlier of the hit responses
 save_inlier = {}
