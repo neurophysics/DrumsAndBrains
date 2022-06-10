@@ -1,36 +1,38 @@
 ### LMMELSM: calculates REWB model with scale and variance
-# see Devlaminck et al. 2011 - Multisubject learning for 
-# common spatial patterns in motor-imagery BCI
-# setting cores higher than numbe rof chains makes no sense
 # 
 setwd('/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains')
 
 library('LMMELSM')
 
-##### Calculate all snare models and store to Results/motor/lmmelsm_snare_...#####
+##### snare #####
 file = "Results/snare_data_motor.csv"
 snare_data <- read.csv(file, sep=',')
 
-# todo: add within and between
-# only take alpha and beta erd and delta ers?
+# TODO: SCHRITTGRÖßE ETWAS VERKLEINERN, erstmal mit neuen daten versuchen (adapt_delat udn maxtreedepth)
 fit_motor_snareAll <- lmmelsm(
   list(
-    observed ~ deviation,
+    observed ~ deviation, 
     location ~ musicality + trial + session + BP_within + BP_between + 
-      ERD1_within + ERD1_between + ERD2_within + ERD2_between +
-      ERS1_within + ERS1_between + ERS2_within + ERS2_between, #ohne ERS wenn p<0.05
+      ERD1_alpha_within + ERD1_alpha_between + 
+      ERD2_alpha_within + ERD2_alpha_between +
+      ERD1_beta_within + ERD1_beta_between + 
+      ERD2_beta_within + ERD2_beta_between,
     scale ~ musicality + trial + session + BP_within + BP_between + 
-      ERD1_within + ERD1_between + ERD2_within + ERD2_between +
-      ERS1_within + ERS1_between + ERS2_within + ERS2_between,
+      ERD1_alpha_within + ERD1_alpha_between + 
+      ERD2_alpha_within + ERD2_alpha_between +
+      ERD1_beta_within + ERD1_beta_between + 
+      ERD2_beta_within + ERD2_beta_between,
     between ~ musicality + trial + session + BP_within + BP_between + 
-      ERD1_within + ERD1_between + ERD2_within + ERD2_between +
-      ERS1_within + ERS1_between + ERS2_within + ERS2_between),
-  group = subject, data = snare_data, cores=8, iter=10000)
+      ERD1_alpha_within + ERD1_alpha_between + 
+      ERD2_alpha_within + ERD2_alpha_between +
+      ERD1_beta_within + ERD1_beta_between + 
+      ERD2_beta_within + ERD2_beta_between),
+    group = subject, data = snare_data, cores=8, iter=10000)
 sink("Results/motor/lmmelsm_motor_snare_all.txt")
 print(summary(fit_motor_snareAll))
+View(summary(fit_motor_snareAll))
 
-
-# test univariate models
+##### snare univariate models #####
 uni_lmmelms_fct <- function(x, data) lmmelsm(
   list(
     as.formula(paste("observed ~", "deviation")),
@@ -76,26 +78,27 @@ sink("Results/motor/lmmelsm_motor_snare_ERS2_between.txt")
 print(summary(fit_motor_ERS2bw_snare))
 
 fit_motor_ERD1_snare <- uni_lmmelms_fct(x = "ERD1_within", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD3_within.txt")
+sink("Results/motor/lmmelsm_motor_snare_ERD1_within.txt")
 print(summary(fit_motor_ERD1_snare))
 
 fit_motor_ERD1bw_snare <- uni_lmmelms_fct(x = "ERD1_between", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD3_between.txt")
+sink("Results/motor/lmmelsm_motor_snare_ERD1_between.txt")
 print(summary(fit_motor_ERD1bw_snare))
 
 fit_motor_ERD2_snare <- uni_lmmelms_fct(x = "ERD2_within", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD4_within.txt")
+sink("Results/motor/lmmelsm_motor_snare_ERD2_within.txt")
 print(summary(fit_motor_ERD2_snare))
 
 fit_motor_ERD2_bw_snare <- uni_lmmelms_fct(x = "ERD2_between", data=snare_data)
-sink("Results/motor/lmmelsm_motor_snare_ERD4_between.txt")
+sink("Results/motor/lmmelsm_motor_snare_ERD2_between.txt")
 print(summary(fit_motor_ERD2_bw_snare))
 
 sink() # to free memory
 
 
 
-##### same for wdBlk #####
+
+##### wdBlk #####
 file = "Results/wdBlk_data_motor.csv"
 wdBlk_data <- read.csv(file, sep=',')
 
@@ -105,20 +108,27 @@ fit_motor_wdBlkAll <- lmmelsm(
   list(
     observed ~ deviation,
     location ~ musicality + trial + session + BP_within + BP_between + 
-      ERD1_within + ERD1_between + ERD2_within + ERD2_between +
-      ERS1_within + ERS1_between + ERS2_within + ERS2_between, #ohne ERS wenn p<0.05
+      ERD1_alpha_within + ERD1_alpha_between + 
+      ERD2_alpha_within + ERD2_alpha_between +
+      ERD1_beta_within + ERD1_beta_between + 
+      ERD2_beta_within + ERD2_beta_between,
     scale ~ musicality + trial + session + BP_within + BP_between + 
-      ERD1_within + ERD1_between + ERD2_within + ERD2_between +
-      ERS1_within + ERS1_between + ERS2_within + ERS2_between,
+      ERD1_alpha_within + ERD1_alpha_between + 
+      ERD2_alpha_within + ERD2_alpha_between +
+      ERD1_beta_within + ERD1_beta_between + 
+      ERD2_beta_within + ERD2_beta_between,
     between ~ musicality + trial + session + BP_within + BP_between + 
-      ERD1_within + ERD1_between + ERD2_within + ERD2_between +
-      ERS1_within + ERS1_between + ERS2_within + ERS2_between),
+      ERD1_alpha_within + ERD1_alpha_between + 
+      ERD2_alpha_within + ERD2_alpha_between +
+      ERD1_beta_within + ERD1_beta_between + 
+      ERD2_beta_within + ERD2_beta_between),
   group = subject, data = wdBlk_data, cores=8, iter=10000)
 sink("Results/motor/lmmelsm_motor_wdBlk_all.txt")
 print(summary(fit_motor_wdBlkAll))
 
+sink() # to free memory
 
-# test univariate models
+##### wdBlk univariate model s #####
 uni_lmmelms_fct <- function(x, data) lmmelsm(
   list(
     as.formula(paste("observed ~", "deviation")),
@@ -164,19 +174,19 @@ sink("Results/motor/lmmelsm_motor_wdBlk_ERS2_between.txt")
 print(summary(fit_motor_ERS2bw_wdBlk))
 
 fit_motor_ERD1_wdBlk <- uni_lmmelms_fct(x = "ERD1_within", data=wdBlk_data)
-sink("Results/motor/lmmelsm_motor_wdBlk_ERD3_within.txt")
+sink("Results/motor/lmmelsm_motor_wdBlk_ERD1_within.txt")
 print(summary(fit_motor_ERD1_wdBlk))
 
 fit_motor_ERD1bw_wdBlk <- uni_lmmelms_fct(x = "ERD1_between", data=wdBlk_data)
-sink("Results/motor/lmmelsm_motor_wdBlk_ERD3_between.txt")
+sink("Results/motor/lmmelsm_motor_wdBlk_ERD1_between.txt")
 print(summary(fit_motor_ERD1bw_wdBlk))
 
 fit_motor_ERD2_wdBlk <- uni_lmmelms_fct(x = "ERD2_within", data=wdBlk_data)
-sink("Results/motor/lmmelsm_motor_wdBlk_ERD4_within.txt")
+sink("Results/motor/lmmelsm_motor_wdBlk_ERD2_within.txt")
 print(summary(fit_motor_ERD2_wdBlk))
 
 fit_motor_ERD2_bw_wdBlk <- uni_lmmelms_fct(x = "ERD2_between", data=wdBlk_data)
-sink("Results/motor/lmmelsm_motor_wdBlk_ERD4_between.txt")
+sink("Results/motor/lmmelsm_motor_wdBlk_ERD2_between.txt")
 print(summary(fit_motor_ERD2_bw_wdBlk))
 
 sink() # to free memory

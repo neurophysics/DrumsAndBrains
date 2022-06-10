@@ -103,8 +103,8 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+#big files:
 Data/
-runall_*
 prepared_filterdata.npz
 prepare_FFTcSPoC.npz
 cSPoC_results_*.npz
@@ -113,13 +113,6 @@ prepared_FFTcSPoC.npz
 FFTcSPoCv2.npz
 prepared_VerifyFFTSSD.npz
 Results/FFTSSD.npz
-sa_nyhead.mat
-.RData
-.Rhistory
-.DS_Store
-._*
-snare_models.rds
-wdBlk_models.rds
 Results/allEEG_silence.npz
 Results/FFTcSPoCv2.npz
 Results/F_SSD2.csv
@@ -129,3 +122,13 @@ Results/motor/ERD.npz
 Results/motor/BP.npz
 Results/motor/old_5bands/
 Results/motor/old_CSP/
+
+# other
+runall_*
+sa_nyhead.mat
+.RData
+.Rhistory
+.DS_Store
+._*
+snare_models.rds
+wdBlk_models.rds

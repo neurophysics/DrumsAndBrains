@@ -17,6 +17,7 @@ data_folder = sys.argv[1]
 result_folder = sys.argv[2]
 
 N_subjects = 21
+N_comp = 2
 
 # reject behavioral outlier
 iqr_rejection = True
@@ -30,8 +31,8 @@ iqr_rejection = True
 ###############################################################################
 # load bp and erd data: we only take strongest component for each
 #ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, CSPcomp,time)
-ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject,each shape (Nband, Ntrial)
-ERSCSP_trial = [] # same for ERS
+ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject,each shape (Nband, CSPcomp, Ntrial)
+#ERSCSP_trial = [] # same for ERS
 all_BP = [] # len 20, each (32,2500,1xx)=(channels, time in ms, trials)
 # load the frequency array and inlier
 snareHit_inlier = [] #(75,) True if we have a valid hit in the trial
@@ -44,8 +45,8 @@ try:
         try:
             with np.load(os.path.join(result_folder,'motor/ERDCSP.npz')) as f:
                 #ERD_CSP.append(f['ERDCSP_{:02d}'.format(i)]) #might not need this here
-                ERDCSP_trial.append(f['ERDCSP_trial_{:02d}'.format(i)][:])
-                ERSCSP_trial.append(f['ERSCSP_trial_{:02d}'.format(i)])
+                ERDCSP_trial.append(f['ERDCSP_trial_{:02d}'.format(i)][:,:N_comp,:])
+                #ERSCSP_trial.append(f['ERSCSP_trial_{:02d}'.format(i)])
             with np.load(os.path.join(result_folder, 'motor/BP.npz'),
                 'r') as fb:
                 all_BP.append(fb['BP_trials_{:02d}'.format(i)])
@@ -61,28 +62,38 @@ try:
             break
     print('ERDCSP, BP and inlier succesfully read.')
 except FileNotFoundError: # read ERD data and calculate CSP
-    print('erdcsp.npz or BP.npz not found. Please run csp.py first.')
+    print('ERDCSP.npz or BP.npz not found. Please run csp.py first.')
 
 try:
     cfilt = np.load(os.path.join(
         result_folder,'motor/lda.npy'), allow_pickle=True)
-    # base_idx_lda is range(500) ie -2 to -1.5s
-    # act_idx_lda is range(1400:1900) ie -600 to -100ms
-    [base_idx_lda,act_idx_lda] = np.load(
-        os.path.join(result_folder,'motor/lda_idx.npy'),  allow_pickle=True)
 except KeyError:
-    print('lda.npy or lda_idx.npy not found. Please run lda.py first.')
+    print('lda.npy not found. Please run lda.py first.')
+
+try:
+    with np.load(os.path.join(result_folder, 'motor/covmat.npz')) as f:
+        fbands = f['fbands']
+        base_idx = f['base_idx'] #corresponds to -2000 to -1250ms
+        act_idx = f['act_idx'] #corresponds to -750 to 0ms)
+        act_idx_lda = f['act_idx_lda'] #-600 to -100ms
+except KeyError:
+    print('motor/covmat.npz not found. Please run basicAnalysis_motor first.')
+
+N_bands = len(fbands)
+if N_bands == 2:
+    band_names = ['alpha', 'beta']
+else:
+    band_names = [str(b[0]) + '-' + str(b[1]) for b in fbands]
 
 #apply lda to bp
 BPlda = [np.tensordot(cfilt, b, axes=(0,0)) for b in all_BP] #each shape (2500, 143) now
 #convert BP to decrease/increase value i.e. activation avg - baseline avg
-BPLDA = [a[act_idx_lda].mean(0) - a[base_idx_lda].mean(0) for a in BPlda] #(143,) each
+BPLDA = [a[act_idx_lda].mean(0) - a[base_idx].mean(0) for a in BPlda] #(143,) each
 
 # for each label we will have on value per subject and trial (20,1xx)
-N_bands = ERDCSP_trial[0].shape[0]
 EEG_labels = (['BP'] +
-    ['ERD{}'.format(i+1) for i in range(N_bands)] +
-    ['ERS{}'.format(i+1) for i in range(N_bands)])
+    ['ERD1_{}'.format(i) for i in band_names] +
+    ['ERD2_{}'.format(i) for i in band_names]) #used to be ERS
 ###############################################################################
 # load/prepare behavioral data
 # get performance session and trial indices and separate trials into snare
@@ -116,7 +127,7 @@ wdBlk_trial_idx = []
 wdBlk_session_idx = []
 # need the eeg to be full size so we can mask all invalid trials at once afterwards
 ERDCSP_trial_150 = []
-ERSCSP_trial_150 = []
+#ERSCSP_trial_150 = []
 BPLDA_150 = []
 
 subj = 0
@@ -196,14 +207,14 @@ while True:
             allHit_inlier = snarewdBlkHit_inlier[np.argsort(all_trial_idx)] #argsort gives order of trials
             # add nan at invalid trials to get to shape (5,150)
             # erd
-            res = np.zeros([N_bands,len(allHit_inlier)])
-            res[:,allHit_inlier] = ERDCSP_trial[idx]
-            res[:,~allHit_inlier] = np.nan
-            ERDCSP_trial_150.append(np.vstack(res))
-            res2 = np.zeros([N_bands,len(allHit_inlier)])
-            res2[:,allHit_inlier] = ERSCSP_trial[idx]
-            res2[:,~allHit_inlier] = np.nan
-            ERSCSP_trial_150.append(np.vstack(res2))
+            res = np.zeros([N_bands,N_comp,len(allHit_inlier)])
+            res[:,:,allHit_inlier] = ERDCSP_trial[idx]
+            res[:,:,~allHit_inlier] = np.nan
+            ERDCSP_trial_150.append(np.array(res))
+            # res2 = np.zeros([N_bands,len(allHit_inlier)])
+            # res2[:,allHit_inlier] = ERSCSP_trial[idx]
+            # res2[:,~allHit_inlier] = np.nan
+            # ERSCSP_trial_150.append(np.vstack(res2))
             res3 = np.zeros(allHit_inlier.shape)
             res3[allHit_inlier] = BPLDA[idx]
             res3[~allHit_inlier] = np.nan
@@ -277,15 +288,18 @@ def writeDictionaryToCSV(datadict, trial_type):
         for row in getEntryFromMultipleArrays(datadict.values()):
             writer.writerow(row)
 
-# divide into snare and wdblk trials (also, only take valid behavioral trials)
-ERDCSP_snare = [ERDCSP_trial_150[i][:,snare_trial_idx[i]]
+# divide into snare and wdblk trials, only take valid behavioral trials, split in N_comp
+ERDCSP_snare = [np.array([ERDCSP_trial_150[i][:,n,snare_trial_idx[i]]
+        for n in range(N_comp)])
     for i in range(N_subjects-1)]
-ERDCSP_wdBlk = [ERDCSP_trial_150[i][:,wdBlk_trial_idx[i]]
+ERDCSP_wdBlk = [np.array([ERDCSP_trial_150[i][:,n,wdBlk_trial_idx[i]]
+        for n in range(N_comp)])
     for i in range(N_subjects-1)]
-ERSCSP_snare = [ERSCSP_trial_150[i][:,snare_trial_idx[i]]
-    for i in range(N_subjects-1)]
-ERSCSP_wdBlk = [ERSCSP_trial_150[i][:,wdBlk_trial_idx[i]]
-    for i in range(N_subjects-1)]
+
+# ERSCSP_snare = [ERSCSP_trial_150[i][:,snare_trial_idx[i]]
+#     for i in range(N_subjects-1)]
+# ERSCSP_wdBlk = [ERSCSP_trial_150[i][:,wdBlk_trial_idx[i]]
+#     for i in range(N_subjects-1)]
 BPLDA_snare = [BPLDA_150[i][snare_trial_idx[i]]
     for i in range(N_subjects-1)]
 BPLDA_wdBlk = [BPLDA_150[i][wdBlk_trial_idx[i]]
@@ -307,12 +321,12 @@ data = {} #1275 trials
 
 # add EEG to dictionary
 # take log for ERD and ERS because they are right skewed
-all_EEG = [np.vstack([a.reshape(1,-1), np.log(b), np.log(c)])
-    for a,b,c in zip(BPLDA_snare, ERDCSP_snare, ERSCSP_snare)] #[20*(11,58)]
+all_EEG_snare = [np.vstack([a.reshape(1,-1), np.vstack(list(np.log(b)))])
+    for a,b in zip(BPLDA_snare, ERDCSP_snare)] #[20*(5,58)] one for BP, N_band*N_comp for ERD
 
 # for i, l, in enumerate(EEG_labels):
 #     data[l] = all_EEG[i,:]
-addEEGtoDict(data, EEG_labels, all_EEG)
+addEEGtoDict(data, EEG_labels, all_EEG_snare)
 # add subject index
 data['subject'] = np.array([s+1 if s<10 else s+2 for s in subject_idx_snare])
 # add musicality
@@ -328,8 +342,11 @@ writeDictionaryToCSV(data, 'snare')
 # for woodblock #
 #################
 wdBlk_data = {}
-all_EEG = [np.vstack([a.reshape(1,-1), np.log(b), np.log(c)])
-    for a,b,c in zip(BPLDA_snare, ERDCSP_snare, ERSCSP_snare)] #[20*(11,58)]
+
+all_EEG_wdBlk = [np.vstack([a.reshape(1,-1), np.vstack(list(np.log(b)))])
+    for a,b in zip(BPLDA_wdBlk, ERDCSP_wdBlk)] #[20*(5,58)] one for BP, N_band*N_comp for ERD
+
+addEEGtoDict(data, EEG_labels, all_EEG_wdBlk)
 # add subject index
 data['subject'] = np.array([s+1 if s<10 else s+2 for s in subject_idx_wdBlk])
 # add musicality

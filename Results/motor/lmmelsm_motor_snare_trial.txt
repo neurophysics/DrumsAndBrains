@@ -14,7 +14,7 @@ Location Intercepts
 -----
 
       item   Mean Median     SD   Q2.5 Q97.5
- deviation 0.0786 0.0781 0.0304 0.0217  0.14
+ deviation 0.0775 0.0768 0.0299 0.0207 0.137
 
 -----
 Location model (Fixed effects)
@@ -22,7 +22,7 @@ Location model (Fixed effects)
 
 Variable : deviation
  predictor     Mean   Median       SD      Q2.5    Q97.5
-     trial 5.58e-05 5.59e-05 3.07e-05 -4.16e-06 0.000116
+     trial 5.67e-05 5.64e-05 3.07e-05 -2.33e-06 0.000118
 
 
 -----
@@ -30,15 +30,15 @@ Variable : deviation
 -----
 
       item  Mean Median    SD  Q2.5 Q97.5
- deviation -2.82  -2.82 0.159 -3.13  -2.5
+ deviation -2.83  -2.83 0.157 -3.13 -2.51
 
 -----
 Scale model (Fixed effects)
 -----
 
 Variable : deviation
- predictor     Mean   Median       SD     Q2.5   Q97.5
-     trial -0.00065 -0.00065 0.000574 -0.00177 0.00049
+ predictor      Mean    Median       SD     Q2.5    Q97.5
+     trial -0.000646 -0.000646 0.000573 -0.00177 0.000499
 
 
 -----
@@ -46,9 +46,9 @@ Between-group scale model
 -----
 
 Variable : deviation
- param predictor    Mean  Median     SD    Q2.5  Q97.5
-    mu     trial -0.0441 -0.0445 0.0730 -0.1862 0.0997
- logsd     trial  0.0450  0.0424 0.0652 -0.0754 0.1806
+ param predictor    Mean  Median     SD    Q2.5 Q97.5
+    mu     trial -0.0451 -0.0454 0.0726 -0.1852 0.100
+ logsd     trial  0.0444  0.0419 0.0637 -0.0745 0.177
 
 
 -----
@@ -58,8 +58,8 @@ Random effect standard deviations
 -----
 
     factor param  Mean Median     SD   Q2.5 Q97.5
- deviation    mu 0.137  0.128 0.0456 0.0745 0.249
- deviation logsd 0.591  0.564 0.1734 0.3343 1.012
+ deviation    mu 0.137  0.128 0.0454 0.0748 0.249
+ deviation logsd 0.588  0.560 0.1719 0.3393 1.005
 
 -----
 Random effect correlations (Posterior Means (Lower) and SDs (Upper))
@@ -67,5 +67,5 @@ Random effect correlations (Posterior Means (Lower) and SDs (Upper))
 -----
 
                 deviation_mu deviation_logsd
-deviation_mu           1.000           0.168
-deviation_logsd        0.572           1.000
+deviation_mu           1.000           0.167
+deviation_logsd        0.567           1.000

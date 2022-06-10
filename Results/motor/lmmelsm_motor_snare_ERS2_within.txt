@@ -14,15 +14,15 @@ Location Intercepts
 -----
 
       item   Mean Median     SD   Q2.5 Q97.5
- deviation 0.0834  0.083 0.0191 0.0475 0.123
+ deviation 0.0829  0.082 0.0146 0.0559 0.114
 
 -----
 Location model (Fixed effects)
 -----
 
 Variable : deviation
-   predictor      Mean    Median      SD    Q2.5   Q97.5
- ERS2_within -0.000542 -0.000535 0.00119 -0.0029 0.00178
+   predictor     Mean   Median      SD     Q2.5   Q97.5
+ ERS2_within -0.00159 -0.00159 0.00212 -0.00573 0.00255
 
 
 -----
@@ -30,15 +30,15 @@ Variable : deviation
 -----
 
       item  Mean Median    SD  Q2.5 Q97.5
- deviation -2.81  -2.81 0.162 -3.13 -2.49
+ deviation -2.84  -2.84 0.153 -3.15 -2.54
 
 -----
 Scale model (Fixed effects)
 -----
 
 Variable : deviation
-   predictor    Mean  Median   SD    Q2.5  Q97.5
- ERS2_within -0.0115 -0.0116 0.02 -0.0506 0.0274
+   predictor    Mean  Median     SD  Q2.5  Q97.5
+ ERS2_within -0.0382 -0.0383 0.0372 -0.11 0.0352
 
 
 -----
@@ -47,8 +47,8 @@ Between-group scale model
 
 Variable : deviation
  param   predictor    Mean  Median    SD   Q2.5  Q97.5
-    mu ERS2_within -0.4176 -0.4162 0.152 -0.723 -0.123
- logsd ERS2_within  0.0798  0.0727 0.227 -0.348  0.550
+    mu ERS2_within -1.0934 -1.0874 0.321 -1.729 -0.477
+ logsd ERS2_within  0.0809  0.0854 0.388 -0.691  0.838
 
 
 -----
@@ -58,8 +58,8 @@ Random effect standard deviations
 -----
 
     factor param   Mean Median     SD   Q2.5 Q97.5
- deviation    mu 0.0916 0.0894 0.0169 0.0651 0.130
- deviation logsd 0.6807 0.6651 0.1203 0.4900 0.956
+ deviation    mu 0.0846 0.0823 0.0157 0.0606 0.121
+ deviation logsd 0.6734 0.6595 0.1148 0.4888 0.936
 
 -----
 Random effect correlations (Posterior Means (Lower) and SDs (Upper))
@@ -67,5 +67,5 @@ Random effect correlations (Posterior Means (Lower) and SDs (Upper))
 -----
 
                 deviation_mu deviation_logsd
-deviation_mu           1.000           0.148
-deviation_logsd        0.623           1.000
+deviation_mu            1.00           0.142
+deviation_logsd         0.65           1.000

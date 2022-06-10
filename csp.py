@@ -55,7 +55,7 @@ while True:
             fbands = f_covmat['fbands']
             left_handed = f_covmat['left_handed']
             base_idx = f_covmat['base_idx'] #corresponds to -2000 to -1250ms
-            act_idx = f_covmat['act_idx'] #corresponds to -750 to 0ms
+            act_idx = f_covmat['act_idx'] #corresponds to -500 to 0ms
         i+=1
     except KeyError:
         break
@@ -68,9 +68,9 @@ lam1 = 0 # penalizes the size of the global filter
 lam2_cand = [2.5] #supposed to be a list
 N_filters = 5
 
-CSP_eigvals = [ ] #5[(10,)], (N_filters,) for each band
-CSP_filters = [] #5[20[(32,10)]], [(N_channels,N_filters) for each subject] for each band
-CSP_patterns = [] #5[21[(10,32)]], [(N_filters,N_channels) for each subject(+1 global in front)] for each band
+CSP_eigvals = [ ] #5[(5,)], (N_filters,) for each band
+CSP_filters = [] #5[20[(32,5)]], [(N_channels,N_filters) for each subject] for each band
+CSP_patterns = [] #5[21[(5,32)]], [(N_filters,N_channels) for each subject(+1 global in front)] for each band
 try:
     i=0
     while True:
@@ -97,8 +97,8 @@ except FileNotFoundError: # read ERD data and calculate CSP
         for lam2 in lam2_cand:
             print('Lambda 2 is ',lam2)
             for it in trange(N_filters): #first 5 filters are ERD (contrast, target)
-                print('\nCalculating ERD filter {} of {}\n'.format(
-                    it+1, N_filters))
+                print('\nCalculating ERD filter {} of {} for band {}\n'.format(
+                    it+1, N_filters, band_name))
                 if it == 0:
                     quot_now, filters_now = mtCSP.maximize_mtCSP(
                             [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
@@ -119,28 +119,29 @@ except FileNotFoundError: # read ERD data and calculate CSP
                     quot.append(quot_now)
                     all_filters_erd = np.hstack([all_filters_erd, filters_now.reshape(-1, 1)])
             #erd und ers also orthogonal to each other to reduce later covariability
-            for it in trange(N_filters): #last 5 filters are ERS (target, contrast)
-                print('\nCalculating ERS filter {} of {}\n'.format(it+1, N_filters))
-                if it == 0:
-                    quot_now, filters_now = mtCSP.maximize_mtCSP(
-                            [W.T @ c.mean(-1) @ W for c in target_cov_a],
-                            [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
-                            lam1,
-                            lam2,
-                            iterations=20)
-                    quot = [quot_now]
-                    all_filters_ers = filters_now.reshape(-1, 1)
-                else: #force other filters to be orthogonal
-                    quot_now, filters_now = mtCSP.maximize_mtCSP(
-                            [W.T @ c.mean(-1) @ W for c in target_cov_a],
-                            [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
-                            lam1,
-                            lam2,
-                            old_W = all_filters_ers,
-                            iterations=20)
-                    quot.append(quot_now)
-                    all_filters_ers = np.hstack([all_filters_ers, filters_now.reshape(-1, 1)])
-            all_filters = np.hstack([all_filters_erd,all_filters_ers])
+            # we dont need ERS anymore because they are not to be found in alpha and beta band pre-movement
+            # for it in trange(N_filters): #last 5 filters are ERS (target, contrast)
+            #     print('\nCalculating ERS filter {} of {}\n'.format(it+1, N_filters))
+            #     if it == 0:
+            #         quot_now, filters_now = mtCSP.maximize_mtCSP(
+            #                 [W.T @ c.mean(-1) @ W for c in target_cov_a],
+            #                 [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
+            #                 lam1,
+            #                 lam2,
+            #                 iterations=20)
+            #         quot = [quot_now]
+            #         all_filters_ers = filters_now.reshape(-1, 1)
+            #     else: #force other filters to be orthogonal
+            #         quot_now, filters_now = mtCSP.maximize_mtCSP(
+            #                 [W.T @ c.mean(-1) @ W for c in target_cov_a],
+            #                 [W.T @ c.mean(-1) @ W for c in contrast_cov_a],
+            #                 lam1,
+            #                 lam2,
+            #                 old_W = all_filters_ers,
+            #                 iterations=20)
+            #         quot.append(quot_now)
+            #         all_filters_ers = np.hstack([all_filters_ers, filters_now.reshape(-1, 1)])
+            all_filters = all_filters_erd #np.hstack([all_filters_erd,all_filters_ers])
             # transform the filters
             v_norm.append(np.sum((all_filters[N_channels:,0])**2)) #only individual filter
             all_filters = np.vstack([W @ all_filters[i * rank : (i + 1) * rank]
@@ -149,17 +150,15 @@ except FileNotFoundError: # read ERD data and calculate CSP
             subject_filters = [all_filters[:N_channels] +
                                all_filters[(i + 1) * N_channels:(i + 2) * N_channels]
                                for i in range(len(target_cov_a))]
-            CSP_filters.append(subject_filters) #(20,32,10) bzw. (32,10) for each subject
+            CSP_filters.append(subject_filters) #(20,32,5) bzw. (32,5) for each subject
 
             # calculate the SNNR (EV equivalent)for every component and subject
             SNNR_per_subject = np.array([
-                np.diag((filt.T @ target_now.mean(-1) @ filt) / #fits to optimize ERS, take inverse
-                        (filt.T @ contrast_now.mean(-1) @ filt))
+                np.diag((filt.T @ contrast_now.mean(-1) @ filt) / #fits to optimize ERD, take inverse
+                        (filt.T @ target_now.mean(-1) @ filt))
                 for (filt, target_now, contrast_now) in
                 zip(subject_filters, target_cov_a, contrast_cov_a)])
             SNNR = SNNR_per_subject.mean(0)
-            # first 5 EV are for ERD and hence we need the inverse
-            SNNR = np.hstack([1/SNNR[:5], SNNR[5:]])
             CSP_eigvals.append(SNNR) #(10,) for each band
 
             # patterns
@@ -214,7 +213,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
 ##### try reading applied ERDCSP, if not apply CSP to EEG (takes a while) #####
 ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, CSPcomp,time)
 ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject,each shape (Nband, Ntrial)
-ERSCSP_trial = [] # same for ERS
+#ERSCSP_trial = [] # same for ERS
 try:
     i=0
     while True:
@@ -222,7 +221,7 @@ try:
             with np.load(os.path.join(result_folder,'motor/ERDCSP.npz')) as f:
                 ERD_CSP.append(f['ERDCSP_{:02d}'.format(i)])
                 ERDCSP_trial.append(f['ERDCSP_trial_{:02d}'.format(i)])
-                ERSCSP_trial.append(f['ERSCSP_trial_{:02d}'.format(i)])
+                #ERSCSP_trial.append(f['ERSCSP_trial_{:02d}'.format(i)])
             i+=1
         except KeyError:
             break
@@ -256,7 +255,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
 
         ERD_CSP_subj = []
         ERDCSP_trial_band = []
-        ERSCSP_trial_band = []
+        #ERSCSP_trial_band = []
         for band_idx, band in enumerate(fbands):
             # band-pass filters with order 6 (3 into each direction)
             Wn = np.array(band) / s_rate * 2
@@ -285,21 +284,21 @@ except FileNotFoundError: # read ERD data and calculate CSP
             ERDCSP_allCSP_trial = np.mean(all_trials_filt[:,act_idx], axis=1
                     #) - np.mean(all_trials_filt[:,base_idx], axis=1)
                     ) / np.mean(all_trials_filt[:,base_idx], axis=1) * 100
-            # only keep min/max value i.e. best component
-            ERDCSP_trial_band.append(ERDCSP_allCSP_trial[0,:])
-            ERSCSP_trial_band.append(ERDCSP_allCSP_trial[N_filters,:])
+            # keep all components
+            ERDCSP_trial_band.append(ERDCSP_allCSP_trial)
+            #ERSCSP_trial_band.append(ERDCSP_allCSP_trial[N_filters,:])
             # end for each band
 
         ERD_CSP.append(ERD_CSP_subj)
         ERDCSP_trial.append(ERDCSP_trial_band)
-        ERSCSP_trial.append(ERSCSP_trial_band)
+        #ERSCSP_trial.append(ERSCSP_trial_band)
         idx += 1
         subj += 1
 
     save_ERDCSP = {}
-    for i, (e, d, s) in enumerate(zip(ERD_CSP, ERDCSP_trial, ERSCSP_trial)):
+    for i, (e, d) in enumerate(zip(ERD_CSP, ERDCSP_trial)):
         save_ERDCSP['ERDCSP_{:02d}'.format(i)] = e #[[(N_filters, 2500)]] for each subject and band
         save_ERDCSP['ERDCSP_trial_{:02d}'.format(i)] = d #[[(143,)]]
-        save_ERDCSP['ERSCSP_trial_{:02d}'.format(i)] = s #[[(143,)]]
+        #save_ERDCSP['ERSCSP_trial_{:02d}'.format(i)] = s #[[(143,)]]
     np.savez(os.path.join(result_folder, 'motor/ERDCSP.npz'), **save_ERDCSP)
     print('ERDCSP succesfully calculated and stored.')

@@ -1,29 +1,11 @@
-
------
-Diagnostic Checks
------
-
-Divergent Transitions: Failed
-	37  divergences
-Convergence: Passed
-*** Diagnostics failed. Do not interpret estimates. ***
-
------
-
------
-Location Intercepts
------
-
-      item   Mean Median     SD   Q2.5 Q97.5
- deviation 0.0923 0.0919 0.0259 0.0413 0.144
-
------
-Location model (Fixed effects)
------
-
-Variable : deviation
-   predictor     Mean  Median      SD     Q2.5   Q97.5
- ERS1_within -0.00181 -0.0018 0.00109 -0.00396 0.00031
+[1] "bla"
+              item      Mean    Median        SD      Q2.5     Q97.5
+sigma[1] deviation -1.777607 -1.893489 0.9569807 -3.338509 0.3407663
+              item      Mean    Median        SD      Q2.5     Q97.5
+sigma[1] deviation -1.777607 -1.893489 0.9569807 -3.338509 0.3407663
+ : deviation
+   predictor    Mean  Median     SD      Q2.5   Q97.5
+ ERS1_within 0.00178 0.00178 0.0011 -0.000367 0.00392
 
 
 -----
@@ -31,15 +13,15 @@ Variable : deviation
 -----
 
       item  Mean Median    SD  Q2.5 Q97.5
- deviation -2.82  -2.81 0.158 -3.12  -2.5
+ deviation -2.96  -2.98 0.167 -3.26  -2.6
 
 -----
 Scale model (Fixed effects)
 -----
 
 Variable : deviation
-   predictor    Mean  Median     SD    Q2.5   Q97.5
- ERS1_within -0.0278 -0.0279 0.0193 -0.0654 0.00976
+   predictor    Mean  Median     SD    Q2.5  Q97.5
+ ERS1_within 0.00656 0.00655 0.0216 -0.0353 0.0492
 
 
 -----
@@ -47,9 +29,9 @@ Between-group scale model
 -----
 
 Variable : deviation
- param   predictor  Mean Median    SD   Q2.5 Q97.5
-    mu ERS1_within 0.202  0.205 0.237 -0.277 0.663
- logsd ERS1_within 0.256  0.254 0.249 -0.226 0.756
+ param   predictor   Mean Median    SD   Q2.5 Q97.5
+    mu ERS1_within 0.0182 0.0171 0.209 -0.387 0.426
+ logsd ERS1_within 0.2529 0.2572 0.222 -0.190 0.684
 
 
 -----
@@ -58,9 +40,9 @@ Random effect standard deviations
 	'mu' and 'logsd' represent RE-SDs when between-group covariates are zero.
 -----
 
-    factor param  Mean Median    SD   Q2.5 Q97.5
- deviation    mu 0.108  0.106 0.020 0.0768 0.155
- deviation logsd 0.645  0.630 0.118 0.4611 0.923
+    factor param  Mean Median     SD   Q2.5 Q97.5
+ deviation    mu 0.113   0.11 0.0216 0.0803 0.164
+ deviation logsd 0.685   0.67 0.1216 0.4924 0.970
 
 -----
 Random effect correlations (Posterior Means (Lower) and SDs (Upper))
@@ -68,5 +50,6 @@ Random effect correlations (Posterior Means (Lower) and SDs (Upper))
 -----
 
                 deviation_mu deviation_logsd
-deviation_mu            1.00           0.157
-deviation_logsd         0.61           1.000
+deviation_mu            1.00           0.163
+deviation_logsd         0.56           1.000
+[1] 1
