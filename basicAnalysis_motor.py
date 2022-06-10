@@ -20,6 +20,8 @@ import meet
 import helper_functions
 import scipy as sp
 import random
+from tqdm import tqdm
+
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
@@ -83,7 +85,7 @@ target_cov = []
 fbands = [[7,12], [15,25]] #chosen after looking at spectra
 win = [-2000, 500]
 base_idx = range(750) #corresponds to -2000 to -1250ms
-act_idx = range(1250,2000) #corresponds to -750 to 0ms
+act_idx = range(1500,2000) #corresponds to -750 to 0ms
 act_idx_lda = range(1400,1900) #-600 to -100ms
 
 idx = 0 #index to asses eeg (0 to 19)
@@ -209,7 +211,7 @@ while(subj <= N_subjects):
             -(cueHit_diff_mean+cueHit_diff_sd),
             alpha=1, color='bisque', label='mean cue time ± sd')
         axs[c//4, c%4].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
-            alpha=0.5, color='lightsalmon', label='activation window') #_ gets ignored as label# y lim+label
+            alpha=0.5, color='lightsalmon', label='pre-movement window') #_ gets ignored as label# y lim+label
     # y label
     axs[0,0].text(0.04, 0.5, s='amplitude [$\mu$V]',
         transform = fig.transFigure, rotation='vertical',
@@ -265,7 +267,7 @@ while(subj <= N_subjects):
             ERD = all_trials_filt.mean(-1) #trial avg
             ERD /= ERD[:,base_idx].mean(-1)[:,np.newaxis]
             #ERD *= 100
-            ERD = 20*np.log10(ERD) #in db
+            #ERD = 20*np.log10(ERD) #in db: ERD_db.npz
             ERDs.append(ERD)
         contrast_cov.append(contrast_cov_subj)
         target_cov.append(target_cov_subj)
@@ -278,21 +280,21 @@ while(subj <= N_subjects):
     for c in range(Nc):
         for i,ERD in enumerate(ERDs): #for each band
             ERD_topo = np.array(ERD)[topo_idx]
-            axs[c//Nw, c%Nw].plot(range(*win), ERD_topo[c], linewidth=1, c=colors[i],
+            axs[c//Nw, c%Nw].plot(range(*win), ERD_topo[c]*100, linewidth=1, c=colors[i],
                 label = '_'*c + str(fbands[i][0])+'-'+str(fbands[i][1]) +' Hz')
         axs[c//Nw, c%Nw].set_title(channames_topo4x8[c], fontsize=8, pad=2)
         axs[c//Nw, c%Nw].axvline(0, lw=0.5, c='r')
-        axs[c//Nw, c%Nw].axhline(0, lw=0.5, c='k', ls=':')
+        axs[c//Nw, c%Nw].axhline(100, lw=0.5, c='k', ls=':')
         axs[c//Nw, c%Nw].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
             -(cueHit_diff_mean+cueHit_diff_sd),
             alpha=1, color='bisque',
             label='_'*c + 'mean cue time ± sd') #_ gets ignored as label
         axs[c//Nw, c%Nw].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
             alpha=0.5, color='lightsalmon',
-            label='_'*c + 'activation window') #_ gets ignored as label
+            label='_'*c + 'pre-movement window') #_ gets ignored as label
     # y lim+label
     #axs[0,0].set_ylim([-3.5,3.5])
-    axs[0,0].text(0.035, 0.5, s='amplitude [dB]',
+    axs[0,0].text(0.035, 0.5, s='ERD [%]',
         transform = fig.transFigure, rotation='vertical',
         ha='left', va='center', clip_on=False)
     # x label
@@ -318,7 +320,48 @@ while(subj <= N_subjects):
     subj += 1
     plt.close('all')
 
-## plot for all subjects
+################################################################################
+##### save data #####
+save_BP = {}
+for i, (bp, bpt) in enumerate(zip(all_BP, all_BP_trials)):
+    save_BP['BP_{:02d}'.format(i)] = bp
+    save_BP['BP_trials_{:02d}'.format(i)] = bpt
+np.savez(os.path.join(result_folder, 'motor/BP.npz'), **save_BP)
+
+save_ERD = {}
+for i, erd in enumerate(all_ERD):
+    save_ERD['ERD_{:02d}'.format(i)] = erd
+np.savez(os.path.join(result_folder, 'motor/ERD.npz'), **save_ERD,
+    fbands=fbands)
+
+save_covmat = {}
+for i, (c,t,sn,wb) in enumerate(zip(contrast_cov, target_cov,
+    all_snareHit_times, all_wdBlkHit_times)):
+    save_covmat['contrast_cov_{:02d}'.format(i)] = c
+    save_covmat['target_cov_{:02d}'.format(i)] = t
+    save_covmat['snareHit_times_{:02d}'.format(i)] = sn
+    save_covmat['wdBlkHit_times_{:02d}'.format(i)] = wb
+np.savez(os.path.join(result_folder, 'motor/covmat.npz'),
+    **save_covmat,
+    fbands=fbands,
+    left_handed=left_handed,
+    base_idx = base_idx, #corresponds to -2000 to -1250ms
+    act_idx = act_idx, #corresponds to -750 to 0ms)
+    act_idx_lda = act_idx_lda) #-600 to -100ms
+
+# store the inlier of the hit responses
+save_inlier = {}
+for i, (shI, whI, sI, wI) in enumerate(zip(all_snareHit_inlier,
+        all_wdBlkHit_inlier,all_snareInlier, all_wdBlkInlier)):
+    save_inlier['snareHit_inlier_{:02d}'.format(i)] = shI
+    save_inlier['wdBlkHit_inlier_{:02d}'.format(i)] = whI
+    save_inlier['snareInlier_response_{:02d}'.format(i)] = sI
+    save_inlier['wdBlkInlier_response_{:02d}'.format(i)] = wI
+    save_inlier['win'] = win
+np.savez(os.path.join(result_folder, 'motor/inlier.npz'), **save_inlier)
+
+################################################################################
+##### plot for all subjects #####
 cueHit_diff_mean = np.nanmean(np.hstack(cueHit_diff))
 cueHit_diff_sd = np.nanstd(np.hstack(cueHit_diff))
 
@@ -339,7 +382,7 @@ for c in range(Nc):
         -(cueHit_diff_mean+cueHit_diff_sd),
         alpha=1, color='bisque', label='mean cue time ± sd')
     axs[c//4, c%4].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
-        alpha=0.5, color='lightsalmon', label='activation window')
+        alpha=0.5, color='lightsalmon', label='pre-movement window')
 # y label
 axs[0,0].text(0.035, 0.5, s='amplitude [$\mu$V]',
     transform = fig.transFigure, rotation='vertical',
@@ -367,20 +410,20 @@ fig.subplots_adjust(top=0.94, bottom=0.07, left=0.11, right=0.95, hspace=0.3)
 fig.suptitle('ERD: 2000 ms preresponse, trial-avg.', fontsize=14)
 for c in range(Nc):
     for i,ERD in enumerate(all_ERD_avg):
-        axs[c//Nw, c%Nw].plot(range(*win), ERD[c], linewidth=1, c=colors[i],
+        axs[c//Nw, c%Nw].plot(range(*win), ERD[c]*100, linewidth=1, c=colors[i],
             label = '_'*c + str(fbands[i][0])+'-'+str(fbands[i][1]) +' Hz')
     axs[c//Nw, c%Nw].set_title(channames_topo4x8[c], fontsize=8, pad=2)
     axs[c//Nw, c%Nw].axvline(0, lw=0.5, c='r')
-    axs[c//Nw, c%Nw].axhline(0, lw=0.5, c='k', ls=':')
+    axs[c//Nw, c%Nw].axhline(100, lw=0.5, c='k', ls=':')
     axs[c//Nw, c%Nw].axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
         -(cueHit_diff_mean+cueHit_diff_sd),
         alpha=1, color='bisque',
         label='_'*c + 'mean cue time ± sd') #_ gets ignored as label
     axs[c//Nw, c%Nw].axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
         alpha=0.5, color='lightsalmon',
-            label='_'*c + 'activation window') #_ gets ignored as label
+            label='_'*c + 'pre-movement window') #_ gets ignored as label
 #axs[0,0].set_ylim([-3.5,3.5])
-axs[0,0].text(0.035, 0.5, s='amplitude [dB]',
+axs[0,0].text(0.035, 0.5, s='ERD [%]', #change back to amplitude?
     transform = fig.transFigure, rotation='vertical',
     ha='left', va='center', clip_on=False)
 # x label
@@ -393,34 +436,40 @@ plt.legend(lines, labels, bbox_to_anchor=[0.5, -0.0],
     bbox_transform = fig.transFigure, loc='lower center', ncol=len(lines))
 fig.savefig(os.path.join(result_folder, 'motor/ERD_2000mspreresponse.pdf'))
 
-
-# plot channel spectra to determine frequency bands
+################################################################################
+# calculate p-Values and plot channel spectra to determine frequency bands
 data = np.concatenate(all_BP_trials,axis=-1)[topo_idx]
 F, psd_pre_act = sp.signal.welch(
         data[:,act_idx], fs=s_rate, nperseg=2000, nfft=2000, scaling='density', axis=1)
 F, psd_pre_base = sp.signal.welch(
         data[:,base_idx], fs=s_rate, nperseg=2000, nfft=2000, scaling='density', axis=1)
 
+uHz = 30 #upper Hz bound
+
 ##### motor/ERD_p.npy #####
 # bootstrap to calculate p-value for act vs base
 try:
     ERD_p = np.load(os.path.join(result_folder,'motor/ERD_p.npy'))
 except FileNotFoundError:
+    N_bootstrap = 10000
     # ERD for each channel and frequency:
+    print('ERD_p.npy not found. Calculating p-Values with N_boot=',N_bootstrap)
     ERD_cf = psd_pre_act.mean(-1) / psd_pre_base.mean(-1)
     N_trials = psd_pre_act.shape[-1]
-    N_bootstrap = 1000
     # same for bootstrap ERD, sampling N_trials with replacement
+    data_bootstrap = np.concatenate([psd_pre_act, psd_pre_base], -1)
     ERD_bootstrap = np.array(
-            [np.concatenate([psd_pre_act, psd_pre_base], -1)
+            [data_bootstrap
                     [...,np.random.choice(N_trials, N_trials)].mean(-1
-            )/np.concatenate([psd_pre_act, psd_pre_base], -1)
+            )/data_bootstrap
                     [...,np.random.choice(N_trials, N_trials)].mean(-1)
-        for _ in range(N_bootstrap)])
+        for _ in tqdm(range(N_bootstrap))])
     #p-value: how often is bootstrap stronger, two-tailed (use log)
-    ERD_p = np.sum(np.abs(np.log(ERD_bootstrap)) <= np.abs(
-        np.log(ERD_cf)), axis=0)/(N_bootstrap + 1)
+    ERD_p = np.sum(np.abs(np.log(ERD_bootstrap)
+        ) >= np.abs(np.log(ERD_cf)), axis=0)/(N_bootstrap + 1)
+    ERD_p = ERD_p * (uHz/F[1]) #bonferroni correction
     np.save(os.path.join(result_folder, 'motor/ERD_p.npy'), ERD_p)
+
 
 grid = [8,4] # plot with 8 rows and 4 columns
 
@@ -434,8 +483,8 @@ for i, (psd_act_now,psd_base_now) in enumerate(
         ax.append(fig.add_subplot(gs[0,0]))
     else:
         ax.append(fig.add_subplot(gs[i//4,i%4], sharex=ax[0], sharey=ax[0]))
-    ax[-1].plot(F, np.sqrt(psd_act_now)*1000, c='lightsalmon', label='act')
-    ax[-1].plot(F, np.sqrt(psd_base_now)*1000, c='k', label='base')
+    ax[-1].plot(F, np.sqrt(psd_act_now)*1000, c='lightsalmon', label='pre-movement')
+    ax[-1].plot(F, np.sqrt(psd_base_now)*1000, c='k', label='baseline')
     ax[-1].grid(ls=':', alpha=0.8)
     ax[-1].set_title(channames_topo4x8[i])
     ax[-1].fill_between(F, 0, 1, where=ERD_p[i]<0.05, alpha=0.2, color='k',
@@ -444,14 +493,18 @@ for i, (psd_act_now,psd_base_now) in enumerate(
         ax[-1].set_xlabel('frequency (Hz)')
     if i%(grid[1]*2) == 0: #first column, every other row
         ax[-1].set_ylabel('linear spectral density')
-ax[-1].set_yscale('log')
+#ax[-1].set_yscale('log')
 ax[-1].set_xticks([1,5,10,20,50,100])
 ax[-1].xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
-plt.legend(loc='lower left',ncol=2)
+lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
+lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
+plt.legend(lines, labels, bbox_to_anchor=[0.5, -0.0],
+    bbox_transform = fig.transFigure, loc='upper center', ncol=len(lines))
+plt.legend(loc='upper right')
 #ax[-1].set_ylim([1E1, 1E5])
-ax[-1].set_xticks(range(0,30,2))
-ax[-1].set_xlim(xmin=0,xmax=30)
-fig.suptitle('Channel Spectra, subj.-avg., ref. is (TP9+TP10)/2', size=14)
+ax[-1].set_xticks(range(0,uHz,2))
+ax[-1].set_xlim(xmin=0,xmax=uHz)
+fig.suptitle('Channel Spectra, subj.-avg.', size=14)
 gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
 fig.savefig(os.path.join(result_folder,'motor/channelSpectra0-30.pdf'))
 plt.close(fig)
@@ -475,6 +528,8 @@ for i, (psd_act_now,psd_base_now) in enumerate(
         ax[-1].set_xlabel('frequency (Hz)')
     if i%grid[1] == 0: #first column
         ax[-1].set_ylabel('ERD/S [\%]')
+    ax[-1].fill_between(F, 0, 1, where=ERD_p[i]<0.05, alpha=0.2, color='k',
+        transform=ax[-1].get_xaxis_transform(), label='p$<$0.05')
 ax[-1].set_xticks(range(0,30,2))
 ax[-1].set_xlim(xmin=0,xmax=30)
 ax[-1].xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
@@ -482,40 +537,3 @@ fig.suptitle('Channel Spectra, subj.-avg., is (TP9+TP10)/2', size=14)
 gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
 fig.savefig(os.path.join(result_folder,'motor/channelSpectra_ERD0-30.pdf'))
 plt.close(fig)
-
-save_BP = {}
-for i, (bp, bpt) in enumerate(zip(all_BP, all_BP_trials)):
-    save_BP['BP_{:02d}'.format(i)] = bp
-    save_BP['BP_trials_{:02d}'.format(i)] = bpt
-np.savez(os.path.join(result_folder, 'motor/BP.npz'), **save_BP)
-
-save_ERD = {}
-for i, erd in enumerate(all_ERD):
-    save_ERD['ERD_{:02d}'.format(i)] = erd
-np.savez(os.path.join(result_folder, 'motor/ERD.npz'), **save_ERD, fbands=fbands)
-
-save_covmat = {}
-for i, (c,t,sn,wb) in enumerate(zip(contrast_cov, target_cov,
-    all_snareHit_times, all_wdBlkHit_times)):
-    save_covmat['contrast_cov_{:02d}'.format(i)] = c
-    save_covmat['target_cov_{:02d}'.format(i)] = t
-    save_covmat['snareHit_times_{:02d}'.format(i)] = sn
-    save_covmat['wdBlkHit_times_{:02d}'.format(i)] = wb
-np.savez(os.path.join(result_folder, 'motor/covmat.npz'),
-    **save_covmat,
-    fbands=fbands,
-    left_handed=left_handed,
-    base_idx = base_idx, #corresponds to -2000 to -1250ms
-    act_idx = act_idx, #corresponds to -750 to 0ms)
-    act_idx_lda = act_idx_lda) #-600 to -100ms
-
-# store the inlier of the hit responses
-save_inlier = {}
-for i, (shI, whI, sI, wI) in enumerate(zip(all_snareHit_inlier,
-        all_wdBlkHit_inlier,all_snareInlier, all_wdBlkInlier)):
-    save_inlier['snareHit_inlier_{:02d}'.format(i)] = shI
-    save_inlier['wdBlkHit_inlier_{:02d}'.format(i)] = whI
-    save_inlier['snareInlier_response_{:02d}'.format(i)] = sI
-    save_inlier['wdBlkInlier_response_{:02d}'.format(i)] = wI
-    save_inlier['win'] = win
-np.savez(os.path.join(result_folder, 'motor/inlier.npz'), **save_inlier)
