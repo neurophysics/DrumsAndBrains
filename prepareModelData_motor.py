@@ -31,7 +31,7 @@ iqr_rejection = True
 ###############################################################################
 # load bp and erd data: we only take strongest component for each
 #ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, CSPcomp,time)
-ERDCSP_trial = [] #stores ERD_CSP of best CSPcomp per subject,each shape (Nband, CSPcomp, Ntrial)
+ERDCSP_trial = [] #stores ERD_CSP per subject,each shape (Nband, CSPcomp, Ntrial)
 #ERSCSP_trial = [] # same for ERS
 all_BP = [] # len 20, each (32,2500,1xx)=(channels, time in ms, trials)
 # load the frequency array and inlier

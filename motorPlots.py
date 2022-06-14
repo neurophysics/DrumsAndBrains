@@ -98,7 +98,7 @@ try:
 except FileNotFoundError: # read ERD data and calculate CSP
     print('Please run basicAnalysis_motor.py and csp.py first.')
 
-cfilt = np.load(os.path.join(result_folder,'motor/lda.npy'))
+cfilt = np.load(os.path.join(result_folder,'motor/lda.npy'), allow_pickle=True)
 
 N_filters = int(CSP_filters[0].shape[-1])
 CSP_ERDnum = N_filters
@@ -241,170 +241,15 @@ axs[band_idx].set_xlabel('channel')
 plt.xticks(ticks=range(len(channames)),labels=channames, fontsize=5)
 fig.savefig(os.path.join(result_folder, 'motor/mtCSP_filter_optLam2.pdf'))
 
-# dont need the following urgently because we only use mtCSP.pdf
-# ##### erdmtcsp_comp[1-4].pdf: plot ERDCSP components #####
-# # look at plot to determine number of components
-# # for i,ev in enumerate(CSP_eigvals):
-# #     plt.plot(ev, 'o')
-# #     plt.title('CSP EV band {}, small ERD, large ERS'.format(band_names[1]))
-# #     plt.show()
-# # first argument is pre movement so
-#
-# for band_idx, band_name in enumerate(band_names):
-#     ev = CSP_eigvals[band_idx]
-#     ev100 = np.hstack([ev[:5], 1/ev[5:]]) #want under 100% for ERS
-#
-#     # average over subjects and normalize
-#     ERD_CSP_subjmean = np.mean([e[band_idx] for e in ERD_CSP], axis=0)
-#     ERD_CSP_subjmean /= ERD_CSP_subjmean[:,base_idx].mean(1)[:,np.newaxis] #baseline avg should be 100%
-#     ERD_CSP_subjmean *= 100 # ERD in percent
-#
-#     # plot CSP components
-#     plt.figure()
-#     # plot in order from top to bottom
-#     for s in range(CSP_ERSnum): #0,1,2,3,4
-#         plt.plot(erd_t, ERD_CSP_subjmean[N_filters+s,:].T,
-#             label='ERS %d' % (s+1) + ' ({}\%)'.format(round(ev100[N_filters+s]*100)),
-#             color=colors[s])
-#     for d in range(CSP_ERDnum-1,-1,-1): #4,3,2,1,0
-#         plt.plot(erd_t, ERD_CSP_subjmean[d,:].T,
-#             label='ERD %d' % (d+1) + ' ({}\%)'.format(round(ev100[d]*100)),
-#             color=colors[-(d+1)])
-#     plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T,
-#         c='black', alpha=0.1)
-#     plt.axvspan(base_ms[0], base_ms[-1], alpha=0.3, color=colors[4],
-#         label='contrast period') #_ gets ignored as label
-#     plt.axvspan(act_ms[0], act_ms[-1], alpha=0.3, color=colors[5],
-#         label='target period')
-#     plt.legend(fontsize=8)
-#     plt.xlabel('time around response [ms]', fontsize=10)
-#     plt.ylabel('CSP filtered EEG, relative amplitude [\%]', fontsize=10)
-#     plt.title('subj.-avg. and eeg-applied CSP filter {} Hz]'.format(
-#         band_name[:-1]), fontsize=12)
-#     plt.savefig(os.path.join(result_folder,
-#         'motor/erdmtcsp_comp{}.pdf'.format(band_name)))
-#
-#
-# ##### mtCSP_patterns[1-4].pdf:  plot EV and global CSP patterns #####
+
+##### plot mtCSP{}.pdf: components with patterns above and below ####
 # # calculating the potmaps, takes a while
 potmaps_csp = []
 for band_idx, band_name in enumerate(band_names):
     potmaps = [meet.sphere.potMap(chancoords, pat_now,
         projection='stereographic') for pat_now in CSP_patterns[band_idx][0]] #at 0 because that is the global one
     potmaps_csp.append(potmaps)
-#
-# for band_idx, band_name in enumerate(band_names):
-#     ev = CSP_eigvals[band_idx] #order: ERD1..ERD5,ERS1..ERS5
-#     ev100 = np.hstack([ev[:5], 1/ev[5:]]) #want under 100% for ERS
-#     #ev_reordered = np.hstack([ev[N_filters:],ev[::-1][N_filters:]]) #order as colors: ERS1..ERS5,ERD5..ERD1
-#     potmaps = potmaps_csp[band_idx]
-#     h1 = 1 #ev
-#     h2 = 1.3 #ERS
-#     h3 = 1.3 #ERD
-#     h4 = 0.1 #colorbar
-#
-#     fig = plt.figure(figsize = (5.512,5.512))
-#     gs = mpl.gridspec.GridSpec(4,1, height_ratios = [h1,h2,h3,h4])
-#
-#     colors_reordered = np.hstack([colors[N_filters:][::-1],colors[:N_filters]])
-#     SNNR_ax = fig.add_subplot(gs[0,:])
-#     SNNR_ax.plot(range(1,len(ev) + 1), 10*np.log10(ev), 'ko-', lw=2,
-#             markersize=5)
-#     for d,e in enumerate(ev):
-#         SNNR_ax.scatter([d+1], 10*np.log10(e),
-#         c=colors_reordered[d], s=60, zorder=1000)
-#     SNNR_ax.axhline(0, c='k', lw=1)
-#     SNNR_ax.set_xlim([0.5, len(ev)+0.5])
-#     SNNR_ax.set_xticks(np.r_[1,range(5, len(ev) + 1, 5)])
-#     SNNR_ax.set_ylabel('SNR (dB)')
-#     SNNR_ax.set_xlabel('component (index)')
-#     SNNR_ax.set_title('resulting SNR after CSP for band ' + band_name)
-#
-#     # plot the five spatial patterns for ERD
-#     gs2 = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[1,:],
-#             wspace=0, hspace=0.8)
-#     head_ax = []
-#     pc = []
-#     for d, pat in enumerate(potmaps[:N_filters]): # first half are ERD
-#         try:
-#             head_ax.append(fig.add_subplot(gs2[0,d], sharex=head_ax[0],
-#                 sharey=head_ax[0], frame_on=False, aspect='equal'))
-#         except IndexError:
-#             head_ax.append(fig.add_subplot(gs2[0,d], frame_on=False, aspect='equal'))
-#         Z = pat[2]/np.abs(pat[2]).max()
-#         pc.append(head_ax[-1].pcolormesh(
-#             *pat[:2], Z, rasterized=True, cmap='coolwarm',
-#             vmin=-1, vmax=1, shading='auto'))
-#         head_ax[-1].contour(*pat, levels=[0], colors='w')
-#         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
-#                 alpha=0.5, zorder=1001)
-#         head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n'+
-#                 ' ({}\%)'.format(round(ev100[d]*100)),
-#                 fontsize=8)
-#         head_ax[-1].tick_params(**blind_ax)
-#         meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
-#     head_ax[0].set_ylim([-1.1,1.3])
-#     head_ax[0].set_xlim([-1.6,1.6])
-#
-#     # plot the five spatial patterns for ERS
-#     gs3 = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[2,:],
-#         wspace=0, hspace=0.8)
-#     head_ax = []
-#     pc = []
-#     for s, pat in enumerate(potmaps[N_filters:]): #last half are ERS
-#         try:
-#             head_ax.append(fig.add_subplot(gs3[0,s], sharex=head_ax[0],
-#                 sharey=head_ax[0], frame_on=False, aspect='equal'))
-#         except IndexError:
-#             head_ax.append(fig.add_subplot(gs3[0,s], frame_on=False, aspect='equal'))
-#         Z = pat[2]/np.abs(pat[2]).max()
-#         pc.append(head_ax[-1].pcolormesh(
-#             *pat[:2], Z, rasterized=True, cmap='coolwarm',
-#             vmin=-1, vmax=1, shading='auto'))
-#         head_ax[-1].contour(*pat, levels=[0], colors='w')
-#         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
-#                 alpha=0.5, zorder=1001)
-#         head_ax[-1].set_xlabel('ERS %d' % (s + 1) +'\n'+
-#                 ' ({}\%)'.format(round(ev100[N_filters+s]*100)),
-#                 fontsize=8)
-#         head_ax[-1].tick_params(**blind_ax)
-#         meet.sphere.addHead(head_ax[-1], ec=colors[s], zorder=1000, lw=3)
-#     head_ax[0].set_ylim([-1.1,1.3])
-#     head_ax[0].set_xlim([-1.6,1.6])
-#
-#     # add a colorbar
-#     cbar_ax = fig.add_subplot(gs[3,:])
-#     cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
-#             label='amplitude (a.u.)', ticks=[-1,0,1])
-#     cbar.ax.set_xticklabels(['-', '0', '+'])
-#     cbar.ax.axvline(0, c='w', lw=2)
-#
-#     # spect_ax = fig.add_subplot(gs[2,:])
-#     # [spect_ax.plot(f,
-#     #     10*np.log10(CSP_filters[:,i].dot(CSP_filters[:,i].dot(
-#     #         np.mean([t/np.trace(t[...,contrast_idx].mean(-1)).real
-#     #             for t in poststim_norm_csd], 0).real))),
-#     #         c=colors[i], lw=2) for i in range(4)]
-#     # spect_ax.set_xlim([0.5, 8])
-#     # spect_ax.set_ylim([-1.1, 1.1])
-#     # spect_ax.axhline(0, c='k', lw=1)
-#     # spect_ax.set_xlabel('frequency (Hz)')
-#     # spect_ax.set_ylabel('SNR (dB)')
-#     # spect_ax.set_title('normalized spectrum')
-#     #
-#     # spect_ax.axvline(snareFreq, color='b', zorder=0, lw=1)
-#     # spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=1)
-#     # spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=1)
-#     # spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=1)
-#     # spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)
-#
-#     gs.tight_layout(fig, pad=0.5)#, pad=0.2, h_pad=0.8
-#
-#     fig.savefig(os.path.join(result_folder,
-#         'motor/mtCSP_patterns{}.pdf'.format(band_name)))
 
-
-##### plot mtCSP{}.pdf: combination of above plots, components with patterns above and below ####
 for band_idx, band_name in enumerate(band_names):
     ev = CSP_eigvals[band_idx]
 
@@ -463,8 +308,7 @@ for band_idx, band_name in enumerate(band_names):
         head_ax[-1].contour(*pat, levels=[0], colors='w')
         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                 alpha=0.5, zorder=1001)
-        head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n({}\%)'.format(
-                round(ev[d]*100)),fontsize=8)
+        head_ax[-1].set_xlabel('ERD %d' % (d + 1),fontsize=8)
         head_ax[-1].tick_params(**blind_ax)
         meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
     head_ax[0].set_ylim([-1.1,1.3])
@@ -507,7 +351,7 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
         comp_ax = fig.add_subplot(gs2[0,0])
 
         # take subject mean and normalize
-        ERD_CSP_subj = ERD_CSP[subj_idx][band_idx]
+        ERD_CSP_subj = ERD_CSP[subj_idx][band_idx] #(N_filt, time)
         ERD_CSP_subj /= ERD_CSP_subj[:,base_idx].mean(1)[:,np.newaxis] #baseline avg should be 100%
         ERD_CSP_subj *= 100 # ERD in percent
 
@@ -517,7 +361,7 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
         for d in range(CSP_ERDnum-1,-1,-1): #4,3,2,1,0
             comp_ax.plot(erd_t, ERD_CSP_subj[d,:].T,
                 label='ERD %d' % (d+1), color=colors[-(d+1)])
-        comp_ax.plot(erd_t, ERD_CSP_subj[CSP_ERSnum:-CSP_ERDnum,:].T,
+        comp_ax.plot(erd_t, ERD_CSP_subj.T,
             c='black', alpha=0.1)
         comp_ax.axvspan(base_ms[0], base_ms[-1], alpha=0.2, color='yellowgreen',
             label='contrast period')
@@ -550,8 +394,7 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
             head_ax[-1].contour(*pat, levels=[0], colors='w')
             head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                     alpha=0.5, zorder=1001)
-            head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n({}\%)'.format(
-                    round(ev[d]*100)), fontsize=8)
+            head_ax[-1].set_xlabel('ERD %d' % (d + 1), fontsize=8)
             head_ax[-1].tick_params(**blind_ax)
             meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
         head_ax[0].set_ylim([-1.1,1.3])
@@ -568,14 +411,15 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
         fig.savefig(os.path.join(result_folder,'S%02d'% subj,
             'motor_mtCSP{}.pdf'.format(band_name)))
     plt.close('all')
-
 1/0
+
+
+
 ##### patternsByTime.pdf: plot BP and ERP patterns over time for avg and each subject #####
 times = [-1000,-750,-500,-250,0] #ms relative to response
 time_idx = [t-win[0]-1 for t in times] #win is -2000 to 500
 
 BP_now = np.mean(BPs,axis=0) #subject avg.
-ERD_now = np.mean(ERDs, axis=0) #subject avg.
 potmaps_BP = [meet.sphere.potMap(chancoords, BP_now[:,t],
     projection='stereographic') for t in time_idx]
 vmax_BP = np.max(np.abs(BP_now[:,999:1999])) #0 is in the middle, scale for plotting potmaps
@@ -617,7 +461,9 @@ cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
 cbar.ax.axvline(0, c='w', lw=2)
 
 # line 3-7: ERD per band (only ERD => last component)
-vmax = np.max(np.abs(ERD_now[0,:,999:1999])) #alpha; 0 is in the middle, scale for plotting potmaps
+ERD_now = np.mean(ERDs, axis=0)*100 #subject avg., percent
+vmax = np.max(ERD_now[0,:,999:1999]) #alpha; 0 is in the middle, scale for plotting potmaps
+vmin = np.min(ERD_now[0,:,999:1999]) #alpha; 0 is in the middle, scale for plotting potmaps
 for band_idx, band_name in enumerate(band_names):
     potmaps_ERD = [meet.sphere.potMap(chancoords, ERD_now[band_idx,:,t],
         projection='stereographic') for t in time_idx]
@@ -633,7 +479,7 @@ for band_idx, band_name in enumerate(band_names):
             head_ax.append(fig.add_subplot(gsi[0,i], frame_on=False, aspect='equal'))
         pc.append(head_ax[-1].pcolormesh(
             *pat, rasterized=True, cmap='coolwarm',
-            vmin=-vmax, vmax=vmax, shading='auto'))
+            vmin=vmin, vmax=vmax, shading='auto')) #erd in % now
         head_ax[-1].contour(*pat, levels=[0], colors='w')
         head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                 alpha=0.5, zorder=1001)
@@ -649,7 +495,7 @@ for band_idx, band_name in enumerate(band_names):
 cbar.ax.tick_params(labelsize=8)
 cbar_ax = fig.add_subplot(gs[4,:])
 cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
-        label='amplitude [dB]')#, ticks=[-1,0,1])
+        label='amplitude [\%]')#, ticks=[-1,0,1])
 #cbar.ax.set_xticklabels(['-', '0', '+'])
 cbar.ax.axvline(0, c='w', lw=2)
 
@@ -657,7 +503,7 @@ gs.tight_layout(fig, pad=0.5, h_pad=0.2)
 plt.savefig(os.path.join(result_folder,
     'motor/patternsByTime.pdf'))
 
-
+# plot for every subject
 for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is missing
     if subj_idx < 10: #subject idx 10 already belongs to subject 12
         subj = subj_idx+1
@@ -666,7 +512,6 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
 
     print('calculating and plotting patterns for subject '+str(subj)+'...')
     BP_now = BPs[subj_idx]
-    ERD_now = ERDs[subj_idx]
 
     potmaps_BP = [meet.sphere.potMap(chancoords, BP_now[:,t],
         projection='stereographic') for t in time_idx]
@@ -710,7 +555,9 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
     cbar.ax.axvline(0, c='w', lw=2)
 
     # line 3-7: ERD per band (only ERD => last component)
-    vmax = np.max(np.abs(ERD_now[0,:,999:1999])) #0 is in the middle, scale for plotting potmaps
+    ERD_now = ERDs[subj_idx]*100 #in %
+    vmax = np.max(ERD_now[0,:,999:1999]) #0 is in the middle, scale for plotting potmaps
+    vmin = np.min(ERD_now[0,:,999:1999]) #0 is in the middle, scale for plotting potmaps
     for band_idx, band_name in enumerate(band_names):
         potmaps_ERD = [meet.sphere.potMap(chancoords, ERD_now[band_idx,:,t],
             projection='stereographic') for t in time_idx]
@@ -726,7 +573,7 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
                 head_ax.append(fig.add_subplot(gsi[0,i], frame_on=False, aspect='equal'))
             pc.append(head_ax[-1].pcolormesh(
                 *pat, rasterized=True, cmap='coolwarm',
-                vmin=-vmax, vmax=vmax, shading='auto'))
+                vmin=vmin, vmax=vmax, shading='auto'))
             head_ax[-1].contour(*pat, levels=[0], colors='w')
             head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
                     alpha=0.5, zorder=1001)
@@ -742,7 +589,7 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
     cbar.ax.tick_params(labelsize=8)
     cbar_ax = fig.add_subplot(gs[4,:])
     cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
-            label='amplitude [dB]')#, ticks=[-1,0,1])
+            label='amplitude [\%]')#, ticks=[-1,0,1])
     #cbar.ax.set_xticklabels(['-', '0', '+'])
     cbar.ax.axvline(0, c='w', lw=2)
 
@@ -750,3 +597,158 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
     plt.savefig(os.path.join(result_folder,'S%02d'% subj,
         'motor_patternsByTime.pdf'))
 plt.close('all')
+1/0
+#dont need the following urgently because we only use mtCSP.pdf
+##### erdmtcsp_comp[1-4].pdf: plot ERDCSP components #####
+# look at plot to determine number of components
+# for i,ev in enumerate(CSP_eigvals):
+#     plt.plot(ev, 'o')
+#     plt.title('CSP EV band {}, small ERD, large ERS'.format(band_names[1]))
+#     plt.show()
+# first argument is pre movement so
+
+for band_idx, band_name in enumerate(band_names):
+    ev = CSP_eigvals[band_idx]
+    ev100 = np.hstack([ev[:5], 1/ev[5:]]) #want under 100% for ERS
+
+    # average over subjects and normalize
+    ERD_CSP_subjmean = np.mean([e[band_idx] for e in ERD_CSP], axis=0)
+    ERD_CSP_subjmean /= ERD_CSP_subjmean[:,base_idx].mean(1)[:,np.newaxis] #baseline avg should be 100%
+    ERD_CSP_subjmean *= 100 # ERD in percent
+
+    # plot CSP components
+    plt.figure()
+    # plot in order from top to bottom
+    for s in range(CSP_ERSnum): #0,1,2,3,4
+        plt.plot(erd_t, ERD_CSP_subjmean[N_filters+s,:].T,
+            label='ERS %d' % (s+1) + ' ({}\%)'.format(round(ev100[N_filters+s]*100)),
+            color=colors[s])
+    for d in range(CSP_ERDnum-1,-1,-1): #4,3,2,1,0
+        plt.plot(erd_t, ERD_CSP_subjmean[d,:].T,
+            label='ERD %d' % (d+1) + ' ({}\%)'.format(round(ev100[d]*100)),
+            color=colors[-(d+1)])
+    plt.plot(erd_t, ERD_CSP_subjmean[CSP_ERSnum:-CSP_ERDnum,:].T,
+        c='black', alpha=0.1)
+    plt.axvspan(base_ms[0], base_ms[-1], alpha=0.3, color=colors[4],
+        label='contrast period') #_ gets ignored as label
+    plt.axvspan(act_ms[0], act_ms[-1], alpha=0.3, color=colors[5],
+        label='target period')
+    plt.legend(fontsize=8)
+    plt.xlabel('time around response [ms]', fontsize=10)
+    plt.ylabel('CSP filtered EEG, relative amplitude [\%]', fontsize=10)
+    plt.title('subj.-avg. and eeg-applied CSP filter {} Hz]'.format(
+        band_name[:-1]), fontsize=12)
+    plt.savefig(os.path.join(result_folder,
+        'motor/erdmtcsp_comp{}.pdf'.format(band_name)))
+
+
+##### mtCSP_patterns[1-4].pdf:  plot EV and global CSP patterns #####
+for band_idx, band_name in enumerate(band_names):
+    ev = CSP_eigvals[band_idx] #order: ERD1..ERD5,ERS1..ERS5
+    ev100 = np.hstack([ev[:5], 1/ev[5:]]) #want under 100% for ERS
+    #ev_reordered = np.hstack([ev[N_filters:],ev[::-1][N_filters:]]) #order as colors: ERS1..ERS5,ERD5..ERD1
+    potmaps = potmaps_csp[band_idx]
+    h1 = 1 #ev
+    h2 = 1.3 #ERS
+    h3 = 1.3 #ERD
+    h4 = 0.1 #colorbar
+
+    fig = plt.figure(figsize = (5.512,5.512))
+    gs = mpl.gridspec.GridSpec(4,1, height_ratios = [h1,h2,h3,h4])
+
+    colors_reordered = np.hstack([colors[N_filters:][::-1],colors[:N_filters]])
+    SNNR_ax = fig.add_subplot(gs[0,:])
+    SNNR_ax.plot(range(1,len(ev) + 1), 10*np.log10(ev), 'ko-', lw=2,
+            markersize=5)
+    for d,e in enumerate(ev):
+        SNNR_ax.scatter([d+1], 10*np.log10(e),
+        c=colors_reordered[d], s=60, zorder=1000)
+    SNNR_ax.axhline(0, c='k', lw=1)
+    SNNR_ax.set_xlim([0.5, len(ev)+0.5])
+    SNNR_ax.set_xticks(np.r_[1,range(5, len(ev) + 1, 5)])
+    SNNR_ax.set_ylabel('SNR (dB)')
+    SNNR_ax.set_xlabel('component (index)')
+    SNNR_ax.set_title('resulting SNR after CSP for band ' + band_name)
+
+    # plot the five spatial patterns for ERD
+    gs2 = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[1,:],
+            wspace=0, hspace=0.8)
+    head_ax = []
+    pc = []
+    for d, pat in enumerate(potmaps[:N_filters]): # first half are ERD
+        try:
+            head_ax.append(fig.add_subplot(gs2[0,d], sharex=head_ax[0],
+                sharey=head_ax[0], frame_on=False, aspect='equal'))
+        except IndexError:
+            head_ax.append(fig.add_subplot(gs2[0,d], frame_on=False, aspect='equal'))
+        Z = pat[2]/np.abs(pat[2]).max()
+        pc.append(head_ax[-1].pcolormesh(
+            *pat[:2], Z, rasterized=True, cmap='coolwarm',
+            vmin=-1, vmax=1, shading='auto'))
+        head_ax[-1].contour(*pat, levels=[0], colors='w')
+        head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                alpha=0.5, zorder=1001)
+        head_ax[-1].set_xlabel('ERD %d' % (d + 1) +'\n'+
+                ' ({}\%)'.format(round(ev100[d]*100)),
+                fontsize=8)
+        head_ax[-1].tick_params(**blind_ax)
+        meet.sphere.addHead(head_ax[-1], ec=colors[-(d+1)], zorder=1000, lw=3)
+    head_ax[0].set_ylim([-1.1,1.3])
+    head_ax[0].set_xlim([-1.6,1.6])
+
+    # plot the five spatial patterns for ERS
+    gs3 = mpl.gridspec.GridSpecFromSubplotSpec(1,5, gs[2,:],
+        wspace=0, hspace=0.8)
+    head_ax = []
+    pc = []
+    for s, pat in enumerate(potmaps[N_filters:]): #last half are ERS
+        try:
+            head_ax.append(fig.add_subplot(gs3[0,s], sharex=head_ax[0],
+                sharey=head_ax[0], frame_on=False, aspect='equal'))
+        except IndexError:
+            head_ax.append(fig.add_subplot(gs3[0,s], frame_on=False, aspect='equal'))
+        Z = pat[2]/np.abs(pat[2]).max()
+        pc.append(head_ax[-1].pcolormesh(
+            *pat[:2], Z, rasterized=True, cmap='coolwarm',
+            vmin=-1, vmax=1, shading='auto'))
+        head_ax[-1].contour(*pat, levels=[0], colors='w')
+        head_ax[-1].scatter(chancoords_2d[:,0], chancoords_2d[:,1], c='k', s=2,
+                alpha=0.5, zorder=1001)
+        head_ax[-1].set_xlabel('ERS %d' % (s + 1) +'\n'+
+                ' ({}\%)'.format(round(ev100[N_filters+s]*100)),
+                fontsize=8)
+        head_ax[-1].tick_params(**blind_ax)
+        meet.sphere.addHead(head_ax[-1], ec=colors[s], zorder=1000, lw=3)
+    head_ax[0].set_ylim([-1.1,1.3])
+    head_ax[0].set_xlim([-1.6,1.6])
+
+    # add a colorbar
+    cbar_ax = fig.add_subplot(gs[3,:])
+    cbar = plt.colorbar(pc[-1], cax=cbar_ax, orientation='horizontal',
+            label='amplitude (a.u.)', ticks=[-1,0,1])
+    cbar.ax.set_xticklabels(['-', '0', '+'])
+    cbar.ax.axvline(0, c='w', lw=2)
+
+    # spect_ax = fig.add_subplot(gs[2,:])
+    # [spect_ax.plot(f,
+    #     10*np.log10(CSP_filters[:,i].dot(CSP_filters[:,i].dot(
+    #         np.mean([t/np.trace(t[...,contrast_idx].mean(-1)).real
+    #             for t in poststim_norm_csd], 0).real))),
+    #         c=colors[i], lw=2) for i in range(4)]
+    # spect_ax.set_xlim([0.5, 8])
+    # spect_ax.set_ylim([-1.1, 1.1])
+    # spect_ax.axhline(0, c='k', lw=1)
+    # spect_ax.set_xlabel('frequency (Hz)')
+    # spect_ax.set_ylabel('SNR (dB)')
+    # spect_ax.set_title('normalized spectrum')
+    #
+    # spect_ax.axvline(snareFreq, color='b', zorder=0, lw=1)
+    # spect_ax.axvline(2*snareFreq, color='b', zorder=0, lw=1)
+    # spect_ax.axvline(wdBlkFreq, color='r', zorder=0, lw=1)
+    # spect_ax.axvline(2*wdBlkFreq, color='k', zorder=0, lw=1)
+    # spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1)
+
+    gs.tight_layout(fig, pad=0.5)#, pad=0.2, h_pad=0.8
+
+    fig.savefig(os.path.join(result_folder,
+        'motor/mtCSP_patterns{}.pdf'.format(band_name)))

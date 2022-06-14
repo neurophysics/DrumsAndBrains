@@ -1,6 +1,9 @@
 """
 calculates and plots (equivalently to SSDMusicCorr.py)
 the correlation of musicality vs. motor potential strength
+plots:
+    'motor/motorMusicCorr_BP.pdf'
+    'motor/motorMusicCorr_ERD.pdf'
 """
 import numpy as np
 import scipy

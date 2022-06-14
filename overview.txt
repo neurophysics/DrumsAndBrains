@@ -70,6 +70,8 @@ a/b/... script can run in parallel (not dependent on each other)
       'motor/mtCSP[band].pdf', 'motor/patternsByTime.pdf'
 5d. (DR) prepareModelData_motor.py
     data: 'snare_data_motor.csv'. 'wdBlk_data_motor.csv'
+5e. (DR) motorMusicCorr.py
+    plots: 'motor/motorMusicCorr_BP.pdf', 'motor/motorMusicCorr_ERD.pdf'
 
 6a. lmmelsm_motor.R
     data:
@@ -100,4 +102,5 @@ brms.R: now calculating models with lmmelsm.R
 4d. (DR) lda.py
 5c. (DR) motorPlots.py
 5d. (DR) prepareModelData_motor.py
+5e. (DR) motorMusicCorr.py
 6a. lmmelsm_motor.R

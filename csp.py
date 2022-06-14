@@ -105,7 +105,7 @@ except FileNotFoundError: # read ERD data and calculate CSP
                             [W.T @ c.mean(-1) @ W for c in target_cov_a],
                             lam1,
                             lam2,
-                            iterations=20)
+                            iterations=20) #increased this to 50 for alpha band
                     quot = [quot_now]
                     all_filters_erd = filters_now.reshape(-1, 1)
                 else: #force other filters to be orthogonal
@@ -171,8 +171,8 @@ except FileNotFoundError: # read ERD data and calculate CSP
                     global_filters.T.dot(target_cov_avg).dot(global_filters),
                     global_filters.T.dot(target_cov_avg))
             CSP_pattern = np.vstack([[CSP_pattern_global],CSP_pattern_subjects])
-            ### normalize the patterns such that Cz is always positive
-            CSP_pattern = [p*np.sign(p[:,np.asarray(channames)=='CZ'])
+            ### normalize the patterns such that Cp1 is always positive
+            CSP_pattern = [p*np.sign(p[:,np.asarray(channames)=='CP1'])
                     for p in CSP_pattern]
             CSP_patterns.append(CSP_pattern) #(21, 5, 32)
 
@@ -200,6 +200,11 @@ except FileNotFoundError: # read ERD data and calculate CSP
         # np.save(os.path.join(result_folder, 'motor/vnorm2-3.npy'), v_norm)
         # np.save(os.path.join(result_folder, 'motor/CSP_eigvals2-3.npy'), CSP_eigvals)
 
+        # np.savez(os.path.join(result_folder, 'motor', 'mtCSP_alpha_neu.npz'),
+        #     CSP_eigvals = CSP_eigvals,
+        #     CSP_filters = CSP_filters,
+        #     CSP_patterns = CSP_patterns)
+        # 1/0
     save_results = {}
     for (band_now, eigvals_now, filters_now, patterns_now) in zip(
         band_names, CSP_eigvals, CSP_filters, CSP_patterns):
@@ -209,6 +214,15 @@ except FileNotFoundError: # read ERD data and calculate CSP
     np.savez(os.path.join(result_folder, 'motor', 'mtCSP.npz'),
         band_names=band_names, **save_results)
     print('CSP succesfully calculated.')
+
+# ev = np.array(CSP_eigvals[0])
+# filt = np.array(CSP_filters[0])
+# pat = np.array(CSP_patterns[0])
+# # load mtCSP
+# CSP_eigvals[0] = ev
+# CSP_filters[0] = filt
+# CSP_patterns[0] = pat
+# save new mtcsp
 
 ##### try reading applied ERDCSP, if not apply CSP to EEG (takes a while) #####
 ERD_CSP = [] # stores trial averaged ERD/S_CSP per subject, each with shape (Nband, CSPcomp,time)

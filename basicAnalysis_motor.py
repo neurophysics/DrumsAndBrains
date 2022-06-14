@@ -183,7 +183,7 @@ while(subj <= N_subjects):
     all_wdBlkInlier.append(wdBlkInlier)
 
     try: # to read BP (32,2500)
-        with np.load(os.path.join(result_folder, 'motor/BP.npz'),
+        with np.load(os.path.join(result_folder, 'motor/BP2.npz'),
             'r') as f_BP:
             BP = f_BP['BP_{:02d}'.format(idx)]
             all_trials = f_BP['BP_trials_{:02d}'.format(idx)]
@@ -229,11 +229,29 @@ while(subj <= N_subjects):
 
 
     # ERD in frequency bands
+    t_cov = []
+    c_cov = []
+    i=0
+    while True:
+        try:
+            with np.load(os.path.join(result_folder, 'motor/covmat.npz'),
+                'r') as f_covmat:
+                t_cov.append(f_covmat['target_cov_{:02d}'.format(i)])
+                c_cov.append(f_covmat['contrast_cov_{:02d}'.format(i)])
+            i+=1
+        except:
+            break
     try: # to read ERD [N_fbands*(32,2500)]
         with np.load(os.path.join(result_folder, 'motor/ERD.npz'),
             'r') as f_ERD:
             ERDs = list(f_ERD['ERD_{:02d}'.format(idx)])
+        if len(t_cov)!=N_subjects-1: #no/not enough covmats
+            np.load('firlefanz.npy') #try to open non-existing file
+        # if those two worked, use calculated covmats
+        target_cov = t_cov
+        contrast_cov = c_cov
     except FileNotFoundError: #calculate ERD and covmats
+        print('ERD.npz or covmat.npz not complete. Recalculating ERD (might take a while)')
         ERDs = []
         contrast_cov_subj = []
         target_cov_subj = []
@@ -294,7 +312,7 @@ while(subj <= N_subjects):
             label='_'*c + 'pre-movement window') #_ gets ignored as label
     # y lim+label
     #axs[0,0].set_ylim([-3.5,3.5])
-    axs[0,0].text(0.035, 0.5, s='ERD [%]',
+    axs[0,0].text(0.035, 0.5, s='ERD [\%]',
         transform = fig.transFigure, rotation='vertical',
         ha='left', va='center', clip_on=False)
     # x label
@@ -423,7 +441,7 @@ for c in range(Nc):
         alpha=0.5, color='lightsalmon',
             label='_'*c + 'pre-movement window') #_ gets ignored as label
 #axs[0,0].set_ylim([-3.5,3.5])
-axs[0,0].text(0.035, 0.5, s='ERD [%]', #change back to amplitude?
+axs[0,0].text(0.035, 0.5, s='ERD [\%]', #change back to amplitude?
     transform = fig.transFigure, rotation='vertical',
     ha='left', va='center', clip_on=False)
 # x label
@@ -483,8 +501,8 @@ for i, (psd_act_now,psd_base_now) in enumerate(
         ax.append(fig.add_subplot(gs[0,0]))
     else:
         ax.append(fig.add_subplot(gs[i//4,i%4], sharex=ax[0], sharey=ax[0]))
-    ax[-1].plot(F, np.sqrt(psd_act_now)*1000, c='lightsalmon', label='pre-movement')
-    ax[-1].plot(F, np.sqrt(psd_base_now)*1000, c='k', label='baseline')
+    ax[-1].plot(F[4:], np.sqrt(psd_act_now)[4:]*1000, c='lightsalmon', label='pre-movement')
+    ax[-1].plot(F[4:], np.sqrt(psd_base_now)[4:]*1000, c='k', label='baseline')
     ax[-1].grid(ls=':', alpha=0.8)
     ax[-1].set_title(channames_topo4x8[i])
     ax[-1].fill_between(F, 0, 1, where=ERD_p[i]<0.05, alpha=0.2, color='k',
@@ -494,7 +512,7 @@ for i, (psd_act_now,psd_base_now) in enumerate(
     if i%(grid[1]*2) == 0: #first column, every other row
         ax[-1].set_ylabel('linear spectral density')
 #ax[-1].set_yscale('log')
-ax[-1].set_xticks([1,5,10,20,50,100])
+#ax[-1].set_xticks([1,5,10,20,50,100])
 ax[-1].xaxis.set_major_formatter(mpl.ticker.ScalarFormatter())
 lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
@@ -502,8 +520,8 @@ plt.legend(lines, labels, bbox_to_anchor=[0.5, -0.0],
     bbox_transform = fig.transFigure, loc='upper center', ncol=len(lines))
 plt.legend(loc='upper right')
 #ax[-1].set_ylim([1E1, 1E5])
-ax[-1].set_xticks(range(0,uHz,2))
-ax[-1].set_xlim(xmin=0,xmax=uHz)
+ax[-1].set_xticks(range(2,uHz,2))
+ax[-1].set_xlim(xmin=2,xmax=uHz)
 fig.suptitle('Channel Spectra, subj.-avg.', size=14)
 gs.tight_layout(fig, pad=0.3, rect=(0,0,1,0.95))
 fig.savefig(os.path.join(result_folder,'motor/channelSpectra0-30.pdf'))

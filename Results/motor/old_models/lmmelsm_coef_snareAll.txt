@@ -1,0 +1,236 @@
+$sigma
+              item       Mean     Median       SD      Q2.5     Q97.5
+sigma[1] deviation -0.4121698 -0.4207963 0.499543 -1.365126 0.5903192
+
+$nu
+           item      Mean    Median        SD      Q2.5     Q97.5
+nu[1] deviation 0.3786822 0.3901318 0.1134284 0.1457418 0.5586283
+
+$random_sigma
+                                  factor param      Mean    Median        SD
+mu_logsd_betas_random_sigma[1] deviation    mu 0.4862558 0.3088279 0.5175340
+mu_logsd_betas_random_sigma[2] deviation logsd 0.6969067 0.5607365 0.5713399
+                                      Q2.5    Q97.5
+mu_logsd_betas_random_sigma[1] 0.001673765 1.839649
+mu_logsd_betas_random_sigma[2] 0.019017689 2.101120
+
+$random_correlation
+                      row_factor row_param col_factor col_param      Mean
+Omega_mean_logsd[2,1]  deviation     logsd  deviation        mu 0.7238933
+                         Median        SD        Q2.5     Q97.5
+Omega_mean_logsd[2,1] 0.8132538 0.2726586 -0.01291874 0.9944352
+
+$random_mu_intercept
+                subject    factor          Mean        Median          SD
+mu_random[1,1]        1 deviation -0.0072546742 -2.659833e-03 0.018281420
+mu_random[2,1]        2 deviation -0.0221204514 -2.162300e-02 0.013469226
+mu_random[3,1]        3 deviation -0.0008645683 -6.408938e-05 0.009387077
+mu_random[4,1]        4 deviation -0.0094411402 -6.102908e-03 0.044796386
+mu_random[5,1]        5 deviation  0.0002707147  4.775464e-05 0.013313438
+mu_random[6,1]        6 deviation -0.0363334918 -3.705072e-02 0.021795978
+mu_random[7,1]        7 deviation  0.0575998085  5.971482e-02 0.041138482
+mu_random[8,1]        8 deviation  0.0124009100  2.305972e-03 0.024590275
+mu_random[9,1]        9 deviation -0.0121054697 -5.975605e-03 0.040681091
+mu_random[10,1]      10 deviation  0.0043861182  3.708510e-03 0.012558101
+mu_random[11,1]      12 deviation  0.1316206086  1.307113e-01 0.037414321
+mu_random[12,1]      13 deviation  0.0412541206  3.471374e-02 0.039897207
+mu_random[13,1]      14 deviation -0.0250068331 -2.519522e-02 0.017037715
+mu_random[14,1]      15 deviation  0.0046034796  1.325962e-03 0.012469929
+mu_random[15,1]      16 deviation  0.0200010957  1.763962e-02 0.024811161
+mu_random[16,1]      17 deviation  0.0260090735  2.948246e-03 0.050649015
+mu_random[17,1]      18 deviation  0.1157985390  1.164641e-01 0.031218074
+mu_random[18,1]      19 deviation  0.3206320424  3.226109e-01 0.038365719
+mu_random[19,1]      20 deviation -0.1315217760 -1.299889e-01 0.032685363
+mu_random[20,1]      21 deviation -0.0082294118 -4.377472e-03 0.014330945
+                        Q2.5        Q97.5
+mu_random[1,1]  -0.056429331  0.014843881
+mu_random[2,1]  -0.051200338  0.001716776
+mu_random[3,1]  -0.021291908  0.014482915
+mu_random[4,1]  -0.105872066  0.078267942
+mu_random[5,1]  -0.024637519  0.026198406
+mu_random[6,1]  -0.077657382  0.006521977
+mu_random[7,1]  -0.003125827  0.134893743
+mu_random[8,1]  -0.011319890  0.080074195
+mu_random[9,1]  -0.102412390  0.064694869
+mu_random[10,1] -0.019583539  0.030258551
+mu_random[11,1]  0.063950287  0.203195870
+mu_random[12,1] -0.010431034  0.130567004
+mu_random[13,1] -0.056865264  0.009387528
+mu_random[14,1] -0.010110122  0.033765955
+mu_random[15,1] -0.023900543  0.069926388
+mu_random[16,1] -0.023518302  0.166302499
+mu_random[17,1]  0.049712283  0.174785445
+mu_random[18,1]  0.247051916  0.391680484
+mu_random[19,1] -0.199570953 -0.068088283
+mu_random[20,1] -0.041521523  0.012907033
+
+$random_logsd_intercept
+                   subject    factor          Mean        Median         SD
+logsd_random[1,1]        1 deviation -0.2098209128 -1.639488e-01 0.23416275
+logsd_random[2,1]        2 deviation -0.2407838700 -2.411095e-01 0.10220806
+logsd_random[3,1]        3 deviation  0.0058708318 -8.705253e-09 0.04492741
+logsd_random[4,1]        4 deviation -0.0973794450 -7.115785e-02 0.12967234
+logsd_random[5,1]        5 deviation -0.0026962174  2.654377e-08 0.03712823
+logsd_random[6,1]        6 deviation -0.0227487532 -1.283358e-02 0.06403434
+logsd_random[7,1]        7 deviation  0.0075743220  1.941492e-04 0.02883557
+logsd_random[8,1]        8 deviation  0.0073647646  3.952390e-04 0.03682046
+logsd_random[9,1]        9 deviation -0.0025023891 -2.668206e-09 0.03536130
+logsd_random[10,1]      10 deviation  0.1015828357  8.972643e-02 0.11782092
+logsd_random[11,1]      12 deviation  0.6062018950  6.052674e-01 0.15660141
+logsd_random[12,1]      13 deviation  0.0179296754  1.364580e-03 0.07813676
+logsd_random[13,1]      14 deviation -0.2131488691 -2.133410e-01 0.11912235
+logsd_random[14,1]      15 deviation  0.5252139770  5.323555e-01 0.17855864
+logsd_random[15,1]      16 deviation  0.0895010421  7.487742e-02 0.10360534
+logsd_random[16,1]      17 deviation  0.0056096846  4.366605e-06 0.05459941
+logsd_random[17,1]      18 deviation  1.0195556440  1.021710e+00 0.15874529
+logsd_random[18,1]      19 deviation -0.0086924825  4.024828e-03 0.06801097
+logsd_random[19,1]      20 deviation  0.0008304572 -2.705548e-04 0.04681731
+logsd_random[20,1]      21 deviation -0.1592661072 -1.017191e-01 0.17761830
+                           Q2.5        Q97.5
+logsd_random[1,1]  -0.737157802  0.136445580
+logsd_random[2,1]  -0.442668430 -0.041092546
+logsd_random[3,1]  -0.024214672  0.081997733
+logsd_random[4,1]  -0.392707332  0.105643704
+logsd_random[5,1]  -0.035576995  0.019031037
+logsd_random[6,1]  -0.171984537  0.113450385
+logsd_random[7,1]  -0.004714534  0.084069908
+logsd_random[8,1]  -0.048337107  0.104125587
+logsd_random[9,1]  -0.039657414  0.016311279
+logsd_random[10,1] -0.105054128  0.357537410
+logsd_random[11,1]  0.304074011  0.916119359
+logsd_random[12,1] -0.037866804  0.184402467
+logsd_random[13,1] -0.445962578 -0.003453687
+logsd_random[14,1]  0.144374670  0.856553119
+logsd_random[15,1] -0.086568962  0.325049712
+logsd_random[16,1] -0.047682501  0.109892458
+logsd_random[17,1]  0.715192880  1.321598918
+logsd_random[18,1] -0.214578589  0.089441556
+logsd_random[19,1] -0.070709906  0.128665090
+logsd_random[20,1] -0.560091168  0.035379598
+
+$random_mu_coef
+[1] NA
+
+$random_logsd_coef
+[1] NA
+
+$mu_coef
+                 factor          predictor          Mean        Median
+mu_beta[1,1]  deviation         musicality -3.823440e-02 -0.0380389579
+mu_beta[2,1]  deviation              trial  6.090819e-04  0.0006066258
+mu_beta[3,1]  deviation            session -1.392518e-02 -0.0138954888
+mu_beta[4,1]  deviation          BP_within -1.175611e-03 -0.0011808933
+mu_beta[5,1]  deviation         BP_between  2.889738e-02  0.0282490235
+mu_beta[6,1]  deviation  ERD1_alpha_within  8.091623e-06  0.0000013909
+mu_beta[7,1]  deviation ERD1_alpha_between  1.009058e-01  0.1027362815
+mu_beta[8,1]  deviation  ERD2_alpha_within  1.245541e-03  0.0012471567
+mu_beta[9,1]  deviation ERD2_alpha_between -1.496019e-01 -0.1522719928
+mu_beta[10,1] deviation   ERD1_beta_within -9.155857e-04 -0.0008990683
+mu_beta[11,1] deviation  ERD1_beta_between  9.079240e-03  0.0063913091
+mu_beta[12,1] deviation   ERD2_beta_within -1.657549e-03 -0.0016638749
+mu_beta[13,1] deviation  ERD2_beta_between -1.921377e-02 -0.0149896470
+                        SD         Q2.5         Q97.5
+mu_beta[1,1]  0.0130100136 -0.065568695 -0.0121165005
+mu_beta[2,1]  0.0001628597  0.000291305  0.0009309601
+mu_beta[3,1]  0.0040603491 -0.021901483 -0.0060081291
+mu_beta[4,1]  0.0004771863 -0.002117078 -0.0002479542
+mu_beta[5,1]  0.0118137993  0.008330026  0.0524746972
+mu_beta[6,1]  0.0012133284 -0.002387256  0.0023747835
+mu_beta[7,1]  0.0370338303  0.024921207  0.1686201078
+mu_beta[8,1]  0.0011990362 -0.001115210  0.0035961038
+mu_beta[9,1]  0.0385380663 -0.219154025 -0.0638994862
+mu_beta[10,1] 0.0016442191 -0.004179692  0.0023070422
+mu_beta[11,1] 0.0328969595 -0.044554080  0.0857682506
+mu_beta[12,1] 0.0016613230 -0.004898143  0.0016806020
+mu_beta[13,1] 0.0370313230 -0.105114229  0.0419742988
+
+$logsd_coef
+                    factor          predictor         Mean       Median
+logsd_beta[1,1]  deviation         musicality -0.517075214 -0.515714349
+logsd_beta[2,1]  deviation              trial  0.003487611  0.003498203
+logsd_beta[3,1]  deviation            session -0.099039581 -0.099001039
+logsd_beta[4,1]  deviation          BP_within -0.005471878 -0.005486700
+logsd_beta[5,1]  deviation         BP_between -0.054597954 -0.054739699
+logsd_beta[6,1]  deviation  ERD1_alpha_within  0.031375883  0.031399499
+logsd_beta[7,1]  deviation ERD1_alpha_between  1.148575265  1.151134475
+logsd_beta[8,1]  deviation  ERD2_alpha_within -0.003522419 -0.003417996
+logsd_beta[9,1]  deviation ERD2_alpha_between -1.290365520 -1.292080948
+logsd_beta[10,1] deviation   ERD1_beta_within -0.017368834 -0.017151047
+logsd_beta[11,1] deviation  ERD1_beta_between -0.659168787 -0.690690055
+logsd_beta[12,1] deviation   ERD2_beta_within -0.008810886 -0.008826335
+logsd_beta[13,1] deviation  ERD2_beta_between  0.093552089  0.114049392
+                          SD         Q2.5        Q97.5
+logsd_beta[1,1]  0.053488296 -0.624071882 -0.417710357
+logsd_beta[2,1]  0.003064588 -0.002494588  0.009581217
+logsd_beta[3,1]  0.075951502 -0.247324794  0.049474305
+logsd_beta[4,1]  0.007755461 -0.020669173  0.009610813
+logsd_beta[5,1]  0.046056103 -0.145485338  0.037938241
+logsd_beta[6,1]  0.021105311 -0.010169529  0.073141721
+logsd_beta[7,1]  0.097033669  0.961540512  1.325793983
+logsd_beta[8,1]  0.021042035 -0.044197176  0.037554518
+logsd_beta[9,1]  0.125289825 -1.520936489 -1.064275062
+logsd_beta[10,1] 0.028906573 -0.073625627  0.039768201
+logsd_beta[11,1] 0.311724212 -1.192713502  0.011048956
+logsd_beta[12,1] 0.030023684 -0.068112312  0.050302076
+logsd_beta[13,1] 0.225759759 -0.385595413  0.487787115
+
+$zeta
+              factor param          predictor          Mean        Median
+zeta[1,1]  deviation    mu         musicality  0.0404329084  0.0396622088
+zeta[2,1]  deviation    mu              trial -0.0019568831  0.0070299565
+zeta[3,1]  deviation    mu            session  0.0030443409 -0.0008640828
+zeta[4,1]  deviation    mu          BP_within  0.4818275375  0.4684146224
+zeta[5,1]  deviation    mu         BP_between -0.4417339137 -0.4410921193
+zeta[6,1]  deviation    mu  ERD1_alpha_within -0.3005771625 -0.2837866728
+zeta[7,1]  deviation    mu ERD1_alpha_between  0.9679736493  0.9870010110
+zeta[8,1]  deviation    mu  ERD2_alpha_within  0.1043112916  0.0672915748
+zeta[9,1]  deviation    mu ERD2_alpha_between -0.0600614244 -0.0622043712
+zeta[10,1] deviation    mu   ERD1_beta_within  0.7197795439  0.6947181916
+zeta[11,1] deviation    mu  ERD1_beta_between -0.4965993822 -0.4851456467
+zeta[12,1] deviation    mu   ERD2_beta_within -0.1647775049 -0.1583758176
+zeta[13,1] deviation    mu  ERD2_beta_between -1.0798079340 -1.0768814849
+zeta[1,2]  deviation logsd         musicality  0.3190608173  0.3152468246
+zeta[2,2]  deviation logsd              trial -1.0627440414 -0.9820205697
+zeta[3,2]  deviation logsd            session  0.0001189158  0.0006561041
+zeta[4,2]  deviation logsd          BP_within  0.3486279602  0.3281898202
+zeta[5,2]  deviation logsd         BP_between -0.0832766573 -0.0722126600
+zeta[6,2]  deviation logsd  ERD1_alpha_within  1.0414757682  1.0250786380
+zeta[7,2]  deviation logsd ERD1_alpha_between -0.0750902672 -0.0812167083
+zeta[8,2]  deviation logsd  ERD2_alpha_within  0.1665347689  0.1592823088
+zeta[9,2]  deviation logsd ERD2_alpha_between  0.0579408142  0.0598753229
+zeta[10,2] deviation logsd   ERD1_beta_within  0.7092456175  0.7110308081
+zeta[11,2] deviation logsd  ERD1_beta_between  0.1576481562  0.1615815373
+zeta[12,2] deviation logsd   ERD2_beta_within -0.3681631246 -0.4001081151
+zeta[13,2] deviation logsd  ERD2_beta_between  0.0594940447  0.0549205603
+                  SD        Q2.5       Q97.5
+zeta[1,1]  0.4343896 -0.81884269  0.90304904
+zeta[2,1]  0.1617364 -0.35874023  0.29668426
+zeta[3,1]  1.0080220 -1.96116909  1.98988256
+zeta[4,1]  0.2306175  0.05925524  0.97787217
+zeta[5,1]  0.3333897 -1.10012578  0.21658136
+zeta[6,1]  0.3957517 -1.12166624  0.44169663
+zeta[7,1]  0.7076268 -0.49200936  2.31685392
+zeta[8,1]  0.4541695 -0.69107047  1.11361888
+zeta[9,1]  0.8026659 -1.61957056  1.53889041
+zeta[10,1] 0.6410651 -0.48327365  2.02905813
+zeta[11,1] 0.8646961 -2.21163475  1.19791381
+zeta[12,1] 0.5817580 -1.33638935  0.96417847
+zeta[13,1] 0.8014743 -2.63502321  0.48776479
+zeta[1,2]  0.4927977 -0.64519376  1.29541516
+zeta[2,2]  0.6272903 -2.46267771 -0.07312439
+zeta[3,2]  0.9966374 -1.93635813  1.96048272
+zeta[4,2]  0.2696441 -0.12979413  0.94460169
+zeta[5,2]  0.3124395 -0.73441199  0.49893266
+zeta[6,2]  0.5041337  0.10346908  2.10181319
+zeta[7,2]  0.7614118 -1.55821291  1.43491102
+zeta[8,2]  0.6312657 -1.07231973  1.43101545
+zeta[9,2]  0.8179667 -1.54613810  1.66018644
+zeta[10,2] 0.6725619 -0.62090996  2.01755439
+zeta[11,2] 0.8389929 -1.49234177  1.78627513
+zeta[12,2] 0.7848587 -1.83131434  1.24569505
+zeta[13,2] 0.8317047 -1.55126797  1.68930924
+
+$factor_correlation
+[1] row    col    Mean   Median SD     Q2.5   Q97.5 
+<0 rows> (or 0-length row.names)
+

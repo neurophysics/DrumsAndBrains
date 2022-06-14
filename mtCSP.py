@@ -243,7 +243,7 @@ def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
                                       fun=constraint,
                                       jac=constraint_d,
                                       args=(n_subjects, old_W)),
-                      options=dict(disp=True, maxiter=1000)))
+                      options=dict(disp=True, maxiter=10000)))
     best_idx = np.argmin([res.fun for res in minimizer_results])
     # for the best result, calculate te CSP quotient
     all_filters = minimizer_results[best_idx].x

@@ -8,7 +8,6 @@ library('LMMELSM')
 file = "Results/snare_data_motor.csv"
 snare_data <- read.csv(file, sep=',')
 
-# TODO: SCHRITTGRÖßE ETWAS VERKLEINERN, erstmal mit neuen daten versuchen (adapt_delat udn maxtreedepth)
 fit_motor_snareAll <- lmmelsm(
   list(
     observed ~ deviation, 
@@ -27,10 +26,16 @@ fit_motor_snareAll <- lmmelsm(
       ERD2_alpha_within + ERD2_alpha_between +
       ERD1_beta_within + ERD1_beta_between + 
       ERD2_beta_within + ERD2_beta_between),
-    group = subject, data = snare_data, cores=8, iter=10000)
-sink("Results/motor/lmmelsm_motor_snare_all.txt")
+    group = subject, data = snare_data, cores=8, iter=10000,
+    # default: adapt_delta = 0.8, stepsize = 1, max_treedepth = 10
+    #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
+    control = list(adapt_delta = 0.999, stepsize = 1, max_treedepth = 10)) 
+sink("Results/motor/lmmelsm_motor_snare_all0.999.txt")
+print('fit_motor_snareAll')
 print(summary(fit_motor_snareAll))
-View(summary(fit_motor_snareAll))
+
+sink('Results/motor/lmmelsm_coef_snareAll.txt')
+summary(fit_motor_snareAll)$summary
 
 ##### snare univariate models #####
 uni_lmmelms_fct <- function(x, data) lmmelsm(
@@ -122,7 +127,8 @@ fit_motor_wdBlkAll <- lmmelsm(
       ERD2_alpha_within + ERD2_alpha_between +
       ERD1_beta_within + ERD1_beta_between + 
       ERD2_beta_within + ERD2_beta_between),
-  group = subject, data = wdBlk_data, cores=8, iter=10000)
+  group = subject, data = wdBlk_data, cores=8, iter=10000,
+  control = list(adapt_delta = 0.999, stepsize = 0.9, max_treedepth = 15)) 
 sink("Results/motor/lmmelsm_motor_wdBlk_all.txt")
 print(summary(fit_motor_wdBlkAll))
 
