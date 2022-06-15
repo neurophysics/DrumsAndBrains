@@ -49,8 +49,7 @@ with np.load(os.path.join(result_folder, 'motor/covmat.npz'),
     'r') as f_covmat:
     fbands = f_covmat['fbands']
     base_idx = f_covmat['base_idx'] #corresponds to -2000 to -1250ms
-    act_idx = f_covmat['act_idx'] #corresponds to -750 to 0ms
-    act_idx_lda = f_covmat['act_idx_lda'] #corresponds to -600 to -1000ms
+    act_idx = f_covmat['act_idx'] #corresponds to -500 to 0ms
     #     i+=1
     # except FileNotFoundError:
     #     break
@@ -61,7 +60,7 @@ act_ms = [t+win[0] for t in act_idx] #-2000 to 500
 
 ##### read unfiltered BP and ERD #####
 BPs = [] #stores BP per subject, each shape (N_channel, time)=(32,2500)
-ERDs = [] #stores ERD per subject, each shape (band,Ncomp, time)=(5,32,2500)
+ERDs = [] #stores ERD per subject, each shape (band,Ncomp,time)=(5,32,2500)
 all_BP_trials = []
 i=0
 while True: #loop over subjects
@@ -159,7 +158,7 @@ for subj_idx in range(N_subjects-1): #only have 20 entries for subject 11 is mis
     plt.axvspan(-(cueHit_diff_mean-cueHit_diff_sd),
         -(cueHit_diff_mean+cueHit_diff_sd),
         alpha=1, color='bisque', label='mean cue time ± sd')
-    plt.axvspan(act_idx_lda[0]+win[0], act_idx_lda[-1]+win[0],
+    plt.axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
         alpha=0.5, color='lightsalmon',
             label='activation window')
     plt.axvline(0, lw=0.5, c='r')
@@ -197,7 +196,7 @@ plt.axhline(0, lw=0.5, c='k', ls=':')
 plt.axvspan(-(np.mean(all_cueHit_diff_mean)-np.mean(cueHit_diff_sd)),
     -(np.mean(cueHit_diff_mean)+np.mean(cueHit_diff_sd)),
     alpha=1, color='bisque', label='mean cue time ± sd')
-plt.axvspan(act_idx_lda[0]+win[0], act_idx_lda[-1]+win[0],
+plt.axvspan(act_idx[0]+win[0], act_idx[-1]+win[0],
     alpha=0.5, color='lightsalmon',
         label='activation window')
 plt.xlabel('time around response [ms]')
@@ -221,10 +220,11 @@ head_ax.set_title('LDA Pattern')
 bar_ax = ax.inset_axes([0.,0.13,0.4,0.02]) #[x0, y0, width, height]
 fig.colorbar(pc[-1], cax=bar_ax, orientation='horizontal',
         label='amplitude (a.u.)')
+plt.tight_layout()
 plt.savefig(os.path.join(result_folder, 'motor/BPLDA.pdf'))
 
 plt.close('all')
-
+1/0
 
 ##### mtCSP_filter_optLam2.pdf: plot filter for lam2=3  #####
 fig, axs = plt.subplots(N_bands, 1, figsize=(5,5),

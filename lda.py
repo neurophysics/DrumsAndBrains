@@ -28,14 +28,14 @@ while True:
 with np.load(os.path.join(result_folder, 'motor/inlier.npz'), 'r') as f:
     win = f['win']
 with np.load(os.path.join(result_folder, 'motor/covmat.npz'), 'r') as f:
-    act_idx_lda = f['act_idx_lda']  #-600 to -100ms
+    act_idx = f['act_idx']  #-500 to 0ms
     base_idx = f['base_idx'] #corresponds to -2000 to -1250ms
 
 # stitch all subjects together so we have many trials
 all_BP = np.concatenate(all_BP, axis=-1) #now shape (channels,trials) = (32,2500,20*1xx)
 all_BP = all_BP - all_BP[:,:1400,:].mean(1)[:,np.newaxis,:] #baseline here up to 1400, only changes plot not filter
 # divide into classes, both shape (channels, trials)
-BP = all_BP[:,act_idx_lda,:].mean(1)
+BP = all_BP[:,act_idx,:].mean(1)
 contrast = all_BP[:,base_idx,:].mean(1)
 
 # center classwise, estimate cov on all features at once
@@ -62,7 +62,7 @@ while True:
         break
 BPlda = [np.tensordot(cfilt, b, axes=(0,0)) for b in all_BP] #each shape (2500, 143) now
 #convert BP to decrease/increase value i.e. activation avg - baseline avg
-BPLDA = [a[act_idx_lda].mean(0) - a[base_idx].mean(0) for a in BPlda] #(143,) each
+BPLDA = [a[act_idx].mean(0) - a[base_idx].mean(0) for a in BPlda] #(143,) each
 
 save_results = {}
 for i,b in enumerate(BPLDA):

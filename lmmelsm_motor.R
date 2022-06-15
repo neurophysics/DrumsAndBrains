@@ -29,8 +29,8 @@ fit_motor_snareAll <- lmmelsm(
     group = subject, data = snare_data, cores=8, iter=10000,
     # default: adapt_delta = 0.8, stepsize = 1, max_treedepth = 10
     #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
-    control = list(adapt_delta = 0.999, stepsize = 1, max_treedepth = 10)) 
-sink("Results/motor/lmmelsm_motor_snare_all0.999.txt")
+    control = list(adapt_delta = 0.9999, stepsize = 1, max_treedepth = 10)) 
+sink("Results/motor/lmmelsm_motor_snare_all0.9999.txt")
 print('fit_motor_snareAll')
 print(summary(fit_motor_snareAll))
 
@@ -128,8 +128,8 @@ fit_motor_wdBlkAll <- lmmelsm(
       ERD1_beta_within + ERD1_beta_between + 
       ERD2_beta_within + ERD2_beta_between),
   group = subject, data = wdBlk_data, cores=8, iter=10000,
-  control = list(adapt_delta = 0.999, stepsize = 0.9, max_treedepth = 15)) 
-sink("Results/motor/lmmelsm_motor_wdBlk_all.txt")
+  control = list(adapt_delta = 0.999, stepsize = 1, max_treedepth = 10)) 
+sink("Results/motor/lmmelsm_motor_wdBlk_all0.999.txt")
 print(summary(fit_motor_wdBlkAll))
 
 sink() # to free memory

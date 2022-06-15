@@ -1,0 +1,127 @@
+[1] "fit_motor_snareAll"
+
+-----
+Diagnostic Checks
+-----
+
+Divergent Transitions: Failed
+	16  divergences
+Convergence: Failed
+	Ten highest Rhats: 
+   mu_beta[7,1] mu_random[18,1]  mu_random[9,1] mu_random[19,1]  mu_random[7,1] mu_random[15,1] 
+       1.150284        1.140362        1.140277        1.134030        1.132070        1.124355 
+   mu_beta[5,1]  mu_random[4,1] mu_random[11,1]  mu_random[8,1] 
+       1.122037        1.115165        1.104666        1.097458 
+
+*** Diagnostics failed. Do not interpret estimates. ***
+
+-----
+
+-----
+Location Intercepts
+-----
+
+      item  Mean Median    SD  Q2.5 Q97.5
+ deviation 0.371  0.384 0.117 0.167 0.546
+
+-----
+Location model (Fixed effects)
+-----
+
+Variable : deviation
+          predictor      Mean    Median       SD      Q2.5     Q97.5
+         musicality -4.05e-02 -4.06e-02 0.014019 -0.068160 -0.008527
+              trial  6.15e-04  6.16e-04 0.000163  0.000292  0.000938
+            session -1.41e-02 -1.41e-02 0.004067 -0.022151 -0.005969
+          BP_within -1.18e-03 -1.18e-03 0.000482 -0.002136 -0.000243
+         BP_between  3.01e-02  3.03e-02 0.012458  0.006657  0.053927
+  ERD1_alpha_within -1.75e-05 -1.73e-05 0.001242 -0.002456  0.002397
+ ERD1_alpha_between  9.67e-02  9.64e-02 0.040477  0.021499  0.181902
+  ERD2_alpha_within  1.29e-03  1.28e-03 0.001227 -0.001080  0.003790
+ ERD2_alpha_between -1.49e-01 -1.51e-01 0.037843 -0.221476 -0.067996
+   ERD1_beta_within -8.49e-04 -8.66e-04 0.001597 -0.003943  0.002307
+  ERD1_beta_between  6.00e-03  5.70e-03 0.025220 -0.042158  0.057172
+   ERD2_beta_within -1.73e-03 -1.74e-03 0.001682 -0.005030  0.001567
+  ERD2_beta_between -1.01e-02 -9.57e-03 0.035868 -0.078058  0.056370
+
+
+-----
+(Log) Scale Intercepts
+-----
+
+      item   Mean Median    SD  Q2.5 Q97.5
+ deviation -0.346 -0.359 0.489 -1.27 0.639
+
+-----
+Scale model (Fixed effects)
+-----
+
+Variable : deviation
+          predictor     Mean   Median      SD     Q2.5    Q97.5
+         musicality -0.52537 -0.52381 0.05076 -0.62836 -0.43038
+              trial  0.00333  0.00327 0.00311 -0.00267  0.00961
+            session -0.09538 -0.09384 0.07687 -0.25058  0.05504
+          BP_within -0.00516 -0.00523 0.00794 -0.02044  0.01050
+         BP_between -0.05286 -0.05351 0.04569 -0.14056  0.04151
+  ERD1_alpha_within  0.03056  0.03016 0.02090 -0.00848  0.07228
+ ERD1_alpha_between  1.16158  1.16190 0.08889  0.98510  1.33645
+  ERD2_alpha_within -0.00245 -0.00241 0.02108 -0.04384  0.03795
+ ERD2_alpha_between -1.30035 -1.29453 0.11792 -1.54359 -1.08184
+   ERD1_beta_within -0.01763 -0.01818 0.02844 -0.07301  0.03917
+  ERD1_beta_between -0.70185 -0.72777 0.31280 -1.23207 -0.06233
+   ERD2_beta_within -0.00918 -0.00877 0.02935 -0.06713  0.04906
+  ERD2_beta_between  0.11782  0.13683 0.22197 -0.33558  0.51773
+
+
+-----
+Between-group scale model
+-----
+
+Variable : deviation
+ param          predictor     Mean   Median    SD    Q2.5  Q97.5
+    mu         musicality  0.00473  0.00833 0.440 -0.8708  0.858
+    mu              trial  0.02429  0.02570 0.139 -0.2623  0.296
+    mu            session -0.02474 -0.00570 0.966 -1.9509  1.828
+    mu          BP_within  0.47630  0.46610 0.238  0.0507  0.971
+    mu         BP_between -0.45882 -0.46109 0.332 -1.1100  0.175
+    mu  ERD1_alpha_within -0.30276 -0.27241 0.392 -1.0924  0.395
+    mu ERD1_alpha_between  0.92906  0.94579 0.686 -0.4777  2.260
+    mu  ERD2_alpha_within -0.00909 -0.04137 0.410 -0.7378  0.926
+    mu ERD2_alpha_between  0.00618  0.00390 0.865 -1.6637  1.666
+    mu   ERD1_beta_within  0.86111  0.83420 0.674 -0.4198  2.214
+    mu  ERD1_beta_between -0.61101 -0.60534 0.820 -2.1855  1.000
+    mu   ERD2_beta_within -0.13901 -0.12921 0.590 -1.2778  1.008
+    mu  ERD2_beta_between -1.03305 -1.06039 0.852 -2.5706  0.740
+ logsd         musicality  0.33223  0.33139 0.486 -0.5858  1.311
+ logsd              trial -1.10253 -1.00934 0.631 -2.5498 -0.130
+ logsd            session  0.00864 -0.00154 0.992 -1.9159  1.963
+ logsd          BP_within  0.33778  0.32317 0.255 -0.1400  0.881
+ logsd         BP_between -0.07747 -0.07125 0.297 -0.6868  0.501
+ logsd  ERD1_alpha_within  1.02384  1.01150 0.514  0.0298  2.090
+ logsd ERD1_alpha_between -0.02448 -0.04006 0.735 -1.4537  1.419
+ logsd  ERD2_alpha_within  0.20756  0.18465 0.622 -0.9999  1.445
+ logsd ERD2_alpha_between  0.10002  0.10609 0.812 -1.4978  1.654
+ logsd   ERD1_beta_within  0.68037  0.68689 0.674 -0.6631  1.967
+ logsd  ERD1_beta_between  0.15323  0.15386 0.832 -1.4686  1.759
+ logsd   ERD2_beta_within -0.46800 -0.48008 0.742 -1.8745  1.026
+ logsd  ERD2_beta_between -0.00319  0.01478 0.797 -1.5645  1.553
+
+
+-----
+Random effect standard deviations
+	Note: Between-group scale model used.
+	'mu' and 'logsd' represent RE-SDs when between-group covariates are zero.
+-----
+
+    factor param  Mean Median    SD    Q2.5 Q97.5
+ deviation    mu 0.491  0.312 0.523 0.00229  1.90
+ deviation logsd 0.713  0.567 0.573 0.02106  2.12
+
+-----
+Random effect correlations (Posterior Means (Lower) and SDs (Upper))
+	Note: See summary(out)$summary$Omega_mean_logsd for full summary.
+-----
+
+                deviation_mu deviation_logsd
+deviation_mu           1.000           0.285
+deviation_logsd        0.682           1.000

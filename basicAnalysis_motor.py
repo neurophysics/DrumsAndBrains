@@ -86,7 +86,6 @@ fbands = [[7,12], [15,25]] #chosen after looking at spectra
 win = [-2000, 500]
 base_idx = range(750) #corresponds to -2000 to -1250ms
 act_idx = range(1500,2000) #corresponds to -750 to 0ms
-act_idx_lda = range(1400,1900) #-600 to -100ms
 
 idx = 0 #index to asses eeg (0 to 19)
 subj = 1 #index for subject number (1 to 10, 12 to 21)
@@ -220,6 +219,8 @@ while(subj <= N_subjects):
     axs[0,0].text(0.5, 0.04, s='time around response [ms]',
         transform = fig.transFigure,
         ha='center', va='bottom', clip_on=False)
+    axs[0,0].set_xticks(range(win[0],win[1]+1,500),
+        labels=['-2000','','-1000','','0',''])
     # legend
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles)) #delete doubles
@@ -319,6 +320,8 @@ while(subj <= N_subjects):
     axs[0,0].text(0.5, 0.04, s='time around response [ms]',
         transform = fig.transFigure,
         ha='center', va='bottom', clip_on=False)
+    axs[0,0].set_xticks(range(win[0],win[1]+1,500),
+        labels=['-2000','','-1000','','0',''])
     # legend in last (empty) axes
     # [axs[c//Nw+1,i].axis('off') for i in range(Nw)]
     lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
@@ -364,8 +367,7 @@ np.savez(os.path.join(result_folder, 'motor/covmat.npz'),
     fbands=fbands,
     left_handed=left_handed,
     base_idx = base_idx, #corresponds to -2000 to -1250ms
-    act_idx = act_idx, #corresponds to -750 to 0ms)
-    act_idx_lda = act_idx_lda) #-600 to -100ms
+    act_idx = act_idx) #-500 to 0ms
 
 # store the inlier of the hit responses
 save_inlier = {}
@@ -409,6 +411,8 @@ axs[0,0].text(0.035, 0.5, s='amplitude [$\mu$V]',
 axs[0,0].text(0.5, 0.035, s='time around response [ms]',
     transform = fig.transFigure,
     ha='center', va='bottom', clip_on=False)
+axs[0,0].set_xticks(range(win[0],win[1]+1,500),
+    labels=['-2000','','-1000','','0',''])
 # legend
 handles, labels = plt.gca().get_legend_handles_labels()
 by_label = dict(zip(labels, handles)) #delete doubles
@@ -448,6 +452,8 @@ axs[0,0].text(0.035, 0.5, s='ERD [\%]', #change back to amplitude?
 axs[0,0].text(0.5, 0.035, s='time around response [ms]',
     transform = fig.transFigure,
     ha='center', va='bottom', clip_on=False)
+axs[0,0].set_xticks(range(win[0],win[1]+1,500),
+    labels=['-2000','','-1000','','0',''])
 lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
 plt.legend(lines, labels, bbox_to_anchor=[0.5, -0.0],

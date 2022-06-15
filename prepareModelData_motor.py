@@ -74,8 +74,7 @@ try:
     with np.load(os.path.join(result_folder, 'motor/covmat.npz')) as f:
         fbands = f['fbands']
         base_idx = f['base_idx'] #corresponds to -2000 to -1250ms
-        act_idx = f['act_idx'] #corresponds to -750 to 0ms)
-        act_idx_lda = f['act_idx_lda'] #-600 to -100ms
+        act_idx = f['act_idx'] #corresponds to -500 to 0ms)
 except KeyError:
     print('motor/covmat.npz not found. Please run basicAnalysis_motor first.')
 
@@ -88,7 +87,7 @@ else:
 #apply lda to bp
 BPlda = [np.tensordot(cfilt, b, axes=(0,0)) for b in all_BP] #each shape (2500, 143) now
 #convert BP to decrease/increase value i.e. activation avg - baseline avg
-BPLDA = [a[act_idx_lda].mean(0) - a[base_idx].mean(0) for a in BPlda] #(143,) each
+BPLDA = [a[act_idx].mean(0) - a[base_idx].mean(0) for a in BPlda] #(143,) each
 
 # for each label we will have on value per subject and trial (20,1xx)
 EEG_labels = (['BP'] +
