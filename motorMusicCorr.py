@@ -88,7 +88,7 @@ fig.subplots_adjust(top=0.92, bottom=0.13, left=0.15, right=0.98,
 slope, intercept = scipy.stats.linregress(musicscore, BPLDA_avg)[:2] #regression line
 ax.scatter(musicscore, BPLDA_avg, c='k', s=20)
 ax.plot(x, slope*x + intercept, 'k-')
-ax.set_ylabel('BPLDA')
+ax.set_ylabel('BP')
 ax.set_xlabel('musicality (z-score)')
 ax.text(0.95, 0.5,
         r'''Spearman's $R^2=%.2f$''' % BP_corr**2 + '\n' + r'$p=%.3f$' % BP_corr_p,
