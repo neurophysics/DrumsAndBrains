@@ -119,8 +119,9 @@ import mtCSP
 
 # cross validate the regularization parameter
 lam1 = 0
-lam2 = 0.5
-
+lam2_cand = [0.5]
+SNNR_lam = []
+v_norm = []
 get_filters = 10
 
 try:
@@ -132,42 +133,71 @@ except:
     rank = np.linalg.matrix_rank(target_cov_avg)
     eigval, eigvect = scipy.linalg.eigh(target_cov_avg)
     W = eigvect[:,-rank:]/np.sqrt(eigval[-rank:])
-    for it in trange(get_filters):
-        if it == 0:
-            quot_now, filters_now = mtCSP.maximize_mtCSP(
-                    [W.T @ c.mean(-1) @ W for c in target_cov],
-                    [W.T @ c.mean(-1) @ W for c in contrast_cov],
-                    lam1,
-                    lam2,
-                    iterations=20)
-            quot = [quot_now]
-            all_filters = filters_now.reshape(-1, 1)
-        else: #force other filters to be orthogonal
-            quot_now, filters_now = mtCSP.maximize_mtCSP(
-                    [W.T @ c.mean(-1) @ W for c in target_cov],
-                    [W.T @ c.mean(-1) @ W for c in contrast_cov],
-                    lam1,
-                    lam2,
-                    old_W = all_filters,
-                    iterations=20)
-            quot.append(quot_now)
-            all_filters = np.hstack([all_filters, filters_now.reshape(-1, 1)])
-    # transform the filters
-    all_filters = np.vstack([W @ all_filters[i * rank : (i + 1) * rank]
-        for i in range(len(target_cov) + 1)])
-    # calculate the composite filters for every subject
-    subject_filters = [all_filters[:N_channels] +
-                       all_filters[(i + 1) * N_channels:(i + 2) * N_channels]
-                       for i in range(len(target_cov))]
+    for lam2 in lam2_cand:
+        print('Lambda 2 is ',lam2)
+        for it in trange(get_filters):
+            if it == 0:
+                quot_now, filters_now = mtCSP.maximize_mtCSP(
+                        [W.T @ c.mean(-1) @ W for c in target_cov],
+                        [W.T @ c.mean(-1) @ W for c in contrast_cov],
+                        lam1,
+                        lam2,
+                        iterations=20)
+                quot = [quot_now]
+                all_filters = filters_now.reshape(-1, 1)
+            else: #force other filters to be orthogonal
+                quot_now, filters_now = mtCSP.maximize_mtCSP(
+                        [W.T @ c.mean(-1) @ W for c in target_cov],
+                        [W.T @ c.mean(-1) @ W for c in contrast_cov],
+                        lam1,
+                        lam2,
+                        old_W = all_filters,
+                        iterations=20)
+                quot.append(quot_now)
+                all_filters = np.hstack([all_filters, filters_now.reshape(-1, 1)])
+        # transform the filters
+        all_filters = np.vstack([W @ all_filters[i * rank : (i + 1) * rank]
+            for i in range(len(target_cov) + 1)])
+        # calculate the composite filters for every subject
+        subject_filters = [all_filters[:N_channels] +
+                           all_filters[(i + 1) * N_channels:(i + 2) * N_channels]
+                           for i in range(len(target_cov))] #(N_subjects,N_channels,get_filters)
 
-# calculate the SNNR for every component and subject
-SNNR_per_subject = np.array([
-    np.diag((filt.T @ target_now.mean(-1) @ filt) /
-            (filt.T @ contrast_now.mean(-1) @ filt))
-    for (filt, target_now, contrast_now) in
-    zip(subject_filters, target_cov, contrast_cov)])
+        # calculate the SNNR for every component and subject
+        SNNR_per_subject = np.array([
+            np.diag((filt.T @ target_now.mean(-1) @ filt) /
+                    (filt.T @ contrast_now.mean(-1) @ filt))
+            for (filt, target_now, contrast_now) in
+            zip(subject_filters, target_cov, contrast_cov)])
 
-SNNR = SNNR_per_subject.mean(0)
+        SNNR = SNNR_per_subject.mean(0)
+        #
+        # # check for optimal lambda2
+        # # calculate vnorm, append SNNR for l curve
+        # v_norm.append(np.sum((all_filters[N_channels:,0])**2)) #only individual filter
+        # SNNR_lam.append(SNNR)
+        # #plot filters over channel (should be similar enough)
+        # plt.figure()
+        # for s in range(N_subjects-1):
+        #     f_now = subject_filters[s][:,0] #checking first filter only
+        #     plt.plot(channames, (f_now-np.mean(f_now))/np.std(f_now))
+        # plt.savefig(os.path.join(result_folder,'mtCSP_filters_lam{}.pdf'.format(lam2)))
+
+    # # plot SNNR and ||v||2 for first filter (ERD)
+    # plt.figure()
+    # l = np.log([s[0] for s in SNNR_lam])
+    # plt.plot([l[0], l[len(l)-1]],[np.log(v_norm)[0],np.log(v_norm)[-1]], c='k', alpha=0.5) #straight helpline
+    # plt.plot(l, np.log(v_norm), alpha=0.5) # connecting points
+    # for i,k in enumerate(lam2_cand):
+    #     plt.scatter(l[i], np.log(v_norm[i]), label=str(round(k,2))) #one point per lambda (for labels)
+    # plt.legend()
+    # plt.xlabel('log (SNNR)')
+    # plt.ylabel('log (vnorm)')
+    # plt.title('mtCSP, component 1') #steepest gives optimal value
+    # plt.savefig(os.path.join(result_folder,'mtCSP_Lcurve_1.pdf'))
+    # np.save(os.path.join(result_folder, 'mtCSP_vnorm.npy'), v_norm)
+    # np.save(os.path.join(result_folder, 'mtCSP_SNNR.npy'), SNNR_lam)
+
 
 np.savez(os.path.join(result_folder, 'mtCSP.npz'),
          SNNR_per_subject=SNNR_per_subject,
@@ -187,7 +217,7 @@ F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 # of the target covariance matrix
 
 global_filters = all_filters[:N_channels] #this wont work if mtCSP.npz already existed before!
-global_filters = subject_filter[0][:N_channels] #should be equivalent, for each subject also includes the global one
+global_filters = subject_filters[0][:N_channels] #should be equivalent, for each subject also includes the global one
 #global_filters = np.mean(subject_filters, 0)
 global_target_covariance = np.mean([c.mean(-1) for c in target_cov], 0)
 

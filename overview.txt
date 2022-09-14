@@ -7,6 +7,7 @@ Legend
 (A) needs number of all subjects (21)
 (C) needs condition (both/listen/silence)
 a/b/... script can run in parallel (not dependent on each other)
+* motor only
 
 1a. (DSR) read_aif.py
     plots: 'NeuralEntrl_Ss%02dresponse.pdf', 'SelfAssessmentAndResponseSs%02d.pdf'
@@ -39,8 +40,8 @@ a/b/... script can run in parallel (not dependent on each other)
 
 3a. (R) calcMultisubjectFFTSSD.py (uses mtCSP.py)
     plots: 'FFTSSD_patterns_mtCSP.pdf'
-    data: 'mtCSP.npz'
-3b. (DR) basicAnalysis_motor.py
+    data: 'mtCSP.npz
+*3b. (DR) basicAnalysis_motor.py
     plots: 'motor/BP_2000mspreresponse.pdf',
       'motor/ERD_2000mspreresponse.pdf' (also for each subject),
       'motor/channelSpectra0-30.pdf', 'motor/channelSpectra_ERD0-30.pdf'
@@ -53,10 +54,10 @@ a/b/... script can run in parallel (not dependent on each other)
     data: 'snare_data_both.csv' (wdblk, listen, silence respectively)
 4b. (R) bestDipoleFit.py
     plots: 'BestDipoleFit_snarePaired.pdf', 'BestDipoleFit_snareSingle.pdf'
-4c. (DR) csp.py
+*4c. (DR) csp.py
     plots: 'motor/CSP_patterns.pdf'
-    data: 'mtCSP.npz', 'ERDCSP.npz'
-4d. (DR) lda.py
+    data: 'motor/mtCSP.npz', 'motor/ERDCSP.npz'
+*4d. (DR) lda.py
     data: 'motor/lda.npy'
 
 5a. lmmelsm.R
@@ -64,18 +65,22 @@ a/b/... script can run in parallel (not dependent on each other)
     plots:
 5b. (DR) SSDMusicCorr.py
     plots: 'SNNR_exp.pdf'
-5c. (DR) motorPlots.py
+*5c. (DR) motorPlots.py
     plots: 'motor/BPLDA.pdf', 'motor/mtCSP_filter_optLam2.pdf',
       'motor/mtCSP_patterns[band].pdf', 'motor/erdmtcsp_comp[band].pdf',
       'motor/mtCSP[band].pdf', 'motor/patternsByTime.pdf'
-5d. (DR) prepareModelData_motor.py
+*5d. (DR) prepareModelData_motor.py
     data: 'snare_data_motor.csv'. 'wdBlk_data_motor.csv'
-5e. (DR) motorMusicCorr.py
+*5e. (DR) motorMusicCorr.py
     plots: 'motor/motorMusicCorr_BP.pdf', 'motor/motorMusicCorr_ERD.pdf'
 
-6a. lmmelsm_motor.R
-    data:
-    plots:
+*6a. lmmelsm_motor.R
+    data: 'motor/lmmelsm_motor_snare_all0.999_0.1_12.RData',
+      'motor/lmmelsm_motor_wdBlk_all0.999_0.1_12.RData'
+    plots: 'motor/lmmelsm_motor_snare_all0.999_0.1_12',
+      'motor/lmmelsm_motor_wdBlk_all0.999_0.1_12',
+      'motor/snareAll_CI0.999',
+      'motor/wdBlkAll_CI0.999'
 
 # other scripts
 helper_function.py: includes some helpful functions
