@@ -152,6 +152,8 @@ if __name__=="__main__" :
     subject = int(sys.argv[2])
     result_folder = sys.argv[3]
 
+    bar_duration = 12/7.
+
     data_folder = os.path.join(data_folder, 'S%02d' % subject)
     save_folder = os.path.join(result_folder, 'S%02d' % subject)
 

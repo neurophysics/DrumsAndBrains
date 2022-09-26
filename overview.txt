@@ -2,7 +2,7 @@ Overview of the scripts in DrumsAndBrains
 
 Legend
 (D) needs Data folder
-(S) run separately for all subjects (needs Subject number)
+(S) run separately for all subjects (needs Subject number, see runall_ scripts)
 (R) needs Result folder
 (A) needs number of all subjects (21)
 (C) needs condition (both/listen/silence)
