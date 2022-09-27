@@ -126,7 +126,8 @@ get_filters = 10
 
 try:
     with np.load(os.path.join(result_folder, 'mtCSP.npz'), 'r') as fi:
-             subject_filters=fi['subject_filters']
+             subject_filters = fi['subject_filters']
+             SNNR_per_subject = fi['SNNR_per_subject']
 except:
     # get whitening matrix for the average target covariance matrix
     target_cov_avg = np.mean([c.mean(-1) for c in target_cov], 0)
