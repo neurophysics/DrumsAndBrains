@@ -8,19 +8,47 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy.stats
 
-# load spoc pattern
+# load target cov and mtCSP filters
 result_folder = sys.argv[1]
+N_subjects = 21
+N_channels = 32
 
 scatter_cmap = 'OrRd'
 scatter_cmap_inst = mpl.cm.get_cmap(scatter_cmap)
 
+target_cov_snare = [] #covariance matrix
+target_cov_wdBlk = []
+for i in range(1, N_subjects + 1, 1):
+    try:
+        with np.load(os.path.join(result_folder, 'S%02d' % i)
+                + '/prepared_FFTSSD.npz', 'r') as fi:
+            target_cov_snare.append(fi['snare_target_cov']) #(32,32,150)
+            target_cov_wdBlk.append(fi['wdBlk_target_cov'])
+    except:
+        print(('Warning: Subject %02d could not be loaded!' %i))
+
 try:
     with np.load(os.path.join(result_folder,
-            'FFTSSD.npz'), 'r') as f:
-        wdBlk_pattern = f['SSD_patterns'][0] # shape (32,) polarities for all
-        snare_pattern = f['SSD_patterns'][0] # channels
+            'mtCSP.npz'), 'r') as f:
+        subject_filters = f['subject_filters'] # (20,32,10) (subjects, channel, N_filters)
 except:
-    print('Warning: Could not load cSpoC pattern')
+    print('Warning: Could not load mtCSP filters')
+
+# calculate corresponding patterns
+global_filters = subject_filters[0][:N_channels] #(32,10)
+global_target_cov_snare = np.mean([c.mean(-1) for c in target_cov_snare], 0)
+global_target_cov_wdBlk = np.mean([c.mean(-1) for c in target_cov_wdBlk], 0)
+
+# get the spatial patterns of shape (10,32)
+global_patterns_snare = scipy.linalg.solve(
+        global_filters.T.dot(global_target_cov_snare).dot(global_filters),
+        global_filters.T.dot(global_target_cov_snare))
+global_patterns_wdBlk = scipy.linalg.solve(
+        global_filters.T.dot(global_target_cov_wdBlk).dot(global_filters),
+        global_filters.T.dot(global_target_cov_wdBlk))
+# for the dipole calculation, only use first global pattern:
+snare_pattern = global_patterns_snare[0]
+wdBlk_pattern = global_patterns_wdBlk[0]
 
 # load ny head
 with tables.open_file('sa_nyhead.mat', 'r') as f:

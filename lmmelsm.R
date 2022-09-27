@@ -13,13 +13,17 @@ snare_data <- read.csv(file, sep=',')
 fit_snareAll <- lmmelsm(
 	       list(
 	observed ~ deviation,
-	location ~ musicality + trial + session + Snare1_between + Snare2_between + 
-	  Snare3_between + Snare1_within + Snare2_within + Snare3_within,
-	scale ~ musicality + trial + session + Snare1_between + Snare2_between + 
-	  Snare3_between + Snare1_within + Snare2_within + Snare3_within,
-	between ~ musicality + trial + session + Snare1_between + Snare2_between + 
-	  Snare3_between + Snare1_within + Snare2_within + Snare3_within),
+	location ~ musicality + trial + session + 
+	  Snare1_between + Snare2_between + Snare3_between + 
+	  Snare1_within + Snare2_within + Snare3_within,
+	scale ~ musicality + trial + session + 
+	  Snare1_between + Snare2_between + Snare3_between + 
+	  Snare1_within + Snare2_within + Snare3_within,
+	between ~ musicality + trial + session + 
+	  Snare1_between + Snare2_between + Snare3_between + 
+	  Snare1_within + Snare2_within + Snare3_within),
 	group = subject, data = snare_data, cores=8, iter=10000)
+save(fit_snareAll, file = "Results/models/lmmelsm_snare.RData")
 sink("Results/models/lmmelsm_snare_all.txt")
 print(summary(fit_snareAll))
 
