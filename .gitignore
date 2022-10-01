@@ -123,9 +123,9 @@ Results/motor/BP.npz
 Results/motor/old_5bands/
 Results/motor/old_CSP/
 Results/motor/lmmelsm_snareAll.pdf
-Results/motor/lmmelsm_motor_snare_all0.999_0.1_12.RData
-Results/motor/lmmelsm_motor_wdBlk_all0.999_0.1_12.RData
-
+*.RData
+Results/models/lmmelsm_snareAll_scaled.pdf
+Results/models/lmmelsm_wdBlkAll_scaled.pdf
 # other
 runall_*
 sa_nyhead.mat
