@@ -27,7 +27,7 @@ fit_motor_snareAll <- lmmelsm(
       ERD1_beta_within + ERD1_beta_between + 
       ERD2_beta_within + ERD2_beta_between),
     group = subject, data = snare_data, cores=8, iter=10000,
-    # default: adapt_delta = 0.8, stepsize = 1, max_treedepth = 10
+    # default: adapt_delta = 0.95 (bei lmmelsm, 0.8 stan), stepsize = 1, max_treedepth = 10
     #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
     control = list(adapt_delta = 0.9999, stepsize = 1, max_treedepth = 10)) 
 sink("Results/motor/lmmelsm_motor_snare_all0.9999.txt")
