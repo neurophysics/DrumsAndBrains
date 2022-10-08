@@ -26,11 +26,11 @@ fit_snareAll25k <- lmmelsm(
 	group = subject, data = snare_data, cores=8, iter=25000, warmup=5000,
   # default: adapt_delta = 0.95 (bei lmmelsm, 0.8 stan), stepsize = 1, max_treedepth = 10
   #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
-  control = list(adapt_delta = 0.95, stepsize = 1, max_treedepth = 10)) 
-save(fit_snareAll25k, file = "Results/models/snare_all25k.RData")
-sink("Results/models/snare_all25k_bonferroni.txt")
-print(summary(fit_snareAll25k), prob=prob) 
-sink("Results/models/snare_all25k.txt")
+  control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10)) 
+save(fit_snareAll25k, file = "Results/models/snare_all25k099.RData")
+sink("Results/models/snare_all25k099_bonferroni.txt")
+print(summary(fit_snareAll25k, prob=prob)) 
+sink("Results/models/snare_all25k099.txt")
 print(summary(fit_snareAll25k)) 
 
 fit_mini_wobetween <- lmmelsm(
@@ -154,19 +154,19 @@ library(ggplot2)
 library(ggrastr) #rasterize plot to make it faster
 
 ##### snare #####
-load('Results/models/snare_all25k.RData')
+load('Results/models/snare_all25k099.RData')
 np_cp <- nuts_params(fit_snareAll25k$fit) #$fit because that gives you the stan object
 posterior_cp <- as.array(fit_snareAll25k$fit)
 
 p <- mcmc_parcoord(posterior_cp, np = np_cp, regex_pars='mu', transform = scale) #regex_pars='mu', scale scales per parameter
 p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))# + rasterize(p, dpi=300)
-pdf('Results/models/snareAll25k_mu_scaled.pdf')
+pdf('Results/models/snareAll25k099_mu_scaled.pdf')
 print(p)
 dev.off()
 
 p <- mcmc_parcoord(posterior_cp, np = np_cp, transform = scale) #regex_pars='mu', scale scales per parameter
 p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1) + rasterize(p, dpi=300))
-pdf('Results/models/snareAll25k_scaled.pdf')
+pdf('Results/models/snareAll25k099_scaled.pdf')
 print(p)
 dev.off()
 
@@ -174,17 +174,17 @@ dev.off()
 ggsave('Results...pdf', plot=p)
 
 ##### wdBlk #####
-load('Results/models/wdBlk_all25k.RData')
+load('Results/models/wdBlk_all25k099.RData')
 np_cp <- nuts_params(fit_wdBlkAll25k$fit) #$fit because that gives you the stan object
 posterior_cp <- as.array(fit_wdBlkAll25k$fit)
 
-pdf('Results/models/wdBlkAll25k_mu_scaled.pdf')
+pdf('Results/models/wdBlkAll25k099_mu_scaled.pdf')
 p <- mcmc_parcoord(posterior_cp, np = np_cp, regex_pars='mu', transform = scale) #regex_pars='mu', scale scales per parameter
 p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))# + rasterize(p, dpi=300)
 print(p)
 dev.off()
 
-pdf('Results/models/wdBlkAll25k_scaled.pdf')
+pdf('Results/models/wdBlkAll25k099_scaled.pdf')
 p <- mcmc_parcoord(posterior_cp, np = np_cp, transform = scale) #regex_pars='mu', scale scales per parameter
 p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))
 print(p)

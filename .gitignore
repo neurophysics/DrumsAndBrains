@@ -128,6 +128,8 @@ Results/models/snareAll_scaled.pdf
 Results/models/wdBlkAll_scaled.pdf
 Results/models/snareAll25k_scaled.pdf
 Results/models/wdBlkAll25k_scaled.pdf
+Results/models/snareAll25k099_scaled.pdf
+Results/models/wdBlkAll25k099_scaled.pdf
 # other
 runall_*
 sa_nyhead.mat
