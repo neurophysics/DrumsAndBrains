@@ -7,7 +7,7 @@ Comput. Intell. Neurosci. 2011, 217987 (2011).
 """
 import numpy as np
 from scipy.optimize import minimize as _minimize
-import pdb
+# import pdb
 
 
 def get_e_s(n_subjects, s, d):
@@ -32,6 +32,7 @@ def get_e_s(n_subjects, s, d):
         np.zeros([(n_subjects - (s + 1)) * d, d])
         ])
     return e_s
+
 
 def get_d_s(n_subjects, s, d):
     """
@@ -59,6 +60,7 @@ def get_d_s(n_subjects, s, d):
         np.zeros([d, (n_subjects - (s + 1)) * d])
         ])
     return d_s1 @ d_s2
+
 
 def get_d_0(n_subjects, d):
     """
@@ -107,6 +109,7 @@ def get_target_covs(covs):
         target_covs.append(e_s @ c @ e_s.T)
     return target_covs
 
+
 def get_contrast_covs(covs, lam1, lam2):
     """
     Parameters
@@ -136,6 +139,7 @@ def get_contrast_covs(covs, lam1, lam2):
         contrast_covs.append(e_s @ c @ e_s.T + lam1 * d_0 + lam2 * d_s)
     return contrast_covs
 
+
 def _fun_jac(w, target_covs, contrast_covs, factor=1):
     """
     Calculate the objective function and its derivative
@@ -161,20 +165,24 @@ def _fun_jac(w, target_covs, contrast_covs, factor=1):
         the derivative of the objective function with respect to w (multiplied
         by `factor`)
     """
-    rs_num = [w @ c1 @ w for c1 in target_covs]  # the numerator of rs (.T not needed because 1D array)
-    rs_denom = [w @ c2 @ w for c2 in contrast_covs]  # the denominator of rs
+    # the numerator of rs (.T not needed because 1D array)
+    rs_num = [w @ c1 @ w for c1 in target_covs]
+    # the denominator of rs
+    rs_denom = [w @ c2 @ w for c2 in contrast_covs]
     rs = [num / denom for num, denom in zip(rs_num, rs_denom)]
-    obj = sum(rs)  # the objective function
+    # the objective function
+    obj = sum(rs)
     obj_d = 2*sum([(c1 @ w - rs_now * c2 @ w) / (w @ c2 @ w)
                    for c1, c2, rs_now in zip(target_covs, contrast_covs, rs)])
     return factor * obj, factor * np.asarray(obj_d)
+
 
 def constraint(w, n_subjects, old_W=None):
     """Enforce orthogonality of spatial filters for every subject
     """
     n_channels = len(w) // (n_subjects + 1)
     if old_W is None:
-        W = w.reshape(len(w),-1)
+        W = w.reshape(len(w), -1)
     else:
         W = np.hstack([old_W.reshape(len(w), -1), w[:, np.newaxis]])
     return sum(
@@ -182,30 +190,46 @@ def constraint(w, n_subjects, old_W=None):
                                W[(i + 1) * n_channels:(i + 2) * n_channels])
              for i in range(n_subjects)])
 
+
 def constraint_d(w, n_subjects, old_W=None):
     n_channels = len(w) // (n_subjects + 1)
     if old_W is None:
-        W = w.reshape(-1,1)
+        W = w.reshape(-1, 1)
     else:
         W = np.hstack([old_W.reshape(len(w), -1), w[:, np.newaxis]])
     deriv = [single_constraint_d(
                                  W[:n_channels] +
                                  W[(i + 1) * n_channels:(i + 2) * n_channels])
-                                 for i in range(n_subjects)]
+             for i in range(n_subjects)]
     return np.hstack([sum(deriv), np.hstack(deriv)])
+
 
 def single_constraint(W):
     deviation = W.T @ W - np.eye(W.shape[-1])
     constraint = np.sum((deviation)**2)
     return constraint
 
+
 def single_constraint_d(W):
     deviation = W.T @ W - np.eye(W.shape[-1])
     constraint_d = (4 * deviation[-1] * W).sum(-1)
     return constraint_d
 
+
 def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
     """ Calculate a single multisubject-CSP filter
+    The spatial filters obtained by this function are made of a 'global' part
+    and a subject-specific part.
+
+    The final filter fo each subject is the sum of the global and the subject-
+    specific part of the filter
+
+    The size of each part can be individually regularized by the regularization
+    parameters lam1 and lam2.
+    A typical use case scenario would be a multisubject paradigm where the
+    global part of the filter captures the overall average spatial patterns
+    whereas the subject-specific part enables subject-specific deviations from
+    these average patterns.
 
     Parameters
     ----------
@@ -218,10 +242,36 @@ def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
         the first penalty - this penalizes the size of the global filter
     lam2 : float
         the first penalty - this penalizes the size of the specific filter
-    iterations : int (defaults to 20)
-        the number of iterations from random starting points
+    iterations : int (defaults to 100)
+        the number of iterations from random starting points. The optimization
+        is non-convex and might be trapped in local minima. The 'best' result
+        from multiple random restarts will be taken as final result. The larger
+        the number of iterations, the more likely it is that the algorithm
+        finds to global best filter.
+    old_W : ndarray (defaults to None)
+        the filters obtained during previous runs of the function.
+        This should be given as 2d array whith shape
+        ((nsubjects + 1)*nchannels x nfilters), where nsubjects is the number
+        of subjects, nchannels is the number of channels and nfilters is the
+        number of previously obtained filters.
+        During the optimization, new filters (sum of global + individual part)
+        will be constrained to be mutually orthogonal to these old filters in
+        every single subject.
 
-    Returns:
+    Returns
+    -------
+    CSP_quot : float
+        The quotient between variances of target and contrast condition after
+        spatial filtering with the obtained spatial filter, averaged across
+        all subjects.
+    all_filters : ndarray
+        The filter weights obtained by the run of mtCSP. This is a 1d array of
+        length (nsubjects + 1) x nchannels. The first nchannels coefficients
+        are the global filter and the following i*nchannels:(i+1)*nchannels
+        coefficients are the subject-specific parts of the filter for subject
+        i.
+        The full filter for subject i can be obtaned as
+        all_filters[:nchannels] + all_filters[i*nchannels:(i+1)*nchannels]
     """
     n_subjects = len(c1)
     n_channels = c1[0].shape[0]
@@ -247,7 +297,8 @@ def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
     best_idx = np.argmin([res.fun for res in minimizer_results])
     # for the best result, calculate te CSP quotient
     all_filters = minimizer_results[best_idx].x
-    w = [all_filters[:n_channels] + all_filters[(i + 1) * n_channels : (i + 2) * n_channels]
+    w = [all_filters[:n_channels] + all_filters[(i + 1) * n_channels:
+                                                (i + 2) * n_channels]
          for i in range(n_subjects)]
     CSP_quot = np.mean([(w_now @ c1_now @ w_now) / (w_now @ c2_now @ w_now)
                         for (w_now, c1_now, c2_now) in zip(w, c1, c2)])
