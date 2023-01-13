@@ -3,10 +3,9 @@
 Diagnostic Checks
 -----
 
-Divergent Transitions: Failed
-	2  divergences
+Divergent Transitions: Passed
 Convergence: Passed
-*** Diagnostics failed. Do not interpret estimates. ***
+Diagnostics passed.
 
 -----
 
@@ -15,15 +14,15 @@ Location Intercepts
 -----
 
       item   Mean Median     SD   Q2.5 Q97.5
- deviation 0.0841 0.0832 0.0213 0.0446 0.129
+ deviation 0.0846 0.0833 0.0213 0.0457  0.13
 
 -----
 Location model (Fixed effects)
 -----
 
 Variable : deviation
-     predictor    Mean  Median     SD     Q2.5   Q97.5
- Snare2_within -0.0012 -0.0012 0.0014 -0.00394 0.00151
+     predictor     Mean  Median      SD     Q2.5   Q97.5
+ Snare2_within -0.00119 -0.0012 0.00141 -0.00397 0.00157
 
 
 -----
@@ -31,7 +30,7 @@ Variable : deviation
 -----
 
       item  Mean Median    SD  Q2.5 Q97.5
- deviation -2.88  -2.88 0.145 -3.16 -2.59
+ deviation -2.88  -2.88 0.142 -3.15 -2.59
 
 -----
 Scale model (Fixed effects)
@@ -39,7 +38,7 @@ Scale model (Fixed effects)
 
 Variable : deviation
      predictor   Mean Median     SD    Q2.5  Q97.5
- Snare2_within 0.0115 0.0117 0.0268 -0.0414 0.0644
+ Snare2_within 0.0114 0.0117 0.0274 -0.0426 0.0646
 
 
 -----
@@ -48,8 +47,8 @@ Between-group scale model
 
 Variable : deviation
  param     predictor   Mean Median    SD   Q2.5 Q97.5
-    mu Snare2_within 0.4668 0.4737 0.314 -0.157 1.068
- logsd Snare2_within 0.0235 0.0185 0.267 -0.488 0.559
+    mu Snare2_within 0.4684 0.4730 0.307 -0.152  1.06
+ logsd Snare2_within 0.0227 0.0203 0.265 -0.491  0.55
 
 
 -----
@@ -59,8 +58,8 @@ Random effect standard deviations
 -----
 
     factor param  Mean Median     SD   Q2.5 Q97.5
- deviation    mu 0.112  0.109 0.0207 0.0801 0.160
- deviation logsd 0.666  0.651 0.1197 0.4758 0.944
+ deviation    mu 0.112  0.109 0.0201 0.0798 0.158
+ deviation logsd 0.666  0.651 0.1194 0.4765 0.938
 
 -----
 Random effect correlations (Posterior Means (Lower) and SDs (Upper))
@@ -68,5 +67,5 @@ Random effect correlations (Posterior Means (Lower) and SDs (Upper))
 -----
 
                 deviation_mu deviation_logsd
-deviation_mu           1.000           0.162
-deviation_logsd        0.569           1.000
+deviation_mu           1.000            0.16
+deviation_logsd        0.566            1.00
