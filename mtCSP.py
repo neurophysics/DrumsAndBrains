@@ -7,7 +7,7 @@ Comput. Intell. Neurosci. 2011, 217987 (2011).
 """
 import numpy as np
 from scipy.optimize import minimize as _minimize
-# import pdb
+import multiprocessing as mp
 
 
 def get_e_s(n_subjects, s, d):
@@ -216,7 +216,29 @@ def single_constraint_d(W):
     return constraint_d
 
 
-def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
+def _mtCSP_iteration(x0, target_covs, contrast_covs, n_subjects, old_W, disp):
+    """Take a single iteration of the mtCSP algorithm
+
+    Internal function to enable multiprocessing. This function is called
+    internally by maximize_mtCSP and should not be used directly!!!
+
+    For documentation of parameters, look there.
+    """
+    result = _minimize(_fun_jac, x0=x0,
+                       args=(target_covs, contrast_covs, -1),
+                       method="SLSQP",
+                       jac=True,
+                       constraints=dict(
+                           type='eq',
+                           fun=constraint,
+                           jac=constraint_d,
+                           args=(n_subjects, old_W)),
+                       options=dict(disp=disp, maxiter=10000))
+    return result
+
+
+def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None,
+                   processes=1, disp=False):
     """ Calculate a single multisubject-CSP filter
     The spatial filters obtained by this function are made of a 'global' part
     and a subject-specific part.
@@ -257,6 +279,13 @@ def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
         During the optimization, new filters (sum of global + individual part)
         will be constrained to be mutually orthogonal to these old filters in
         every single subject.
+    processes : int > 0 (defaults to 1)
+        the function uses parallelization using the python multiprocessing
+        module. Determines the number of processes to start.
+        If None, the number of processes is determined using
+        multiprocessing.cpu_count
+    disp : bool (defaults to False)
+        whether to print status messages during the iterations
 
     Returns
     -------
@@ -273,27 +302,24 @@ def maximize_mtCSP(c1, c2, lam1, lam2, iterations=100, old_W=None):
         The full filter for subject i can be obtaned as
         all_filters[:nchannels] + all_filters[i*nchannels:(i+1)*nchannels]
     """
+    if processes is None:
+        processes = mp.cpu_count()
     n_subjects = len(c1)
     n_channels = c1[0].shape[0]
     target_covs = get_target_covs(c1)
     contrast_covs = get_contrast_covs(c2, lam1, lam2)
     minimizer_results = []
-    for _ in range(iterations):
-        x0 = np.random.randn(n_channels * (n_subjects + 1))
-        # normalize to a norm of one
-        x0 /= np.sqrt(x0 @ x0.T)
-        minimizer_results.append(
-            _minimize(_fun_jac,
-                      x0=x0,
-                      args=(target_covs, contrast_covs, -1),
-                      method="SLSQP",
-                      jac=True,
-                      constraints=dict(
-                                      type='eq',
-                                      fun=constraint,
-                                      jac=constraint_d,
-                                      args=(n_subjects, old_W)),
-                      options=dict(disp=True, maxiter=10000)))
+    # generate random starting points
+    X0 = [np.random.randn(n_channels * (n_subjects + 1))
+          for _ in range(iterations)]
+    # normalize the starting points to a norm of one
+    X0 = [x0 / np.sqrt(x0 @ x0.T) for x0 in X0]
+    with mp.Pool(processes) as p:
+        worker_results = [p.apply_async(_mtCSP_iteration,
+                                        (x0, target_covs, contrast_covs,
+                                         n_subjects, old_W, disp))
+                          for x0 in X0]
+        minimizer_results = [res.get() for res in worker_results]
     best_idx = np.argmin([res.fun for res in minimizer_results])
     # for the best result, calculate te CSP quotient
     all_filters = minimizer_results[best_idx].x
@@ -313,10 +339,18 @@ if __name__ == "__main__":
     c1 = [c @ c.T for c in c1]
     c2 = [np.random.randn(d, d) for _ in range(n_subjects)]
     c2 = [c @ c.T for c in c2]
-    ###
+    # define constraints
     lam1 = 0.1
     lam2 = 20
-    ###
+    # compare timing between single process usage and usage of all processors
+    import timeit
+    time_1p = timeit.timeit('maximize_mtCSP(c1, c2, lam1, lam2, processes=1)',
+                            number=5, globals=globals())
+    time_allp = timeit.timeit(
+        'maximize_mtCSP(c1, c2, lam1, lam2, processes=None)',
+        number=5, globals=globals())
+    print('Using 1 process: {} s, Using all processes: {} s'.format(
+        time_1p, time_allp))
     quot1, w1 = maximize_mtCSP(c1, c2, lam1, lam2)
     quot2, w2 = maximize_mtCSP(c1, c2, lam1, lam2, old_W=w1)
     quot3, w3 = maximize_mtCSP(c1, c2, lam1, lam2, old_W=np.vstack([w1, w2]).T)
