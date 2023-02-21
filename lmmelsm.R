@@ -7,6 +7,39 @@ setwd('/Volumes/1TB_SSD/Arbeit/Charite/DrumsAndBrains')
 prob = 0.9984375 #1-0.05/32, because bonferroni with 32 variables
 library('LMMELSM')
 
+##### Calculate combined wdblk and snare trials modela nd store to Results/models/combined...#####
+file = "Results/combined_data_silence.csv"
+combined_data <- read.csv(file, sep=',')
+
+fit_combined <- lmmelsm(
+  list(
+    observed ~ deviation,
+    location ~ musicality + trial + session + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within +
+      WdBlk1_between + WdBlk2_between + 
+      WdBlk1_within + WdBlk2_within,
+    scale ~ musicality + trial + session + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within +
+      WdBlk1_between + WdBlk2_between + 
+      WdBlk1_within + WdBlk2_within,
+    between ~ musicality + trial + session + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within +
+      WdBlk1_between + WdBlk2_between + 
+      WdBlk1_within + WdBlk2_within),
+  group = subject, data = snare_data, cores=8, iter=10000, warmup=5000,
+  # default: adapt_delta = 0.95 (bei lmmelsm, 0.8 stan), stepsize = 1, max_treedepth = 10
+  #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
+  control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10)) 
+save(fit_combined, file = "Results/models/combined_all099.RData")
+sink("Results/models/combined_all099_bonferroni.txt")
+prob_combined = 0.999 #1-0.05/48 = 0.9989583333333333, because bonferroni with 4*12 variables
+print(summary(fit_combined, prob=prob)) 
+sink("Results/models/combined_all099.txt")
+print(summary(fit_combined)) 
+
 ##### Calculate all snare models and store to Results/models/snare_...#####
 file = "Results/snare_data_silence.csv"
 snare_data <- read.csv(file, sep=',')
@@ -33,6 +66,30 @@ print(summary(fit_snareAll25k, prob=prob))
 sink("Results/models/snare_all25k099.txt")
 print(summary(fit_snareAll25k)) 
 
+fit_snare_woTSidx <- lmmelsm(
+  list(
+    observed ~ deviation,
+    location ~ musicality +
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within ,
+    scale ~ musicality +
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within,
+    between ~ musicality + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within),
+  group = subject, data = snare_data, cores=8, iter=10000, warmup=5000,
+  # default: adapt_delta = 0.95 (bei lmmelsm, 0.8 stan), stepsize = 1, max_treedepth = 10
+  #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
+  control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10)) 
+save(fit_snare_woTSidx, file = "Results/models/fit_snare_woTSidx.RData")
+save(fit_snare_woTSidx, file = "Results/models/snare_woTSidx.RData")
+sink("Results/models/snare_woTSidx_bonferroni.txt")
+print(summary(fit_snare_woTSidx, prob=prob)) 
+sink("Results/models/snare_woTSidx.txt")
+print(summary(fit_snare_woTSidx)) 
+
+
 fit_mini_wobetween <- lmmelsm(
   list(
     observed ~ deviation,
@@ -52,14 +109,15 @@ uni_lmmelms_fct <- function(x, data) lmmelsm(
                 as.formula(paste("location ~", x)),
                 as.formula(paste("scale ~", x)),
                 as.formula(paste("between ~", x))),
-              group = subject, data = data, cores = 8, iter=10000)
+              group = subject, data = data, cores = 8, iter=10000,
+              control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10))
 
 fit_musicality <- uni_lmmelms_fct(x = "musicality", data=snare_data)
 sink("Results/models/snare_musicality.txt")
 print(summary(fit_musicality))
 
 fit_trial <- uni_lmmelms_fct(x = "trial", data=snare_data)
-sink("Results/models/snare_trial.txt")
+sink("Results/models/snare_trial099.txt")
 print(summary(fit_trial))
 
 fit_session <- uni_lmmelms_fct(x = "session", data=snare_data)
@@ -79,7 +137,7 @@ sink("Results/models/snare_Snare1_within.txt")
 print(summary(fit_Snare1_within))
 
 fit_Snare2_within <- uni_lmmelms_fct(x = "Snare2_within", data=snare_data)
-sink("Results/models/snare_Snare2_within.txt")
+sink("Results/models/snare_Snare2_within099.txt")
 print(summary(fit_Snare2_within))
 
 sink() # to free memory

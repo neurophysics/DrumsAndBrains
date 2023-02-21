@@ -46,7 +46,8 @@ musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 #    with np.load(os.path.join(result_folder, 'S%02d' % i, 'rcsp_tlw.npz'), 'r') as fi:
 #        SNNR_i.append(np.mean(fi['rcsp_tlw_ratios'][-1:]))
 with np.load(os.path.join(result_folder, 'mtCSP.npz'), 'r') as fi:
-    SNNR_i = fi['SNNR_per_subject'][:,:].mean(-1)
+    SNNR_i = fi['SNNR_per_subject'][:,:1].mean(-1) #look at first filter
+#    SNNR_i = fi['SNNR_per_subject'][:,:].mean(-1) #before 13.01.23 we looket at avg
 
 # convert to dB
 SNNR_i = 10*np.log10(SNNR_i)
@@ -71,10 +72,10 @@ ax = fig.add_subplot(111)
 ax.scatter(musicscore, SNNR_i, c='k', s=20)
 ax.plot(x, slope*x + intercept, 'k-')
 ax.set_xlabel('musical experience (z-score)')
-ax.set_ylabel('SNR at polyrhythm frequecies (dB)')
+ax.set_ylabel('SNR at polyrhythm freq. (dB), avg. Filter 1-2')
 ax.text(0.95, 0.05,
         r'''Spearman's $R^2=%.2f$''' % corr**2 + '\n' + r'$p=%.3f$' % corr_p,
         ha='right', va='bottom', ma='right', transform=ax.transAxes, fontsize=7)
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(result_folder, 'SNNR_exp.pdf'))
-fig.savefig(os.path.join(result_folder, 'SNNR_exp.png'))
+fig.savefig(os.path.join(result_folder, 'SNNR_exp_filt01avg.pdf'))
+#fig.savefig(os.path.join(result_folder, 'SNNR_exp.png'))

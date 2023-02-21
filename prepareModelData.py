@@ -74,7 +74,9 @@ for i in range(1, N_subjects + 1, 1):
             # calculate and append power at requested frequencies #
             #######################################################
             if condition == 'both':
-                F_SSD = np.abs(np.tensordot(SSD_filters, fi['F'], axes=(0,0)))
+                F_SSD = np.abs(np.tensordot(SSD_filters, # shape (32,10)
+                                            fi['F'], #shape e.g. (32,6001,146)
+                                            axes=(0,0)))
                 snareInlier.append(fi['snareInlier'])
                 wdBlkInlier.append(fi['wdBlkInlier'])
             else:
@@ -349,3 +351,54 @@ wdBlk_data['session'] = np.hstack(wdBlk_session_idx)
 wdBlk_data['deviation'] = np.hstack(wdBlk_deviation)
 
 writeDictionaryToCSV(wdBlk_data, 'wdBlk')
+
+
+# combined wdblk and snare #
+# have wdblk and snare trial indices , append to data, stitch wdblk and snare together, sort by idx, remove idx
+#################
+def merge(snare_data, wdBlk_data, i): #i is subject index
+    combined_data = sorted( #sort by index
+            np.concatenate([ #merge snare and wdblk
+                list(zip(snare_trial_idx[i], snare_data)), #add index
+                list(zip(wdBlk_trial_idx[i], wdBlk_data))
+                ], axis=0)
+            ,key=lambda x: x[0])
+    return np.array(combined_data)[:,1] #throw away index
+
+combined_session_idx = []
+combined_F_SSD = []
+for i in range(N_subjects-1):
+    combined_session_idx.append(
+        merge(snare_session_idx[i], wdBlk_session_idx[i], i))
+    # SSD (cannot just use F_SSD_now from above as there are inlier applied later on)
+    combined_F_SSD.append(
+        np.vstack( #have mutliple dimensions
+            merge(snare_F_SSD[i].T, wdBlk_F_SSD[i].T, i)).T
+        )
+
+combined_subject = np.hstack([np.ones(F_SSD_now.shape[-1], int)*i
+    for i, F_SSD_now in enumerate(combined_F_SSD)])
+combined_SubjToTrials = np.unique(combined_subject, return_inverse=True)[1]
+
+
+combined_data = {}
+# add EEG to dictionary
+addEEGtoDict(combined_data, EEG_labels, combined_F_SSD) #eeg labels stay the same as we still differentiate between the two frequencies
+# wont do colvolve and delta for now
+#addEEGtoDict(combined_data, delta_EEG_labels, delta_combined_F_SSD)
+#addEEGtoDict(combined_data, convolve_EEG_labels, convolve_combined_F_SSD)
+# add subject index
+combined_data['subject'] = (
+        np.arange(len(combined_F_SSD))[combined_SubjToTrials])
+# add musicality
+combined_data['musicality'] = musicscore[combined_SubjToTrials]
+# add trial index (no log)
+combined_trial_idx = np.hstack( #combine wdblk and snare (already sorted)
+            [np.hstack(wdBlk_trial_idx), np.hstack(snare_trial_idx)] #flatten each
+            )
+combined_data['trial'] = combined_trial_idx
+# add session index (no log) and precision
+combined_data['session'] = np.hstack(combined_session_idx)
+#combined_data['deviation'] = np.hstack(combined_deviation)
+
+writeDictionaryToCSV(combined_data, 'combined')
