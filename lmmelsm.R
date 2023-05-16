@@ -12,6 +12,30 @@ prob = 0.9984375 #1-0.05/32, because bonferroni with 32 variables
 library('LMMELSM')
 library('rstan')
 
+
+###### small test for fitting absolute and not absolute at once ###### 
+file = "Results/snare_data_silence.csv"
+snare_data <- read.csv(file, sep=',')
+chosen <- sort(sample(c(1:1324),size=100)) #sample 100 lines
+small_snare_data <- snare_data[chosen, ] 
+
+fit_test2y <- lmmelsm(
+  list(
+    observed ~ deviation + log(abs(deviation)),
+    location ~ musicality + trial + session + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within ,
+    scale ~ musicality + trial + session + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within,
+    between ~ musicality + trial + session + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within),
+  group = subject, data = small_snare_data, cores=8) 
+
+sink("/Users/carolabothe/Desktop/test.txt")
+summary(fit_test2y)
+
 ##### Calculate p values #####
 # nu is location intercept
 # sigma is scale intercept
@@ -77,7 +101,7 @@ test_df <- read.table("Results/models/snare_all25k_p.txt")
 # siehe wikipedia benjamin hochberg procedure
 
 
-##### Calculate combined wdblk and snare trials modela nd store to Results/models/combined...#####
+##### Calculate combined wdblk and snare trials models nd store to Results/models/combined...#####
 file = "Results/combined_data_silence.csv"
 combined_data <- read.csv(file, sep=',')
 
@@ -114,27 +138,27 @@ print(summary(fit_combined))
 file = "Results/snare_data_silence.csv"
 snare_data <- read.csv(file, sep=',')
 
-fit_snareAll25k <- lmmelsm(
+fit_snareAll25k_noMusic <- lmmelsm(
   list(
     observed ~ deviation,
-    location ~ musicality + trial + session + 
+    location ~ trial + session + 
       Snare1_between + Snare2_between + 
       Snare1_within + Snare2_within ,
-    scale ~ musicality + trial + session + 
+    scale ~ trial + session + 
       Snare1_between + Snare2_between + 
       Snare1_within + Snare2_within,
-    between ~ musicality + trial + session + 
+    between ~ trial + session + 
       Snare1_between + Snare2_between + 
       Snare1_within + Snare2_within),
   group = subject, data = snare_data, cores=8, iter=25000, warmup=5000,
   # default: adapt_delta = 0.95 (bei lmmelsm, 0.8 stan), stepsize = 1, max_treedepth = 10
   #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
   control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10)) 
-save(fit_snareAll25k, file = "Results/models/snare_all25k099_control.RData")
-sink("Results/models/snare_all25k099_bonferroni_control.txt")
-print(summary(fit_snareAll25k, prob=prob)) 
-sink("Results/models/snare_all25k099_control.txt")
-print(summary(fit_snareAll25k)) 
+save(fit_snareAll25k_noMusic, file = "Results/models/snare_awoMusic_25k099.RData")
+sink("Results/models/snare_awoMusic_25k099_bonferroni.txt")
+print(summary(fit_snareAll25k_noMusic, prob=prob)) 
+sink("Results/models/snare_log2_all25k099_noMusic.txt")
+print(summary(fit_snareAll25k_noMusic)) 
 
 fit_snare_woTSidx <- lmmelsm(
   list(
