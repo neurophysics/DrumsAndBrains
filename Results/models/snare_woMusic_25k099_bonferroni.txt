@@ -1,0 +1,91 @@
+
+-----
+Diagnostic Checks
+-----
+
+Divergent Transitions: Passed
+Convergence: Passed
+Diagnostics passed.
+
+-----
+
+-----
+Location Intercepts
+-----
+
+      item Mean Median    SD Q0.0781250000000011 Q99.921875
+ deviation 0.13  0.119 0.246              -0.657       1.06
+
+-----
+Location model (Fixed effects)
+-----
+
+Variable : deviation
+      predictor      Mean    Median       SD Q0.0781250000000011 Q99.921875
+          trial  0.000622  0.000622 0.000161            0.000116    0.00115
+        session -0.014439 -0.014446 0.004001           -0.027569   -0.00181
+ Snare1_between  0.031245  0.033812 0.073401           -0.254370    0.28590
+ Snare2_between -0.047576 -0.046635 0.040098           -0.244297    0.14143
+  Snare1_within -0.000470 -0.000463 0.001623           -0.005508    0.00466
+  Snare2_within -0.001348 -0.001346 0.001480           -0.006099    0.00350
+
+
+-----
+(Log) Scale Intercepts
+-----
+
+      item   Mean Median    SD Q0.0781250000000011 Q99.921875
+ deviation -0.783 -0.793 0.869               -3.51       1.96
+
+-----
+Scale model (Fixed effects)
+-----
+
+Variable : deviation
+      predictor     Mean   Median      SD Q0.0781250000000011 Q99.921875
+          trial  0.00308  0.00306 0.00291            -0.00596     0.0123
+        session -0.10051 -0.10005 0.07244            -0.32887     0.1225
+ Snare1_between -0.28087 -0.25576 0.48641            -2.03190     1.3492
+ Snare2_between -0.25188 -0.29850 0.45195            -1.62013     1.4283
+  Snare1_within -0.06918 -0.06909 0.02940            -0.16261     0.0253
+  Snare2_within  0.03792  0.03801 0.02809            -0.05232     0.1225
+
+
+-----
+Between-group scale model
+-----
+
+Variable : deviation
+ param      predictor      Mean   Median    SD Q0.0781250000000011 Q99.921875
+    mu          trial -0.073440 -0.07679 0.157              -0.531      0.538
+    mu        session -0.000612 -0.00794 0.997              -3.179      3.262
+    mu Snare1_between  0.456115  0.45554 0.590              -1.310      2.354
+    mu Snare2_between -0.781182 -0.77315 0.616              -2.760      1.062
+    mu  Snare1_within  0.449498  0.46436 0.494              -1.192      1.943
+    mu  Snare2_within  0.195743  0.19639 0.396              -1.134      1.410
+ logsd          trial  0.090350  0.07965 0.124              -0.243      0.667
+ logsd        session -0.001945  0.00136 0.999              -3.162      3.216
+ logsd Snare1_between  0.135996  0.12984 0.584              -1.695      2.094
+ logsd Snare2_between -0.249263 -0.24381 0.569              -2.078      1.568
+ logsd  Snare1_within -0.316164 -0.30352 0.391              -1.728      0.898
+ logsd  Snare2_within  0.186206  0.18796 0.333              -0.957      1.259
+
+
+-----
+Random effect standard deviations
+	Note: Between-group scale model used.
+	'mu' and 'logsd' represent RE-SDs when between-group covariates are zero.
+-----
+
+    factor param  Mean Median    SD Q0.0781250000000011 Q99.921875
+ deviation    mu 0.661  0.519 0.560            0.000685       3.19
+ deviation logsd 1.053  0.965 0.622            0.017681       3.61
+
+-----
+Random effect correlations (Posterior Means (Lower) and SDs (Upper))
+	Note: See summary(out)$summary$Omega_mean_logsd for full summary.
+-----
+
+                deviation_mu deviation_logsd
+deviation_mu           1.000           0.195
+deviation_logsd        0.539           1.000
