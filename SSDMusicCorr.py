@@ -11,6 +11,13 @@ import csv
 
 data_folder = sys.argv[1]
 result_folder = sys.argv[2]
+try:
+    if sys.argv[3] == 'harmonic':
+        harmonic= True
+    else:
+        harmonic = False
+except IndexError:
+    harmonic = False
 
 mpl.rcParams['axes.labelsize'] = 7
 mpl.rcParams['axes.titlesize'] = 10
@@ -47,7 +54,31 @@ musicscore = z_musicscores[:,1:].mean(1) # do not include the LQ
 #        SNNR_i.append(np.mean(fi['rcsp_tlw_ratios'][-1:]))
 with np.load(os.path.join(result_folder, 'mtCSP.npz'), 'r') as fi:
     SNNR_i = fi['SNNR_per_subject'][:,:1].mean(-1) #look at first filter
-#    SNNR_i = fi['SNNR_per_subject'][:,:].mean(-1) #before 13.01.23 we looket at avg
+#    SNNR_i = fi['SNNR_per_subject'][:,:].mean(-1) #before 13.01.23 we looked at avg
+    subject_filters = fi['subject_filters'] #[20x(32,10)]
+
+if harmonic:
+    ### calculate plot with 3.5 Hz data to see if musicality correlates with entrainment of harmonic frequency
+    N_subjects = len(subject_filters)+1
+    target_cov_harmonic = []
+    contrast_cov_harmonic = []
+    for i in range(1, N_subjects + 1, 1):
+        try:
+            with np.load(os.path.join(result_folder, 'S%02d' % i)
+                    + '/prepared_FFTSSD.npz', 'r') as fi:
+                target_cov_harmonic.append(fi['harmonic_target_cov'])
+                contrast_cov_harmonic.append(fi['harmonic_contrast_cov'])
+        except:
+            print(('Warning: Subject %02d could not be loaded!' %i))
+
+    SNNR_per_subject_harmonic = np.array([
+        np.diag((filt.T @ target_now.mean(-1) @ filt) /
+                (filt.T @ contrast_now.mean(-1) @ filt))
+        for (filt, target_now, contrast_now) in
+        zip(subject_filters, target_cov_harmonic, contrast_cov_harmonic)])
+
+    SNNR_i = SNNR_per_subject_harmonic[:,:1].mean(-1) #shape is (20,10) so avg of all subjects but only filter 0 and 1
+
 
 # convert to dB
 SNNR_i = 10*np.log10(SNNR_i)
@@ -77,5 +108,10 @@ ax.text(0.95, 0.05,
         r'''Spearman's $R^2=%.2f$''' % corr**2 + '\n' + r'$p=%.3f$' % corr_p,
         ha='right', va='bottom', ma='right', transform=ax.transAxes, fontsize=7)
 fig.tight_layout(pad=0.3)
-fig.savefig(os.path.join(result_folder, 'SNNR_exp_filt01avg.pdf'))
+if harmonic:
+    plot_name = plot_name + '_harmonic.pdf'
+else:
+    plot_name = plot_name + '.pdf'
+fig.savefig(os.path.join(result_folder, plot_name))
 #fig.savefig(os.path.join(result_folder, 'SNNR_exp.png'))
+print('Plot ' + plot_name + ' was saved in '+ result_folder)

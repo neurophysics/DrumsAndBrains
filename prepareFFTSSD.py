@@ -121,6 +121,7 @@ wdBlkInlier_silence = np.all(meet.epochEEG(artifact_mask, wdBlkListenMarker,
 ## get the frequencies of the snaredrum (duple) and woodblock (triple) beats
 snareFreq = 2./bar_duration
 wdBlkFreq = 3./bar_duration
+harmonicFreq = wdBlkFreq*2 #should be least common multiplier
 
 ## get a time index for the 3 listening bars and the silence bar
 #t_listen = np.arange(listen_win[0], listen_win[1], 1)/float(s_rate) #unneaded?
@@ -185,6 +186,7 @@ use_F = F_silence
 # get frequency indices
 snare_idx = np.argmin((f-snareFreq)**2)
 wdBlk_idx = np.argmin((f-wdBlkFreq)**2)
+harmonic_idx = np.argmin((f-harmonicFreq)**2)
 
 # weight Fourier transform with this to get target data
 target_pattern = [1/9, 2/9, 3/9, 2/9, 1/9]
@@ -204,6 +206,13 @@ wdBlk_contrast_mask = np.zeros_like(f)
 wdBlk_contrast_mask[wdBlk_idx - len(contrast_pattern)//2 :
                   wdBlk_idx + len(contrast_pattern)//2 + 1] = contrast_pattern
 
+harmonic_target_mask = np.zeros_like(f)
+harmonic_target_mask[harmonic_idx - len(target_pattern)//2 :
+                  harmonic_idx + len(target_pattern)//2 + 1] = target_pattern
+harmonic_contrast_mask = np.zeros_like(f)
+harmonic_contrast_mask[harmonic_idx - len(contrast_pattern)//2 :
+                  harmonic_idx + len(contrast_pattern)//2 + 1] = contrast_pattern
+
 # inverse FFT
 ## signal not periodic but good filter for magnitude response
 snare_target_trials = np.fft.irfft(
@@ -215,6 +224,11 @@ snare_contrast_trials = np.fft.irfft(
 wdBlk_contrast_trials = np.fft.irfft(
         use_F*wdBlk_contrast_mask[...,np.newaxis], n=nperseg, axis=1)
 
+harmonic_target_trials = np.fft.irfft(
+        use_F*harmonic_target_mask[...,np.newaxis], n=nperseg, axis=1)
+harmonic_contrast_trials = np.fft.irfft(
+        use_F*harmonic_contrast_mask[...,np.newaxis], n=nperseg, axis=1)
+
 # calculate the covariance matrix of every single trial (shape (32,32,147))
 snare_target_cov = np.einsum('ijk, ljk -> ilk',
         snare_target_trials, snare_target_trials)
@@ -225,12 +239,19 @@ snare_contrast_cov = np.einsum('ijk, ljk -> ilk',
 wdBlk_contrast_cov = np.einsum('ijk, ljk -> ilk',
         wdBlk_contrast_trials, wdBlk_contrast_trials)
 
+harmonic_target_cov = np.einsum('ijk, ljk -> ilk',
+        harmonic_target_trials, harmonic_target_trials)
+harmonic_contrast_cov = np.einsum('ijk, ljk -> ilk',
+        harmonic_contrast_trials, harmonic_contrast_trials)
+
 #save the eeg results
 np.savez(os.path.join(save_folder, 'prepared_FFTSSD.npz'),
         snare_target_cov = snare_target_cov,
         wdBlk_target_cov = wdBlk_target_cov,
         snare_contrast_cov = snare_contrast_cov,
         wdBlk_contrast_cov = wdBlk_contrast_cov,
+        harmonic_target_cov = harmonic_target_cov,
+        harmonic_contrast_cov = harmonic_contrast_cov,
         snareInlier = snareInlier,
         wdBlkInlier = wdBlkInlier,
         snareInlier_listen = snareInlier_listen,
