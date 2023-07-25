@@ -19,6 +19,7 @@ try:
 except IndexError:
     harmonic = False
 
+
 mpl.rcParams['axes.labelsize'] = 7
 mpl.rcParams['axes.titlesize'] = 10
 
@@ -42,6 +43,10 @@ with open(os.path.join(data_folder,'additionalSubjectInfo.csv'),'r') as infile:
 
 raw_musicscores = np.array([background['%s' % i]
     for i in list(range(1,11,1)) + list(range(12, 22, 1))])
+
+# indices = [0,1,2,4,5,6,7,8,9,10,11,12,13,14,17,18,19]# for checking how much the three muscial geniuses carry
+# raw_musicscores = raw_musicscores[indices] # for checking how much the three muscial geniuses carry
+
 
 z_musicscores = (raw_musicscores - np.mean(raw_musicscores,0)
         )/raw_musicscores.std(0)
@@ -83,6 +88,9 @@ if harmonic:
 # convert to dB
 SNNR_i = 10*np.log10(SNNR_i)
 
+
+#SNNR_i=SNNR_i[indices] # for checking how much the three muscial geniuses carry
+
 # calculate bootstrap coefficient
 N_bootstrap = 50000
 corr = np.corrcoef(musicscore.argsort().argsort(),
@@ -108,6 +116,7 @@ ax.text(0.95, 0.05,
         r'''Spearman's $R^2=%.2f$''' % corr**2 + '\n' + r'$p=%.3f$' % corr_p,
         ha='right', va='bottom', ma='right', transform=ax.transAxes, fontsize=7)
 fig.tight_layout(pad=0.3)
+plot_name = 'SNNR_exp_filt01avg_woMusicGeniuses'
 if harmonic:
     plot_name = plot_name + '_harmonic.pdf'
 else:
