@@ -1,0 +1,78 @@
+[1] "iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10"
+
+-----
+Diagnostic Checks
+-----
+
+Divergent Transitions: Passed
+Convergence: Failed
+	Ten highest Rhats: 
+mu_random[16,1]           nu[1] mu_random[17,1]  mu_random[4,1]  mu_random[2,1]  mu_random[5,1] mu_random[13,1] 
+       2.738297        2.722910        2.694889        2.689039        2.669692        2.638186        2.582165 
+ mu_random[1,1]  mu_random[8,1] mu_random[10,1] 
+       2.557358        2.532329        2.495170 
+
+*** Diagnostics failed. Do not interpret estimates. ***
+
+-----
+
+-----
+Location Intercepts
+-----
+
+      item   Mean Median     SD   Q2.5 Q97.5
+ deviation 0.0676 0.0711 0.0259 0.0241 0.109
+
+-----
+Location model (Fixed effects)
+-----
+
+Variable : deviation
+ predictor     Mean   Median       SD      Q2.5    Q97.5
+     trial 5.27e-05 5.24e-05 2.95e-05 -4.48e-06 0.000112
+
+
+-----
+(Log) Scale Intercepts
+-----
+
+      item  Mean Median    SD  Q2.5 Q97.5
+ deviation -2.88  -2.88 0.144 -3.17 -2.62
+
+-----
+Scale model (Fixed effects)
+-----
+
+Variable : deviation
+ predictor      Mean    Median       SD     Q2.5    Q97.5
+     trial -0.000851 -0.000846 0.000547 -0.00195 0.000212
+
+
+-----
+Between-group scale model
+-----
+
+Variable : deviation
+ param predictor    Mean  Median     SD    Q2.5 Q97.5
+    mu     trial -0.0153 -0.0262 0.1094 -0.1909 0.231
+ logsd     trial  0.0630  0.0546 0.0912 -0.0958 0.259
+
+
+-----
+Random effect standard deviations
+	Note: Between-group scale model used.
+	'mu' and 'logsd' represent RE-SDs when between-group covariates are zero.
+-----
+
+    factor param  Mean Median     SD   Q2.5 Q97.5
+ deviation    mu 0.135  0.128 0.0509 0.0671 0.254
+ deviation logsd 0.598  0.577 0.1670 0.3399 0.989
+
+-----
+Random effect correlations (Posterior Means (Lower) and SDs (Upper))
+	Note: See summary(out)$summary$Omega_mean_logsd for full summary.
+-----
+
+                deviation_mu deviation_logsd
+deviation_mu           1.000           0.147
+deviation_logsd        0.593           1.000
