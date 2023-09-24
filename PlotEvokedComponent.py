@@ -270,7 +270,7 @@ cb_ax = fig.add_subplot(gs2[0,:])
 cbar = plt.colorbar(pc1, cax=cb_ax, label='amplitude ($\mathrm{\mu V}$)',
         orientation='horizontal')
 #cbar.ax.set_xticklabels(['$-$', '$0$', '$+$'])
-cbar.ax.axvline(0.5, c='w')
+cbar.ax.axvline(0., c='w')#, transform=cbar.ax.transData) #0 in repect to absolute value not axis units
 
 fig.tight_layout(pad=0.3, h_pad=0.5)
 fig.canvas.draw()
