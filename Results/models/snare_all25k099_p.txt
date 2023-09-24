@@ -1,33 +1,19 @@
-                         all_p_values
-loc_intercept                0.356975
-loc_musicality               0.042100
-loc_trial                    0.000075
-loc_session                  0.000225
-loc_EEG1_between             0.913100
-loc_EEG2_between             0.278125
-loc_EEG1_within              0.789775
-loc_EEG2_within              0.332325
-scale_intercept              0.104100
-scale_musicality             0.000025
-scale_trial                  0.280950
-scale_session                0.154800
-scale_EEG1_between           0.071350
-scale_EEG2_between           0.603325
-scale_EEG1_within            0.016025
-scale_EEG2_within            0.169425
-group_loc_musicality         0.063350
-group_loc_trial              0.476400
-group_loc_session            0.992250
-group_loc_EEG1_between       0.981100
-group_loc_EEG2_between       0.399250
-group_loc_EEG1_within        0.792275
-group_loc_EEG2_within        0.499375
-group_scale_musicality       0.207050
-group_scale_trial            0.157700
-group_scale_session          0.985000
-group_scale_EEG1_between     0.874375
-group_scale_EEG2_between     0.737475
-group_scale_EEG1_within      0.894875
-group_scale_EEG2_within      0.833450
-RE_loc                       0.000000
-RE_scale                     0.000000
+[1] 5
+
+-----
+Estimated on: Fri Oct  7 19:38:46 2022
+Elapsed time (seconds): 56085.9
+-----
+Model specification:
+
+Measurement model:
+observed ~ deviation
+
+Location model:
+location ~ musicality + trial + session + Snare1_between + Snare2_between +     Snare1_within + Snare2_within
+
+Scale model
+scale ~ musicality + trial + session + Snare1_between + Snare2_between +     Snare1_within + Snare2_within
+
+Between-group scale model
+between ~ musicality + trial + session + Snare1_between + Snare2_between +     Snare1_within + Snare2_within
