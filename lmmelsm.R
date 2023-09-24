@@ -36,70 +36,6 @@ fit_test2y <- lmmelsm(
 sink("/Users/carolabothe/Desktop/test.txt")
 summary(fit_test2y)
 
-##### Calculate p values #####
-# nu is location intercept
-# sigma is scale intercept
-# mu_/logsd_beta gives wanted aprameters for location and scale model respectively
-# zeta (80000,7,2) is between-group scale model
-# mu_logsd_betas_random_sigma (80000,2) are random effects
-get_samples <- function(lmmelsm_obj){
-  # returns data frame with samples for each parameter in location and scale model
-  stan_fit <- lmmelsm_obj$fit
-  dat <- extract(stan_fit)
-  names <- c('musicality', 'trial', 'session', 'EEG1_between', 'EEG2_between',
-             'EEG1_within', 'EEG2_within') #todo: directly get names from formula
-  location <- data.frame(loc=dat$mu_beta)
-  colnames(location) <- sprintf("loc_%s", names)
-  location <- cbind(data.frame(loc_intercept=dat$nu),location) #add loc intercept
-  scale <- data.frame(loc=dat$logsd_beta)
-  colnames(scale) <- sprintf("scale_%s", names)
-  scale <- cbind(data.frame(scale_intercept=dat$sigma), scale) #add scale intercept
-  group_loc <- data.frame(loc=dat$zeta[,,1])
-  colnames(group_loc) <- sprintf("group_loc_%s", names)
-  group_scale <- data.frame(loc=dat$zeta[,,2])
-  colnames(group_scale) <- sprintf("group_scale_%s", names)
-  random_effects <- data.frame(loc=dat$mu_logsd_betas_random_sigma)
-  colnames(random_effects) <- c('RE_loc', 'RE_scale')
-  
-  res <- cbind(location, scale, group_loc, group_scale, random_effects)
-  return(res)
-}
-
-p_value <- function(sample, name){
-  # sample dim should be (80000, 1) and not contain nan
-  # H0: µ=0, calculate two-tailed, i.e. p(µ≠0) 
-  hist(sample, main=paste(name)) #distribution should be symmetrical - check
-  p <- min(mean(sample < 0), 1-mean(sample < 0))*2 #test what percentage is below/above zero, *2 for two-tailed
-  return(p)
-}
-
-### do the following for each model
-# get sample data
-load('Results/models/snare_all25k099.RData')
-sample_df <- get_samples(fit_snareAll25k)
-# calculate p_values
-all_p_values <- c()
-for(i in 1:ncol(sample_df)) {       # for-loop over columns
-  res <- p_value(sample_df[,i], colnames(sample_df)[i])
-  all_p_values <- c(all_p_values,res)
-}
-# check whether histograms are symmetrical!
-# store together with column names
-sink("Results/models/snare_all25k099_p.txt")
-print_df <- data.frame(all_p_values)
-rownames(print_df) <- colnames(sample_df)
-print(print_df)
-closeAllConnections()
-#p_value(loc_int) # können Ho dass µ=0 ist nicht ablehnen, weil wahrscheinlichkeit dafür dass µ≠0'nur'67% 
-# wenn man summary mit prob=1-p_loc_int nimmt, ist der eine wert beim quantil dann 0, denn ab da ist es significant
-
-
-# aus p-werten dann false discovery rate berechnen: 
-test_df <- read.table("Results/models/snare_all25k_p.txt")
-
-# p-werte aufsteigend sortieren. m=#tests=32, alpha=0.05
-# siehe wikipedia benjamin hochberg procedure
-
 
 ##### Calculate combined wdblk and snare trials models nd store to Results/models/combined...#####
 file = "Results/combined_data_silence.csv"
@@ -134,7 +70,7 @@ print(summary(fit_combined, prob=prob))
 sink("Results/models/combined_all30k099.txt")
 print(summary(fit_combined)) 
 
-##### Calculate all snare models and store to Results/models/snare_...#####
+##### Calculate big snare models and store to Results/models/snare_...#####
 file = "Results/snare_data_silence.csv"
 snare_data <- read.csv(file, sep=',')
 
@@ -196,47 +132,60 @@ fit_mini_wobetween <- lmmelsm(
   group=subject, data = snare_data, cores=8, iter=100,chains=1)
 c <- mcmc_parcoord_data(as.array(fit_mini_wobetween$fit))
 
-##### test univariate snare models #####
+##### univariate snare models #####
 uni_lmmelms_fct <- function(x, data) lmmelsm(
   list(
     as.formula(paste("observed ~", "deviation")),
     as.formula(paste("location ~", x)),
     as.formula(paste("scale ~", x)),
     as.formula(paste("between ~", x))),
-  group = subject, data = snare_data, cores = 8, iter=25000, warmup=5000,
-  control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10))
+  group = subject, data = snare_data, cores = 8, iter=5000, warmup=1000,
+  control = list(adapt_delta = 0.995, stepsize = 1, max_treedepth = 10))
 
 fit_musicality <- uni_lmmelms_fct(x = "musicality", data=snare_data)
-sink("Results/models/snare_musicality25k0999.txt")
+sink("Results/models/singleVariable/snare_musicality0995.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.995, stepsize = 1, max_treedepth = 10')
 print(summary(fit_musicality))
-save(fit_snare_woTSidx, file = "Results/models/snare_musicality25k0999.RData")
+save(fit_musicality, file = "Results/models/singleVariable/snare_musicality0995.RData")
 
 fit_trial <- uni_lmmelms_fct(x = "trial", data=snare_data)
-sink("Results/models/snare_trial099.txt")
+sink("Results/models/singleVariable/snare_trial0995.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.995, stepsize = 1, max_treedepth = 10')
 print(summary(fit_trial))
+save(fit_trial, file = "Results/models/singleVariable/snare_trial0995.RData")
 
 fit_session <- uni_lmmelms_fct(x = "session", data=snare_data)
-sink("Results/models/snare_session.txt")
+sink("Results/models/singleVariable/snare_session.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_session))
+save(fit_session, file = "Results/models/singleVariable/snare_session.RData")
 
 fit_Snare1_between <- uni_lmmelms_fct(x = "Snare1_between", data=snare_data)
-sink("Results/models/snare_Snare1_between.txt")
+sink("Results/models/singleVariable/snare_Snare1_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_Snare1_between))
+save(fit_Snare1_between, file = "Results/models/singleVariable/snare_Snare1_between.RData")
 
 fit_Snare2_between <- uni_lmmelms_fct(x = "Snare2_between", data=snare_data)
-sink("Results/models/snare_Snare2_between.txt")
+sink("Results/models/singleVariable/snare_Snare2_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_Snare2_between))
+save(fit_Snare2_between, file = "Results/models/singleVariable/snare_Snare2_between.RData")
 
 fit_Snare1_within <- uni_lmmelms_fct(x = "Snare1_within", data=snare_data)
-sink("Results/models/snare_Snare1_within.txt")
+sink("Results/models/singleVariable/snare_Snare1_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_Snare1_within))
+save(fit_Snare1_within, file = "Results/models/singleVariable/snare_Snare1_within.RData")
 
 fit_Snare2_within <- uni_lmmelms_fct(x = "Snare2_within", data=snare_data)
-sink("Results/models/snare_Snare2_within099.txt")
+sink("Results/models/singleVariable/snare_Snare2_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_Snare2_within))
+save(fit_Snare2_within, file = "Results/models/singleVariable/snare_Snare2_within.RData")
 
-sink() # to free memory
-##### Calculate all wdBlk models and store to Results/models/wdBlk_...#####
+closeAllConnections()
+##### Calculate big wdBlk models and store to Results/models/wdBlk_...#####
 file = "Results/wdBlk_data_silence.csv"
 wdBlk_data <- read.csv(file, sep=',')
 
@@ -258,99 +207,60 @@ print(summary(fit_wdBlkAll25k0995, prob=prob))
 sink("Results/models/wdBlk_all25k099_control2.txt")
 print(summary(fit_wdBlkAll25k0995))
 
-##### test univariate wdBlk models #####
+##### univariate wdBlk models #####
 uni_lmmelms_fct <- function(x, data) lmmelsm(
   list(
-    
     as.formula(paste("observed ~", "deviation")),
     as.formula(paste("location ~", x)),
     as.formula(paste("scale ~", x)),
     as.formula(paste("between ~", x))),
-  group = subject, data = wdBlk_data, cores = 8, iter=25000, warmup=5000,
-  control = list(adapt_delta = 0.995, stepsize = 1, max_treedepth = 12))
+  group = subject, data = wdBlk_data, cores = 8, iter=10000, warmup=2000,
+  control = list(adapt_delta = 0.995, stepsize = 1, max_treedepth = 10))
 
 fit_musicality <- uni_lmmelms_fct(x = "musicality", data=wdBlk_data)
-sink("Results/models/wdBlk_musicality25k099.txt")
+sink("Results/models/singleVariable/wdBlk_musicality.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_musicality))
-save(fit_musicality, file = "Results/models/wdBlk_musicality25k099.RData")
+save(fit_musicality, file = "Results/models/singleVariable/wdBlk_musicality.RData")
 
 fit_trial <- uni_lmmelms_fct(x = "trial", data=wdBlk_data)
-sink("Results/models/wdBlk_trial30k0999.txt")
+sink("Results/models/singleVariable/wdBlk_trial_10k_0995.txt")
+print('iter=10000, warmup=2000, adapt_delta=0.995, stepsize = 1, max_treedepth = 10')
 print(summary(fit_trial))
-save(fit_trial, file = "Results/models/wdBlk_trial25k0999.RData")
+save(fit_trial, file = "Results/models/singleVariable/wdBlk_trial_10k_0995.RData")
 
 fit_session <- uni_lmmelms_fct(x = "session", data=wdBlk_data)
-sink("Results/models/wdBlk_session.txt")
+sink("Results/models/singleVariable/wdBlk_session.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_session))
+save(fit_session, file = "Results/models/singleVariable/wdBlk_session.RData")
 
-fit_wdBlk1_between <- uni_lmmelms_fct(x = "WdBlk1_between", data=wdBlk_data)
-sink("Results/models/wdBlk_WdBlk1_between.txt")
-print(summary(fit_wdBlk1_between))
+fit_WdBlk1_between <- uni_lmmelms_fct(x = "WdBlk1_between", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_WdBlk1_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk1_between))
+save(fit_WdBlk1_between, file = "Results/models/singleVariable/wdBlk_WdBlk1_between.RData")
 
-fit_wdBlk2_between <- uni_lmmelms_fct(x = "WdBlk2_between", data=wdBlk_data)
-sink("Results/models/wdBlk_WdBlk2_between.txt")
-print(summary(fit_wdBlk2_between))
+fit_WdBlk2_between <- uni_lmmelms_fct(x = "WdBlk2_between", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_WdBlk2_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk2_between))
+save(fit_WdBlk2_between, file = "Results/singleVariable/models/wdBlk_WdBlk2_between.RData")
 
-fit_wdBlk1_within <- uni_lmmelms_fct(x = "WdBlk1_within", data=wdBlk_data)
-sink("Results/models/wdBlk_WdBlk1_within25k0995TD12.txt")
-print(summary(fit_wdBlk1_within))
+fit_WdBlk1_within <- uni_lmmelms_fct(x = "WdBlk1_within", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_WdBlk1_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk1_within))
+save(fit_WdBlk1_within, file = "Results/singleVariable/models/wdBlk_WdBlk1_within.RData")
 
-fit_wdBlk2_within <- uni_lmmelms_fct(x = "WdBlk2_within", data=wdBlk_data)
-sink("Results/models/wdBlk_WdBlk2_within.txt")
-print(summary(fit_wdBlk2_within))
+fit_WdBlk2_within <- uni_lmmelms_fct(x = "WdBlk2_within", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_WdBlk2_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk2_within))
+save(fit_WdBlk2_within, file = "Results/models/singleVariable/wdBlk_WdBlk2_within.RData")
 
 closeAllConnections() #closes sink so that output is back to console
 
 # (not working) apply for all of wdBlk_data except first two (subject, deviation)
 # uni_fits <- lapply(wdBlk_data[,-2:-1], uni_lmmelms_fct, data=wdBlk_data) 
 
-
-##### plot divergences ##### 
-# see https://mc-stan.org/bayesplot/articles/visual-mcmc-diagnostics.html?search-input=85
-library(bayesplot)
-library(ggplot2)
-library(ggrastr) #rasterize plot to make it faster
-
-##### snare #####
-load('Results/models/snare_all25k099.RData')
-np_cp <- nuts_params(fit_snareAll25k$fit) #$fit because that gives you the stan object
-posterior_cp <- as.array(fit_snareAll25k$fit)
-
-p <- mcmc_parcoord(posterior_cp, np = np_cp, regex_pars='mu', transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))# + rasterize(p, dpi=300)
-pdf('Results/models/snareAll25k099_mu_scaled.pdf')
-print(p)
-dev.off()
-
-p <- mcmc_parcoord(posterior_cp, np = np_cp, transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1) + rasterize(p, dpi=300))
-pdf('Results/models/snareAll25k099_scaled.pdf')
-print(p)
-dev.off()
-
-# alternatively try
-ggsave('Results...pdf', plot=p)
-
-##### wdBlk #####
-load('Results/models/wdBlk_all25k099.RData')
-np_cp <- nuts_params(fit_wdBlkAll25k$fit) #$fit because that gives you the stan object
-posterior_cp <- as.array(fit_wdBlkAll25k$fit)
-
-pdf('Results/models/wdBlkAll25k099_mu_scaled.pdf')
-p <- mcmc_parcoord(posterior_cp, np = np_cp, regex_pars='mu', transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))# + rasterize(p, dpi=300)
-print(p)
-dev.off()
-
-pdf('Results/models/wdBlkAll25k099_scaled.pdf')
-p <- mcmc_parcoord(posterior_cp, np = np_cp, transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))
-print(p)
-dev.off()
-
-##### more diagnoastic plots
-#divcergences vs. log-likelihood (if there are divergences in highly likely models, thats no good)
-mcmc_nuts_divergence(np_cp,log_posterior(fit_snareAll$fit))
-
-# search for funnels (pair plot for 32 parameters)
-mcmc_pairs(posterior_cp, np = np_cp, pars = c("mu_beta","logsd_beta"))
