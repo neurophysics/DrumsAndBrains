@@ -1,0 +1,9 @@
+                    all_p_values
+loc_intercept           0.085500
+loc_between             0.201875
+scale_intercept         0.204125
+scale_between           0.013125
+group_loc_between       0.223750
+group_scale_between     0.435875
+RE_loc                  0.000000
+RE_scale                0.000000

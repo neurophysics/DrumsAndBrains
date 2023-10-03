@@ -1,0 +1,9 @@
+                       all_p_values
+loc_intercept              0.000125
+loc_musicality             0.025875
+scale_intercept            0.000000
+scale_musicality           0.000500
+group_loc_musicality       0.017875
+group_scale_musicality     0.088625
+RE_loc                     0.000000
+RE_scale                   0.000000
