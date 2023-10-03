@@ -10,7 +10,7 @@ library('LMMELSM')
 library('rstan')
 
 # specify model data to be used
-model_name = 'singleVariable/wdBlk_WdBlk2_within'
+model_name = 'singleVariable/wdBlk_trial_10k'
 #model_name = 'snare_all25k099'
 path_RData = paste('Results/models/', model_name, '.RData', sep='')
 loaded_data <-  load(path_RData)
