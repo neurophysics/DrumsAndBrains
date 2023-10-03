@@ -9,21 +9,25 @@ prob = 0.9984375 #1-0.05/32, because bonferroni with 32 variables
 library('LMMELSM')
 library('rstan')
 
+# specify model data to be used
+model_name = 'singleVariable/wdBlk_WdBlk2_within'
+#model_name = 'snare_all25k099'
+path_RData = paste('Results/models/', model_name, '.RData', sep='')
+loaded_data <-  load(path_RData)
+fit_name <- get(loaded_data)
+
 ##### Calculate p values #####
-path_RData = 'Results/models/snare_all25k099.RData'
-result_file_name = "Results/models/snare_all25k099_p.txt"
-fit_name = fit_snareAll25k
-# nu is location intercept
-# sigma is scale intercept
-# mu_/logsd_beta gives wanted aprameters for location and scale model respectively
-# zeta (80000,7,2) is between-group scale model
-# mu_logsd_betas_random_sigma (80000,2) are random effects
 get_samples <- function(lmmelsm_obj){
   # returns data frame with samples for each parameter in location and scale model
   stan_fit <- lmmelsm_obj$fit
   dat <- extract(stan_fit)
-  names <- c('musicality', 'trial', 'session', 'EEG1_between', 'EEG2_between',
-             'EEG1_within', 'EEG2_within') #todo: directly get names from formula
+  name <- sub(".+_(\\D+).*", "\\1", model_name) #thanks chatgpt
+  if (name == 'all') {
+    names <- c('musicality', 'trial', 'session', 'EEG1_between', 'EEG2_between',
+               'EEG1_within', 'EEG2_within')  # todo: directly get names from formula
+  } else {
+    names <- name
+  }
   location <- data.frame(loc=dat$mu_beta)
   colnames(location) <- sprintf("loc_%s", names)
   location <- cbind(data.frame(loc_intercept=dat$nu),location) #add loc intercept
@@ -49,13 +53,20 @@ p_value <- function(sample, name){
   return(p)
 }
 
+result_file_name = paste('Results/models/', model_name, '_p.txt', sep='')
+# nu is location intercept
+# sigma is scale intercept
+# mu_/logsd_beta gives wanted aprameters for location and scale model respectively
+# zeta (80000,7,2) is between-group scale model
+# mu_logsd_betas_random_sigma (80000,2) are random effects
+
 ### do the following for each model
-# get sample data
-load(path_RData)
+# get data
 sample_df <- get_samples(fit_name)
+
 # calculate p_values
 all_p_values <- c()
-for(i in 1:ncol(sample_df)) {       # for-loop over columns
+for(i in 1:ncol(sample_df)) {       # for-loop over columns which are variables
   res <- p_value(sample_df[,i], colnames(sample_df)[i])
   all_p_values <- c(all_p_values,res)
 }
@@ -66,6 +77,7 @@ print_df <- data.frame(all_p_values)
 rownames(print_df) <- colnames(sample_df)
 print(print_df)
 closeAllConnections()
+print(paste('stored p values in', result_file_name, sep=' '))
 #p_value(loc_int) # können Ho dass µ=0 ist nicht ablehnen, weil wahrscheinlichkeit dafür dass µ≠0'nur'67% 
 # wenn man summary mit prob=1-p_loc_int nimmt, ist der eine wert beim quantil dann 0, denn ab da ist es significant
 
@@ -74,6 +86,8 @@ test_df <- read.table("Results/models/snare_all25k_p.txt")
 
 # p-werte aufsteigend sortieren. m=#tests=32, alpha=0.05
 # siehe wikipedia benjamin hochberg procedure
+
+
 
 
 ##### plot divergences ##### 
