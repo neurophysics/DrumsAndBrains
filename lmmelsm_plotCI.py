@@ -13,7 +13,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 result_folder = sys.argv[1]
-
+snare = False
+condition = ['duple' if snare else 'triple'][0]
 
 location_dict = {} ##should have:
 # snare trial
@@ -27,11 +28,12 @@ location_dict = {} ##should have:
 # only do snare for now...
 scale_dict = {} ##should have:
 
-names = ['trial', 'session', 'musicality','EEG1_within', 'EEG2_within','EEG1_between','EEG2_between']
+names = ['trial', 'session', 'musicality','EEG comp 1\n(within subj.)', 'EEG comp 2\n(within subj.)','EEG comp 1\n(between subj.)','EEG comp 2\n(between subj.)']
 name_i = 0
 
-all_files = [result_folder + 'models/singleVariable/' + name +'.txt'
-             for name in [
+#see if plot is for duple or triple rhythm:
+if snare:
+        all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [
                      'snare_trial0995',
                      'snare_session',
                      'snare_musicality0995',
@@ -39,6 +41,15 @@ all_files = [result_folder + 'models/singleVariable/' + name +'.txt'
                      'snare_Snare2_within',
                      'snare_Snare1_between',
                      'snare_Snare2_between']]
+else:
+         all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [
+                     'wdBlk_trial_10k',
+                     'wdBlk_session',
+                     'wdBlk_musicality',
+                     'wdBlk_WdBlk1_within',
+                     'wdBlk_WdBlk2_within',
+                     'wdBlk_WdBlk1_between',
+                     'wdBlk_WdBlk2_between']]
 
 #loop over all single variabkle model files
 for file_path in all_files:
@@ -79,7 +90,7 @@ for file_path in all_files:
 
 #final data should have shape (number of variables, 2) 2 bc its an interval
 
-############# i gotta check this!!!!!!
+#############
 params_CI_loc = np.vstack(
                 [value[-2:] for key, value in location_dict.items()]
                 )
@@ -98,7 +109,14 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelbottom=False)
 
 fig = plt.figure()
-gs = mpl.gridspec.GridSpec(nrows=1, ncols=5, width_ratios=[1,5,1,1,5]) #have one empty one in the middle for some spacing between plots
+
+gs = mpl.gridspec.GridSpec(nrows=1, ncols=5, width_ratios=[1,5,0.1,0.1,5]) #have one empty/title one in the middle for some spacing between plots
+
+### middle - title
+maintitle_ax = fig.add_subplot(gs[0,2], frame_on=False)
+maintitle_ax.tick_params(**blind_ax)
+maintitle_ax.set_title('CI of single variable models in '+
+                       condition + ' condition', size=15, pad=25.0)
 
 ### left - location
 title_ax1 = fig.add_subplot(gs[0,:2], frame_on=False)
@@ -144,11 +162,11 @@ text_ax2 = fig.add_subplot(gs[0,3], frame_on=False)
 text_ax2.tick_params(**blind_ax)
 
 for e,d in enumerate(names):
-        text_ax2.text(0.95, float(e+1)/(len(scale_dict)+1), d, ha='right', va='center', transform=text_ax2.transAxes,
+        text_ax2.text(0.95, float(e+1)/(len(scale_dict)+1), '', ha='right', va='center', transform=text_ax2.transAxes,
         size=10)
 
 # right - CI
-ci_ax2 = fig.add_subplot(gs[0,4], frame_on=False, sharex=ci_ax1)
+ci_ax2 = fig.add_subplot(gs[0,4], frame_on=False)
 ci_ax2.tick_params(**dict(left=False, labelleft=False, right=False,
     labelright=False))
 ci_ax2.plot([0,1], [0,0], 'k-', transform=ci_ax2.transAxes)
@@ -170,8 +188,8 @@ for i in range(len(params_CI_scale)):
     #         transform=trans2, ha='center', va='bottom', size=7,
     #         color=color_now)
 
-ci_ax1.set_xlim([-np.abs(params_CI_loc[:10]).max(), np.abs(params_CI_loc[:10]).max()])
-
+ci_ax1.set_xlim([-np.abs(params_CI_loc).max(), np.abs(params_CI_loc).max()])
+ci_ax2.set_xlim([-np.abs(params_CI_scale).max(), np.abs(params_CI_scale).max()])
 
 # bottom - plot legend
 ci_ax1.set_xlabel('model coefficients')
@@ -189,4 +207,4 @@ ci_ax2.text(0.975, 0.025, r'\textit{irregular}', ha='right',
 
 #gs.tight_layout(fig, pad=0.3)
 
-fig.savefig(os.path.join(result_folder, 'models/singleVariable/paramsCI.pdf'))
+fig.savefig(os.path.join(result_folder, 'models/singleVariable/paramsCI_'+ condition +'.pdf'))
