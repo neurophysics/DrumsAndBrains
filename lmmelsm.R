@@ -12,6 +12,11 @@ prob = 0.9984375 #1-0.05/32, because bonferroni with 32 variables
 library('LMMELSM')
 library('rstan')
 
+file = "Results/snare_data_silence.csv"
+snare_data <- read.csv(file, sep=',')
+
+file = "Results/wdBlk_data_silence.csv"
+wdBlk_data <- read.csv(file, sep=',')
 
 ###### small test for fitting absolute and not absolute at once ###### 
 file = "Results/snare_data_silence.csv"
@@ -71,9 +76,6 @@ sink("Results/models/combined_all30k099.txt")
 print(summary(fit_combined)) 
 
 ##### Calculate big snare models and store to Results/models/snare_...#####
-file = "Results/snare_data_silence.csv"
-snare_data <- read.csv(file, sep=',')
-
 fit_snareAll25k_noMusic <- lmmelsm(
   list(
     observed ~ deviation,
@@ -119,7 +121,6 @@ print(summary(fit_snare_woTSidx, prob=prob))
 sink("Results/models/snare_woTSidx.txt")
 print(summary(fit_snare_woTSidx)) 
 
-
 fit_mini_wobetween <- lmmelsm(
   list(
     observed ~ deviation,
@@ -133,6 +134,18 @@ fit_mini_wobetween <- lmmelsm(
 c <- mcmc_parcoord_data(as.array(fit_mini_wobetween$fit))
 
 ##### univariate snare models #####
+# intercept only
+fit_snare_intercept <- lmmelsm(
+  list(
+    observed ~ deviation),
+  group = subject, data = snare_data, cores = 8, iter=5000, warmup=1000,
+  control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10))
+sink("Results/models/singleVariable/snare_intercept.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_snare_intercept))
+save(fit_snare_intercept, file = "Results/models/singleVariable/snare_intercept.RData")
+
+# single variable
 uni_lmmelms_fct <- function(x, data) lmmelsm(
   list(
     as.formula(paste("observed ~", "deviation")),
@@ -186,8 +199,6 @@ save(fit_Snare2_within, file = "Results/models/singleVariable/snare_Snare2_withi
 
 closeAllConnections()
 ##### Calculate big wdBlk models and store to Results/models/wdBlk_...#####
-file = "Results/wdBlk_data_silence.csv"
-wdBlk_data <- read.csv(file, sep=',')
 
 fit_wdBlkAll25k0995 <- lmmelsm(
   list(
@@ -208,6 +219,18 @@ sink("Results/models/wdBlk_all25k099_control2.txt")
 print(summary(fit_wdBlkAll25k0995))
 
 ##### univariate wdBlk models #####
+# intercept only
+fit_wdBlk_intercept <- lmmelsm(
+  list(
+    observed ~ deviation),
+  group = subject, data = wdBlk_data, cores = 8, iter=5000, warmup=1000,
+  control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10))
+sink("Results/models/singleVariable/wdBlk_intercept.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_wdBlk_intercept))
+save(fit_wdBlk_intercept, file = "Results/models/singleVariable/wdBlk_intercept.RData")
+
+# single variable
 uni_lmmelms_fct <- function(x, data) lmmelsm(
   list(
     as.formula(paste("observed ~", "deviation")),
