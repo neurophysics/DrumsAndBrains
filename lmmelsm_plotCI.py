@@ -13,7 +13,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 result_folder = sys.argv[1]
-snare = False
+snare = True #change this to make plots for duple or triple
 condition = ['duple' if snare else 'triple'][0]
 
 location_dict = {} ##should have:
@@ -28,28 +28,30 @@ location_dict = {} ##should have:
 # only do snare for now...
 scale_dict = {} ##should have:
 
-names = ['trial', 'session', 'musicality','EEG comp 1\n(within subj.)', 'EEG comp 2\n(within subj.)','EEG comp 1\n(between subj.)','EEG comp 2\n(between subj.)']
+names = ['EEG comp 2\n(within subj.)', 'EEG comp 2\n(between subj.)','EEG comp 1\n(within subj.)', 'EEG comp 1\n(between subj.)','musicality', 'session','trial',  'intercept']
 name_i = 0
 
 #see if plot is for duple or triple rhythm:
 if snare:
-        all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [
-                     'snare_trial0995',
-                     'snare_session',
-                     'snare_musicality0995',
-                     'snare_Snare1_within',
+        all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [ #it gets plotted in reverse order
                      'snare_Snare2_within',
+                     'snare_Snare2_between',
+                     'snare_Snare1_within',
                      'snare_Snare1_between',
-                     'snare_Snare2_between']]
+                     'snare_musicality0995',
+                     'snare_session',
+                     'snare_trial0995',
+                     'snare_intercept']]
 else:
          all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [
-                     'wdBlk_trial_10k',
-                     'wdBlk_session',
-                     'wdBlk_musicality',
-                     'wdBlk_WdBlk1_within',
                      'wdBlk_WdBlk2_within',
+                     'wdBlk_WdBlk2_between',
+                     'wdBlk_WdBlk1_within',
                      'wdBlk_WdBlk1_between',
-                     'wdBlk_WdBlk2_between']]
+                     'wdBlk_musicality',
+                     'wdBlk_session',
+                     'wdBlk_trial_10k',
+                     'wdBlk_intercept']]
 
 #loop over all single variabkle model files
 for file_path in all_files:
@@ -81,8 +83,12 @@ for file_path in all_files:
 
                 #we only need the one location and scale CIs for now
                 key = names[name_i]
-                location_dict[key] = data_dict['loc_variable']
-                scale_dict[key] = data_dict['scale_variable']
+                if key=='intercept': #exception bc some lines are missing
+                        location_dict[key] = data_dict['loc_intercept']
+                        scale_dict[key] = data_dict['scale_intercept']
+                else:
+                        location_dict[key] = data_dict['loc_variable']
+                        scale_dict[key] = data_dict['scale_variable']
                 name_i+=1
 
 
