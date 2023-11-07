@@ -1,0 +1,42 @@
+[1] "iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10"
+
+-----
+Diagnostic Checks
+-----
+
+Divergent Transitions: Passed
+Convergence: Passed
+Diagnostics passed.
+
+-----
+
+-----
+Location Intercepts
+-----
+
+      item   Mean Median     SD    Q2.5  Q97.5
+ deviation 0.0438 0.0434 0.0186 0.00775 0.0822
+
+-----
+(Log) Scale Intercepts
+-----
+
+      item  Mean Median    SD  Q2.5 Q97.5
+ deviation -2.82  -2.83 0.159 -3.13 -2.49
+
+-----
+Random effect standard deviations
+-----
+
+    factor param   Mean Median     SD   Q2.5 Q97.5
+ deviation    mu 0.0812 0.0793 0.0148 0.0583 0.116
+ deviation logsd 0.6987 0.6838 0.1220 0.5042 0.984
+
+-----
+Random effect correlations (Posterior Means (Lower) and SDs (Upper))
+	Note: See summary(out)$summary$Omega_mean_logsd for full summary.
+-----
+
+                deviation_mu deviation_logsd
+deviation_mu           1.000           0.187
+deviation_logsd        0.472           1.000
