@@ -10,7 +10,24 @@ library('LMMELSM')
 library('rstan')
 
 # specify model data to be used
-model_name = 'singleVariable/wdBlk_trial_10k'
+model_names_sv <- c(#'singleVariable/snare_intercept',
+                    'singleVariable/snare_musicality0995', #3 div
+                    #'singleVariable/snare_session',
+                    #'singleVariable/snare_Snare1_between',
+                    #'singleVariable/snare_Snare1_within',
+                    #'singleVariable/snare_Snare2_between',
+                    #'singleVariable/snare_Snare2_within',
+                    'singleVariable/snare_trial0995', #high rhats, what do we do with these?
+                    #'singleVariable/wdBlk_intercept',
+                    'singleVariable/wdBlk_musicality', #3 div, looks fine
+                    #'singleVariable/wdBlk_session',
+                    'singleVariable/wdBlk_trial_10k', #45 div
+                    #'singleVariable/wdBlk_WdBlk1_between',
+                    'singleVariable/wdBlk_WdBlk1_within'#3 div, looks ok
+                    #'singleVariable/wdBlk_WdBlk2_between',
+                    #'singleVariable/wdBlk_WdBlk2_within'
+                    )
+model_name = 'singleVariable/snare_musicality0995'
 #model_name = 'snare_all25k099'
 path_RData = paste('Results/models/', model_name, '.RData', sep='')
 loaded_data <-  load(path_RData)
@@ -96,50 +113,82 @@ library(bayesplot)
 library(ggplot2)
 library(ggrastr) #rasterize plot to make it faster
 
-##### snare #####
-load('Results/models/snare_all25k099.RData')
-np_cp <- nuts_params(fit_snareAll25k$fit) #$fit because that gives you the stan object
-posterior_cp <- as.array(fit_snareAll25k$fit)
-
-p <- mcmc_parcoord(posterior_cp, np = np_cp, regex_pars='mu', transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))# + rasterize(p, dpi=300)
-pdf('Results/models/snareAll25k099_mu_scaled.pdf')
-print(p)
-dev.off()
-
-p <- mcmc_parcoord(posterior_cp, np = np_cp, transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1) + rasterize(p, dpi=300))
-pdf('Results/models/snareAll25k099_scaled.pdf')
-print(p)
-dev.off()
+# each line in the plot represents one iteration so #chains times #iterations in total lines
+# x axis is parameter and y axis is its value in that iteration
+#for (model_name in model_names_sv) { #intercept needs to be done seperately, because it has less variables!
+  print(model_name)
+  path_RData = paste('Results/models/', model_name, '.RData', sep='')
+  loaded_data <-  load(path_RData)
+  fit_name <- get(loaded_data)
+  
+  #for each iteration in each chain (e.g. 4*24000) the accepted parameter value
+  # 96000 = 4 (chains) * 4000 (5000iterations-1000warmup) * 6
+  #6: > unique(np_cp[,3])= accept_stat__ stepsize__    treedepth__   n_leapfrog__  divergent__   energy__  # telling which one is divergent so they can get colored
+  np_cp <- nuts_params(fit_name$fit) 
+  # load the actual iteration data, $fit to asses the underlying stan model:
+  #extract iterations*chains*parameter array
+  # e.g. 4000*4*2702 so apparently we have 2702 variables???? he confuses variables with #datapoints??
+  # but model pars only has 10 variable names that make more or less sense?
+  posterior_cp <- as.array(fit_name$fit)  
+  
+  # get 2702 variable names with 
+  x <- dimnames(posterior_cp)$parameters
+  # find out which names the interesting ones have:
+  x[1:10] 
+  x[(length(x)-100):length(x)]
+  #mcmc_parcoord(posterior_cp, np = np_cp, pars=c("zeta[1,1]", "zeta[1,2]", "mu_logsd_betas_random_sigma[1]", "mu_logsd_betas_random_sigma[2]", "Omega_eta[1,1]","Omega_mean_logsd[1,1]", "Omega_mean_logsd[2,2]"))
+  # nu[1] and sigma[1] have one value each - intercepts for loc and scale (fits values so far)
+  # eta_logsd has 1324 values = #trials - would be faster if we leave them out somewehere earlier but what are they?
+  # mu_beta und logsd_beta should be loc and scale (values fit)
+  # "zeta[1,1]" "zeta[1,2]" concluding from the value and position/order that its Between-group scale model mu and logsd
+  # mu_random has 20 values (1 for each subject)
+  # mlogsd_random has 20 values (1 for each subject)
+  # "mu_logsd_betas_random_sigma[1]" and "mu_logsd_betas_random_sigma[2]" concluding from the value and position/order that its RE mu and logsd
+  # "Omega_eta[1,1]"                
+  # "Omega_mean_logsd[1,1]" to [2,2] table on the bottom for RE correlations 
+  #"lp__" 
+  
+  internal_var_names = c('nu[1]', 'sigma[1]', # intercept loc, intercept scale
+                         'mu_beta[1,1]', 'logsd_beta[1,1]', #variable (e.g. musicality) loc, variable scale
+                         'zeta[1,1]', 'zeta[1,2]', #between-group loc and scale
+                         'mu_logsd_betas_random_sigma[1]', 'mu_logsd_betas_random_sigma[2]') #RE for loc and scale
+  var_names = c('intercept_loc', 'intercept_scale', 'variable_loc','variable_scale','between-group_loc','between-group_scale','RE_loc','RE_scale')
+  
+  # without scale to compare with actual values
+  p <- mcmc_parcoord(posterior_cp, 
+                     np = np_cp, 
+                     pars=internal_var_names) 
+  p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))# + rasterize(p, dpi=300)
+  pdf(paste('Results/models/', model_name, '.pdf', sep=''))
+  print(p + 
+          scale_x_discrete(labels=var_names) + 
+          theme(axis.text.x = element_text(angle=45, vjust=1.0, hjust=1)))
+  dev.off()
+  
+  # and one to see divergence issues
+  p_scaled <- mcmc_parcoord(posterior_cp, 
+                            np = np_cp,
+                            pars= internal_var_names,
+                            transform = scale) #scale scales per parameter
+  
+  # can be further customized with ggplot2 using mcmc_parcoord_data
+  pdf(paste('Results/models/', model_name, '_scaled.pdf', sep=''))
+  print(p_scaled + 
+          scale_x_discrete(labels=var_names) + 
+          theme(axis.text.x = element_text(angle=45, vjust=1.0, hjust=1)) # rasterize(p, dpi=300)
+  )
+  dev.off()
 
 # alternatively try
-ggsave('Results...pdf', plot=p)
+#ggsave(paste('Results/models/', model_name, '_scaled2.pdf', sep=''), plot=p_scaled)
 
-##### wdBlk #####
-load('Results/models/wdBlk_all25k099.RData')
-np_cp <- nuts_params(fit_wdBlkAll25k$fit) #$fit because that gives you the stan object
-posterior_cp <- as.array(fit_wdBlkAll25k$fit)
 
-pdf('Results/models/wdBlkAll25k099_mu_scaled.pdf')
-p <- mcmc_parcoord(posterior_cp, np = np_cp, regex_pars='mu', transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))# + rasterize(p, dpi=300)
-print(p)
-dev.off()
-
-pdf('Results/models/wdBlkAll25k099_scaled.pdf')
-p <- mcmc_parcoord(posterior_cp, np = np_cp, transform = scale) #regex_pars='mu', scale scales per parameter
-p + theme(axis.text.x = element_text(angle=90, vjust=0.5, hjust=1))
-print(p)
-dev.off()
-
-##### more diagnoastic plots
+##### more diagnoastic plots##### 
 #divcergences vs. log-likelihood (if there are divergences in highly likely models, thats no good)
 mcmc_nuts_divergence(np_cp,log_posterior(fit_snareAll$fit))
 
 # search for funnels (pair plot for 32 parameters)
 mcmc_pairs(posterior_cp, np = np_cp, pars = c("mu_beta","logsd_beta"))
-
 
 closeAllConnections() #closes sink so that output is back to console
 
