@@ -13,7 +13,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 result_folder = sys.argv[1]
-snare = True #change this to make plots for duple or triple
+snare = False #change this to make plots for duple or triple
 condition = ['duple' if snare else 'triple'][0]
 
 location_dict = {} ##should have:
@@ -85,7 +85,8 @@ for file_path in all_files:
                 key = names[name_i]
                 if key=='intercept': #exception bc some lines are missing
                         location_dict[key] = data_dict['loc_intercept']
-                        scale_dict[key] = data_dict['scale_intercept']
+                        #ignore intercept for scale so just 0
+                        scale_dict[key] = [0]*len(data_dict['scale_intercept'])
                 else:
                         location_dict[key] = data_dict['loc_variable']
                         scale_dict[key] = data_dict['scale_variable']
