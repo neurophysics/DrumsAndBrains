@@ -17,7 +17,7 @@ model_names_sv <- c(#'singleVariable/snare_intercept',
                     #'singleVariable/snare_Snare1_within',
                     #'singleVariable/snare_Snare2_between',
                     #'singleVariable/snare_Snare2_within',
-                    'singleVariable/snare_trial0995', #high rhats, what do we do with these?
+                    'singleVariable/snare_trial10k', #high rhats, what do we do with these?
                     #'singleVariable/wdBlk_intercept',
                     'singleVariable/wdBlk_musicality', #3 div, looks fine
                     #'singleVariable/wdBlk_session',
@@ -27,7 +27,7 @@ model_names_sv <- c(#'singleVariable/snare_intercept',
                     #'singleVariable/wdBlk_WdBlk2_between',
                     #'singleVariable/wdBlk_WdBlk2_within'
                     )
-model_name = 'singleVariable/snare_musicality0995'
+model_name = 'singleVariable/snare_session'
 #model_name = 'snare_all25k099'
 path_RData = paste('Results/models/', model_name, '.RData', sep='')
 loaded_data <-  load(path_RData)
@@ -45,20 +45,32 @@ get_samples <- function(lmmelsm_obj){
   } else {
     names <- name
   }
-  location <- data.frame(loc=dat$mu_beta)
-  colnames(location) <- sprintf("loc_%s", names)
-  location <- cbind(data.frame(loc_intercept=dat$nu),location) #add loc intercept
-  scale <- data.frame(loc=dat$logsd_beta)
-  colnames(scale) <- sprintf("scale_%s", names)
-  scale <- cbind(data.frame(scale_intercept=dat$sigma), scale) #add scale intercept
-  group_loc <- data.frame(loc=dat$zeta[,,1])
-  colnames(group_loc) <- sprintf("group_loc_%s", names)
-  group_scale <- data.frame(loc=dat$zeta[,,2])
-  colnames(group_scale) <- sprintf("group_scale_%s", names)
+
+  # intercept - location is nu, scale is sigma
+  loc_intercept <- data.frame(loc_intercept=dat$nu)
+  scale_intercept <- data.frame(scale_intercept=dat$sigma)
+  #colnames(location) <- sprintf("loc_%s", names)
+  #colnames(scale) <- sprintf("scale_%s", names)
+  
+  # Random Effects - mu_logsd_betas_random_sigma (80000,2) 
   random_effects <- data.frame(loc=dat$mu_logsd_betas_random_sigma)
   colnames(random_effects) <- c('RE_loc', 'RE_scale')
-  
-  res <- cbind(location, scale, group_loc, group_scale, random_effects)
+  if (names == 'intercept'){ #other format
+    res <- cbind(loc_intercept, scale_intercept, random_effects)
+  }else{
+    # Parameters -  mu_/logsd_beta for location/scale
+    location <- data.frame(loc=dat$mu_beta)
+    colnames(location) <- sprintf("loc_%s", names)
+    scale <- data.frame(loc=dat$logsd_beta)
+    colnames(scale) <- sprintf("scale_%s", names)
+    
+    #Between-group scale model - zeta (80000,7,2)
+    group_loc <- data.frame(loc=dat$zeta[,,1])
+    colnames(group_loc) <- sprintf("group_loc_%s", names)
+    group_scale <- data.frame(loc=dat$zeta[,,2])
+    colnames(group_scale) <- sprintf("group_scale_%s", names)
+    res <- cbind(loc_intercept, location, scale_intercept, scale, group_loc, group_scale, random_effects)
+    }
   return(res)
 }
 
@@ -70,15 +82,10 @@ p_value <- function(sample, name){
   return(p)
 }
 
-result_file_name = paste('Results/models/', model_name, '_p.txt', sep='')
-# nu is location intercept
-# sigma is scale intercept
-# mu_/logsd_beta gives wanted aprameters for location and scale model respectively
-# zeta (80000,7,2) is between-group scale model
-# mu_logsd_betas_random_sigma (80000,2) are random effects
 
 ### do the following for each model
 # get data
+result_file_name = paste('Results/models/', model_name, '_p.txt', sep='')
 sample_df <- get_samples(fit_name)
 
 # calculate p_values
@@ -132,10 +139,10 @@ library(ggrastr) #rasterize plot to make it faster
   posterior_cp <- as.array(fit_name$fit)  
   
   # get 2702 variable names with 
-  x <- dimnames(posterior_cp)$parameters
+  #x <- dimnames(posterior_cp)$parameters
   # find out which names the interesting ones have:
-  x[1:10] 
-  x[(length(x)-100):length(x)]
+  #x[1:10] 
+  #x[(length(x)-100):length(x)]
   #mcmc_parcoord(posterior_cp, np = np_cp, pars=c("zeta[1,1]", "zeta[1,2]", "mu_logsd_betas_random_sigma[1]", "mu_logsd_betas_random_sigma[2]", "Omega_eta[1,1]","Omega_mean_logsd[1,1]", "Omega_mean_logsd[2,2]"))
   # nu[1] and sigma[1] have one value each - intercepts for loc and scale (fits values so far)
   # eta_logsd has 1324 values = #trials - would be faster if we leave them out somewehere earlier but what are they?
@@ -181,7 +188,10 @@ library(ggrastr) #rasterize plot to make it faster
 
 # alternatively try
 #ggsave(paste('Results/models/', model_name, '_scaled2.pdf', sep=''), plot=p_scaled)
-
+  
+# PLOT FOR INTERESTING VALUE ONE LINE PER CHAIN PVER ITERATIONS AND see if it starts jumping:
+traceplot(fit_name$fit,pars=internal_var_names)
+# see https://www.pymc.io/projects/examples/en/latest/diagnostics_and_criticism/Diagnosing_biased_Inference_with_Divergences.html
 
 ##### more diagnoastic plots##### 
 #divcergences vs. log-likelihood (if there are divergences in highly likely models, thats no good)

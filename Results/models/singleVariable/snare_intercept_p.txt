@@ -1,0 +1,5 @@
+                all_p_values
+loc_intercept        0.00025
+scale_intercept      0.00000
+RE_loc               0.00000
+RE_scale             0.00000
