@@ -1,0 +1,117 @@
+
+-----
+Diagnostic Checks
+-----
+
+Divergent Transitions: Passed
+Convergence: Failed
+	Ten highest Rhats: 
+mu_random[13,1] mu_random[19,1] mu_random[11,1] mu_random[18,1] mu_random[20,1] mu_random[15,1] 
+       2.147756        1.950422        1.858267        1.815624        1.802523        1.795224 
+ mu_random[6,1]    mu_beta[8,1]  mu_random[3,1]    mu_beta[4,1] 
+       1.764874        1.754624        1.729671        1.725208 
+
+*** Diagnostics failed. Do not interpret estimates. ***
+
+-----
+
+-----
+Location Intercepts
+-----
+
+      item  Mean Median    SD Q0.0781250000000011 Q99.921875
+ deviation 0.272  0.291 0.216              -0.402      0.946
+
+-----
+Location model (Fixed effects)
+-----
+
+Variable : deviation
+      predictor      Mean    Median       SD Q0.0781250000000011 Q99.921875
+     musicality -3.02e-02 -2.71e-02 2.09e-02           -1.17e-01   1.90e-02
+          trial -1.18e-05 -1.19e-05 2.48e-05           -8.82e-05   6.78e-05
+        session  1.83e-03  1.82e-03 6.53e-04           -2.22e-04   3.93e-03
+ Snare1_between -2.02e-01 -1.89e-01 2.04e-01           -8.62e-01   2.31e-01
+ Snare2_between  1.01e-01  8.07e-02 2.80e-01           -4.66e-01   1.06e+00
+  Snare1_within -4.72e-04 -4.17e-04 1.57e-03           -5.43e-03   4.71e-03
+  Snare2_within -2.74e-03 -2.66e-03 1.70e-03           -9.35e-03   2.09e-03
+ WdBlk1_between  1.81e-01  1.63e-01 2.55e-01           -3.76e-01   8.74e-01
+ WdBlk2_between -1.33e-01 -9.94e-02 3.26e-01           -1.26e+00   5.06e-01
+  WdBlk1_within -9.45e-04 -9.60e-04 1.56e-03           -6.14e-03   3.68e-03
+  WdBlk2_within -2.52e-03 -2.52e-03 1.66e-03           -7.32e-03   2.87e-03
+
+
+-----
+(Log) Scale Intercepts
+-----
+
+      item  Mean Median    SD Q0.0781250000000011 Q99.921875
+ deviation -1.14  -1.14 0.659               -2.91      0.763
+
+-----
+Scale model (Fixed effects)
+-----
+
+Variable : deviation
+      predictor      Mean    Median       SD Q0.0781250000000011 Q99.921875
+     musicality -3.45e-01 -3.42e-01 0.064072           -0.566482   -0.10293
+          trial -1.17e-05 -1.33e-05 0.000321           -0.000979    0.00101
+        session -6.14e-03 -6.18e-03 0.009421           -0.036326    0.01961
+ Snare1_between -6.08e-01 -6.06e-01 0.555469           -2.038417    0.87916
+ Snare2_between  3.06e-01  3.15e-01 0.545137           -1.732938    1.80434
+  Snare1_within -1.07e-02 -1.12e-02 0.021112           -0.069006    0.07459
+  Snare2_within  1.33e-02  1.34e-02 0.020338           -0.054691    0.07184
+ WdBlk1_between  4.60e-02  5.06e-02 0.566640           -1.578291    1.57533
+ WdBlk2_between -1.55e-01 -1.60e-01 0.650799           -1.779676    1.86571
+  WdBlk1_within -9.05e-04 -7.39e-04 0.021412           -0.064189    0.06537
+  WdBlk2_within  1.00e-02  1.11e-02 0.022493           -0.056231    0.07628
+
+
+-----
+Between-group scale model
+-----
+
+Variable : deviation
+ param      predictor     Mean   Median      SD Q0.0781250000000011 Q99.921875
+    mu     musicality -0.14939 -0.15817 0.27372             -1.0164     0.8021
+    mu          trial -0.00690 -0.00645 0.00813             -0.0365     0.0146
+    mu        session  0.16217  0.18429 1.02001             -3.0057     3.1572
+    mu Snare1_between  0.00173  0.01436 0.77607             -2.5807     2.2437
+    mu Snare2_between -0.19956 -0.19539 0.79251             -3.2597     2.1291
+    mu  Snare1_within -0.35051 -0.34258 0.61074             -2.0279     1.3057
+    mu  Snare2_within  0.33263  0.35006 0.64578             -1.7177     1.9311
+    mu WdBlk1_between  0.34965  0.32271 0.78605             -1.8817     3.0882
+    mu WdBlk2_between -0.53132 -0.53788 0.77884             -2.8866     1.6171
+    mu  WdBlk1_within  0.17410  0.11759 0.44378             -0.9395     1.6490
+    mu  WdBlk2_within -0.09255 -0.08486 0.58923             -1.8562     1.7066
+ logsd     musicality -0.43724 -0.41646 0.43146             -1.8823     0.9594
+ logsd          trial -0.00399 -0.00371 0.00733             -0.0274     0.0172
+ logsd        session  0.04012  0.00799 1.02561             -3.0317     3.3463
+ logsd Snare1_between  0.29802  0.33724 0.81631             -2.3022     2.4265
+ logsd Snare2_between -0.19191 -0.18733 0.80314             -2.5034     1.9073
+ logsd  Snare1_within -0.36937 -0.33657 0.58238             -2.0974     1.1569
+ logsd  Snare2_within -0.19707 -0.17092 0.52125             -1.8898     1.7863
+ logsd WdBlk1_between  0.02833  0.00714 0.89112             -2.6723     3.2041
+ logsd WdBlk2_between -0.14075 -0.12898 0.83067             -3.3157     2.4713
+ logsd  WdBlk1_within  0.60515  0.61331 0.39492             -1.0052     1.7307
+ logsd  WdBlk2_within  0.37997  0.38901 0.50653             -1.4331     1.6269
+
+
+-----
+Random effect standard deviations
+	Note: Between-group scale model used.
+	'mu' and 'logsd' represent RE-SDs when between-group covariates are zero.
+-----
+
+    factor param  Mean Median    SD Q0.0781250000000011 Q99.921875
+ deviation    mu 0.778  0.666 0.581             0.00141       3.27
+ deviation logsd 0.734  0.601 0.584             0.00241       3.28
+
+-----
+Random effect correlations (Posterior Means (Lower) and SDs (Upper))
+	Note: See summary(out)$summary$Omega_mean_logsd for full summary.
+-----
+
+                deviation_mu deviation_logsd
+deviation_mu            1.00           0.234
+deviation_logsd         0.41           1.000
