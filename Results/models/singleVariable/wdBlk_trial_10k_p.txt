@@ -1,9 +1,0 @@
-                   all_p_values
-loc_intercept         0.1318125
-loc_trial_            0.0006250
-scale_intercept       0.0000000
-scale_trial_          0.1600000
-group_loc_trial_      0.8346875
-group_scale_trial_    0.7980000
-RE_loc                0.0000000
-RE_scale              0.0000000
