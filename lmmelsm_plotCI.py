@@ -13,8 +13,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 result_folder = sys.argv[1]
-singleVariable = False
-snare = False #change this to make plots for duple or triple
+singleVariable = True
+snare = True #change this to make plots for duple or triple
 condition = ['duple' if snare else 'triple'][0]
 
 location_dict = {} ##should have:
@@ -108,7 +108,22 @@ if singleVariable:
                         [value[-2:] for key, value in scale_dict.items()]
                         )
 
+        #### read p values ####
+        params_p_loc = []
+        params_p_scale = []
+        all_p_files = [f[:-4]+'_p.txt' for f in all_files]
+        for file_path in all_p_files:
+                # Open and read the file
+                with open(file_path, 'r') as file:
+                        p_lines = []
+                        for line in file:
+                                p_lines.append(line.strip().split())
+                params_p_loc.append(float(p_lines[2][-1]))
+                params_p_scale.append(float(p_lines[4][-1]))
+
+
 else: #all models
+        #### read model ####
         if snare:
                 file_path = result_folder + 'models/snare_all25k099.txt'
         else:
@@ -124,29 +139,60 @@ else: #all models
                                 else:
                                         variable_lines.append(line.strip())
 
-                # last two values are CI, order as in names
-                location_list=[
-                        variable_lines[7].split()[-2:],#EEG2 within
-                        variable_lines[5].split()[-2:], #EEG2 between
-                        variable_lines[6].split()[-2:], #EEG1 within
-                        variable_lines[4].split()[-2:], #EEG1 between
-                        variable_lines[1].split()[-2:], #musicality
-                        variable_lines[3].split()[-2:], #session
-                        variable_lines[2].split()[-2:], #trial
-                        intercept_lines[0].split()[-2:] # intercept
+        # last two values are CI, order as in names
+        location_list = [
+                variable_lines[6].split()[-2:],#EEG2 within
+                variable_lines[4].split()[-2:], #EEG2 between
+                variable_lines[5].split()[-2:], #EEG1 within
+                variable_lines[3].split()[-2:], #EEG1 between
+                variable_lines[0].split()[-2:], #musicality
+                variable_lines[2].split()[-2:], #session
+                variable_lines[1].split()[-2:], #trial
+                intercept_lines[0].split()[-2:] # intercept
+        ]
+        params_CI_loc = np.vstack([list(map(float, sublist)) for sublist in location_list])
+        scale_list = [ #7 lines later
+                variable_lines[7+6].split()[-2:],#EEG2 within
+                variable_lines[7+4].split()[-2:], #EEG2 between
+                variable_lines[7+5].split()[-2:], #EEG1 within
+                variable_lines[7+3].split()[-2:], #EEG1 between
+                variable_lines[7+0].split()[-2:], #musicality
+                variable_lines[7+2].split()[-2:], #session
+                variable_lines[7+1].split()[-2:], #trial
+                [0.,0.] # intercept holds no info for scale
                 ]
-                params_CI_loc = np.vstack([list(map(float, sublist)) for sublist in location_list])
-                scale_list = [ #7 lines later
-                        variable_lines[7+7].split()[-2:],#EEG2 within
-                        variable_lines[7+5].split()[-2:], #EEG2 between
-                        variable_lines[7+6].split()[-2:], #EEG1 within
-                        variable_lines[7+4].split()[-2:], #EEG1 between
-                        variable_lines[7+1].split()[-2:], #musicality
-                        variable_lines[7+3].split()[-2:], #session
-                        variable_lines[7+2].split()[-2:], #trial
-                        [0.,0.] # intercept holds no info for scale
-                        ]
-                params_CI_scale = np.vstack([list(map(float, sublist)) for sublist in scale_list])
+        params_CI_scale = np.vstack([list(map(float, sublist)) for sublist in scale_list])
+
+        #### read p values ####
+        if snare:
+                file_path_p = result_folder + 'models/snare_all25k099_p.txt'
+        else:
+                file_path_p = result_folder + 'models/wdBlk_all25k099_p.txt'
+        with open(file_path_p, 'r') as file:
+                p_lines = []
+                for line in file:
+                        p_lines.append(line.strip().split())
+
+        params_p_loc = [ #first line is header
+                float(p_lines[8][-1]),#EEG2 within
+                float(p_lines[6][-1]), #EEG2 between
+                float(p_lines[7][-1]), #EEG1 within
+                float(p_lines[5][-1]), #EEG1 between
+                float(p_lines[2][-1]), #musicality
+                float(p_lines[4][-1]), #session
+                float(p_lines[3][-1]), #trial
+                float(p_lines[1][-1]) # intercept
+        ]
+        params_p_scale = [ #first line is header, 8 lines later (includes intercept)
+                float(p_lines[8+8][-1]),#EEG2 within
+                float(p_lines[8+6][-1]), #EEG2 between
+                float(p_lines[8+7][-1]), #EEG1 within
+                float(p_lines[8+5][-1]), #EEG1 between
+                float(p_lines[8+2][-1]), #musicality
+                float(p_lines[8+4][-1]), #session
+                float(p_lines[8+3][-1]), #trial
+                float(p_lines[8+1][-1]) # intercept
+        ]
 
 ###########################################
 # plot the bootstrap confidence intervals #
@@ -179,7 +225,7 @@ text_ax1 = fig.add_subplot(gs[0,0], frame_on=False)
 text_ax1.tick_params(**blind_ax)
 
 for e,d in enumerate(names):
-        text_ax1.text(0.95, float(e+1)/(len(params_CI_loc)), d,         ha='right', va='center', transform=text_ax1.transAxes, size=10)
+        text_ax1.text(0.95, float(e+1)/(len(params_CI_loc)+1), d,         ha='right', va='center', transform=text_ax1.transAxes, size=10)
 
 # left - CI
 ci_ax1 = fig.add_subplot(gs[0,1], frame_on=False)
@@ -192,15 +238,19 @@ trans1 = mpl.transforms.blended_transform_factory(
     ci_ax1.transData, ci_ax1.transAxes)
 
 for i in range(len(params_CI_loc)):
-    if (params_CI_loc[i][1]*params_CI_loc[i][0])>=0:
-        color_now='red'
-    else:
-        color_now='k'
-    ci_ax1.plot(params_CI_loc[i], 2*[float(i+1)/(len(params_CI_loc)+1)], ls='-', c=color_now,
-            transform=trans1)
-## p values take up too much space probably
-#     ci_ax1.text(-params_CI_loc[i].mean(), float(len(params_CI_loc)-i)/len(params_CI_loc) + 0.02, r'$p=%.3f$' % params_p[i],
-#             transform=trans1, ha='center', va='bottom', size=7, color=color_now)
+        if (params_CI_loc[i][1]*params_CI_loc[i][0])>0:
+                color_now='red'
+                # p values only for significant parameters
+                ci_ax1.text(params_CI_loc[i].mean(), #middle of bar
+                            float(i+1)/(len(params_CI_loc)+1)+0.01,
+                            r'$p=%.4f$' % params_p_loc[i],
+                        transform=trans1, ha='center', va='bottom', size=7, color=color_now)
+        else:
+                color_now='k'
+        ci_ax1.plot(params_CI_loc[i],
+                    2*[float(i+1)/(len(params_CI_loc)+1)],
+                    ls='-', c=color_now,transform=trans1)
+
 
 
 ### right - scale
@@ -227,18 +277,19 @@ trans2 = mpl.transforms.blended_transform_factory(
     ci_ax2.transData, ci_ax2.transAxes)
 
 for i in range(len(params_CI_scale)):
-    if (params_CI_scale[i][1]*params_CI_scale[i][0])>=0:
-        color_now='r'
-        # TODO: add p value
-    else:
-        color_now='k'
-    ci_ax2.plot(params_CI_scale[i], 2*[float(i+1)/(len(params_CI_scale)+1)], ls='-', c=color_now,
-            transform=trans2)
-    ## p values take up too much space probably
-    # ci_ax2.text(params_CI_scale[i].mean(), float(len(params_CI_scale)-i)/len(params_CI_scale),
-    #         r'$p=%.3f$' % params_p[i],
-    #         transform=trans2, ha='center', va='bottom', size=7,
-    #         color=color_now)
+        if (params_CI_scale[i][1]*params_CI_scale[i][0])>0:
+                color_now='r'
+                # p values only for significant parameters
+                ci_ax2.text(
+                        params_CI_scale[i].mean(),                             float(i+1)/(len(params_CI_loc)+1)+0.01,
+                        r'$p=%.4f$' % params_p_scale[i],
+                        transform=trans2, ha='center', va='bottom', size=7, color=color_now)
+        else:
+                color_now='k'
+        ci_ax2.plot(params_CI_scale[i],
+                2*[float(i+1)/(len(params_CI_scale)+1)],
+                ls='-', c=color_now, transform=trans2)
+
 
 ci_ax1.set_xlim([-np.abs(params_CI_loc).max(), np.abs(params_CI_loc).max()])
 ci_ax2.set_xlim([-np.abs(params_CI_scale).max(), np.abs(params_CI_scale).max()])
