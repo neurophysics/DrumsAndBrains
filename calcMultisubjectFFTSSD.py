@@ -164,14 +164,6 @@ except:
                            all_filters[(i + 1) * N_channels:(i + 2) * N_channels]
                            for i in range(len(target_cov))] #(N_subjects,N_channels,get_filters)
 
-        # calculate the SNNR for every component and subject
-        SNNR_per_subject = np.array([
-            np.diag((filt.T @ target_now.mean(-1) @ filt) /
-                    (filt.T @ contrast_now.mean(-1) @ filt))
-            for (filt, target_now, contrast_now) in
-            zip(subject_filters, target_cov, contrast_cov)])
-
-        SNNR = SNNR_per_subject.mean(0)
         #
         # # check for optimal lambda2
         # # calculate vnorm, append SNNR for l curve
@@ -200,9 +192,18 @@ except:
     # np.save(os.path.join(result_folder, 'mtCSP_SNNR.npy'), SNNR_lam)
 
 
-np.savez(os.path.join(result_folder, 'mtCSP.npz'),
-         SNNR_per_subject=SNNR_per_subject,
-         subject_filters=subject_filters)
+    np.savez(os.path.join(result_folder, 'mtCSP.npz'),
+            SNNR_per_subject=SNNR_per_subject,
+            subject_filters=subject_filters)
+
+# calculate the SNNR for every component and subject
+SNNR_per_subject = np.array([
+    np.diag((filt.T @ target_now.mean(-1) @ filt) /
+            (filt.T @ contrast_now.mean(-1) @ filt))
+    for (filt, target_now, contrast_now) in
+    zip(subject_filters, target_cov, contrast_cov)])
+
+SNNR = SNNR_per_subject.mean(0)
 
 # calculate the indiuvidual F_SSD for listen, silence and both
 F_SSD = [np.tensordot(subject_filter_now, F_now, axes=(0, 0))
@@ -217,7 +218,7 @@ F_mean = [(np.abs(F_now)**2).mean(-1) for F_now in F]
 # calculate the spatial pattern from the global pattern (first 32 coefficients) and the average
 # of the target covariance matrix
 
-global_filters = all_filters[:N_channels] #this wont work if mtCSP.npz already existed before!
+#global_filters = all_filters[:N_channels] #this wont work if mtCSP.npz already existed before!
 global_filters = subject_filters[0][:N_channels] #should be equivalent, for each subject also includes the global one
 #global_filters = np.mean(subject_filters, 0)
 global_target_covariance = np.mean([c.mean(-1) for c in target_cov], 0)
@@ -249,7 +250,7 @@ SNNR_ax.plot(range(1,len(SNNR) + 1), 10*np.log10(SNNR), 'ko-', lw=2,
         markersize=5)
 SNNR_ax.scatter([1], 10*np.log10(SNNR[0]), c=color1, s=60, zorder=1000)
 SNNR_ax.scatter([2], 10*np.log10(SNNR[1]), c=color2, s=60, zorder=1000)
-SNNR_ax.scatter([3], 10*np.log10(SNNR[2]), c=color3, s=60, zorder=1000)
+#SNNR_ax.scatter([3], 10*np.log10(SNNR[2]), c=color3, s=60, zorder=1000)
 #SNNR_ax.scatter([4], 10*np.log10(SNNR[3]), c=color4, s=60, zorder=1000)
 #SNNR_ax.axhline(0, c='k', lw=1)
 SNNR_ax.set_xlim([0.5, len(SNNR) + 0.5])
@@ -258,12 +259,12 @@ SNNR_ax.set_ylabel('SNNR (dB)')
 SNNR_ax.set_xlabel('component (index)')
 SNNR_ax.set_title('SNNR of SSD components')
 
-# plot the four spatial patterns
+# plot the 2 spatial patterns
 gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,3, gs[1,:],
         height_ratios = [1,0.1])
 head_ax = []
 pc = []
-for i, pat in enumerate(potmaps[:3]):
+for i, pat in enumerate(potmaps[:2]):
     head_ax.append(fig.add_subplot(gs2[0,i], frame_on=False,
         aspect='equal'))
     # delete all ticks and ticklabels
