@@ -1,7 +1,4 @@
-# questions for gunnar
 # ? should we add an averaged intercept or sth as we want to make a point with earlier and later?
-# how about we divide into snare and wdblk for overview? im gonna do snare for now
-
 
 import numpy as np
 import scipy
@@ -13,7 +10,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 result_folder = sys.argv[1]
-singleVariable = True
+singleVariable = False
 snare = True #change this to make plots for duple or triple
 condition = ['duple' if snare else 'triple'][0]
 
@@ -29,7 +26,7 @@ location_dict = {} ##should have:
 # only do snare for now...
 scale_dict = {} ##should have:
 
-names = ['EEG comp 2\n(within subj.)', 'EEG comp 2\n(between subj.)','EEG comp 1\n(within subj.)', 'EEG comp 1\n(between subj.)','musicality', 'session','trial',  'intercept']
+names = ['EEG comp. 2\n(within subj.)', 'EEG comp. 2\n(between subj.)','EEG comp. 1\n(within subj.)', 'EEG comp. 1\n(between subj.)','musicality', 'session','trial',  'intercept']
 name_i = 0
 
 if singleVariable:
@@ -210,7 +207,7 @@ gs = mpl.gridspec.GridSpec(nrows=1, ncols=5, width_ratios=[1,5,0.1,0.1,5]) #have
 maintitle_ax = fig.add_subplot(gs[0,2], frame_on=False)
 maintitle_ax.tick_params(**blind_ax)
 if singleVariable:
-        maintitle_ax.set_title('CI of single variable models in '+
+        maintitle_ax.set_title('CI of univariate models in '+
                         condition + ' condition', size=15, pad=25.0)
 else:
         maintitle_ax.set_title('CI of overall model in '+
@@ -241,9 +238,12 @@ for i in range(len(params_CI_loc)):
         if (params_CI_loc[i][1]*params_CI_loc[i][0])>0:
                 color_now='red'
                 # p values only for significant parameters
+                current_p = r'$p=%.3f$' % params_p_loc[i]
+                if params_p_loc[i]<0.001:
+                        current_p = r'$p<0.001$'
                 ci_ax1.text(params_CI_loc[i].mean(), #middle of bar
                             float(i+1)/(len(params_CI_loc)+1)+0.01,
-                            r'$p=%.4f$' % params_p_loc[i],
+                            current_p,
                         transform=trans1, ha='center', va='bottom', size=7, color=color_now)
         else:
                 color_now='k'
@@ -280,10 +280,13 @@ for i in range(len(params_CI_scale)):
         if (params_CI_scale[i][1]*params_CI_scale[i][0])>0:
                 color_now='r'
                 # p values only for significant parameters
+                current_p = r'$p=%.3f$' % params_p_loc[i]
+                if params_p_loc[i]<0.001:
+                        current_p = r'$p<0.001$'
                 ci_ax2.text(
-                        params_CI_scale[i].mean(),                             float(i+1)/(len(params_CI_loc)+1)+0.01,
-                        r'$p=%.4f$' % params_p_scale[i],
-                        transform=trans2, ha='center', va='bottom', size=7, color=color_now)
+                params_CI_scale[i].mean(),                             float(i+1)/(len(params_CI_loc)+1)+0.01,
+                current_p,
+                transform=trans2, ha='center', va='bottom', size=7, color=color_now)
         else:
                 color_now='k'
         ci_ax2.plot(params_CI_scale[i],
