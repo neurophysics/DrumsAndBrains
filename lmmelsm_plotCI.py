@@ -10,7 +10,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 result_folder = sys.argv[1]
-singleVariable = False
+singleVariable = True
 snare = True #change this to make plots for duple or triple
 condition = ['duple' if snare else 'triple'][0]
 
@@ -280,11 +280,11 @@ for i in range(len(params_CI_scale)):
         if (params_CI_scale[i][1]*params_CI_scale[i][0])>0:
                 color_now='r'
                 # p values only for significant parameters
-                current_p = r'$p=%.3f$' % params_p_loc[i]
-                if params_p_loc[i]<0.001:
+                current_p = r'$p=%.3f$' % params_p_scale[i]
+                if params_p_scale[i]<0.001:
                         current_p = r'$p<0.001$'
                 ci_ax2.text(
-                params_CI_scale[i].mean(),                             float(i+1)/(len(params_CI_loc)+1)+0.01,
+                params_CI_scale[i].mean(),                             float(i+1)/(len(params_p_scale)+1)+0.01,
                 current_p,
                 transform=trans2, ha='center', va='bottom', size=7, color=color_now)
         else:
