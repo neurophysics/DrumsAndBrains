@@ -242,7 +242,7 @@ h1 = 0.5
 h2 = 1.5
 h3 = 1
 
-fig = plt.figure(figsize=(3.54331,5))
+fig = plt.figure(figsize=(3.7,6))
 gs = mpl.gridspec.GridSpec(3,1, height_ratios = [h1,h2,h3])
 
 SNNR_ax = fig.add_subplot(gs[0,:])
@@ -261,7 +261,7 @@ SNNR_ax.set_title('SNNR of SSD components')
 
 # plot the 2 spatial patterns
 gs2 = mpl.gridspec.GridSpecFromSubplotSpec(2,3, gs[1,:],
-        height_ratios = [1,0.1])
+        height_ratios = [1,0.1],width_ratios = [1,1,0.0001])
 head_ax = []
 pc = []
 for i, pat in enumerate(potmaps[:2]):
@@ -295,7 +295,7 @@ cbar.ax.axvline(0, c='w', lw=2)
 spect_ax = fig.add_subplot(gs[2,:])
 [spect_ax.plot(f, 10*np.log10(
     np.mean([comp[i]/comp[i,contrast_mask != target_mask].mean(-1) for comp in F_SSD_mean], 0)),
-    c=colors[i], lw=2) for i in range(3)]
+    c=colors[i], lw=1, alpha=0.9) for i in range(2)]
 [spect_ax.plot(f, 10*np.log10(
     np.mean([comp[i]/comp[i,contrast_mask != target_mask].mean(-1) for comp in F_mean], 0)),
     c='k', alpha=0.1, lw=0.5) for i in range(32)]
@@ -317,7 +317,7 @@ spect_ax.axvline(5*snareFreq, color='b', zorder=0, lw=1, ls=':')
 spect_ax.axvline(3*wdBlkFreq, color='r', zorder=0, lw=1, ls=':')
 spect_ax.axvline(4*wdBlkFreq, color='k', zorder=0, lw=1, ls=':')
 
-gs.tight_layout(fig, pad=0.2, h_pad=1.0)
+gs.tight_layout(fig, pad=0.7, h_pad=1.0)
 fig.canvas.draw()
 
 # make sure that the heads are round
