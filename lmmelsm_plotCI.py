@@ -201,23 +201,19 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
 
 fig = plt.figure()
 
-gs = mpl.gridspec.GridSpec(nrows=1, ncols=5, width_ratios=[1,5,0.1,0.1,5]) #have one empty/title one in the middle for some spacing between plots
+gs = mpl.gridspec.GridSpec(nrows=1, ncols=4, width_ratios=[1,5,0.1,5]) #have one empty/title one in the middle for some spacing between plots so it'S (variable names, latency, spacing with title, jitter)'
 
-### middle - title
-maintitle_ax = fig.add_subplot(gs[0,2], frame_on=False)
-maintitle_ax.tick_params(**blind_ax)
 if singleVariable:
-        maintitle_ax.set_title('CI of univariate models in '+
-                        condition + ' condition', size=15, pad=25.0)
+        fig.suptitle('CI of univariate models in '+
+                        condition + ' condition', fontsize=15)
 else:
-        maintitle_ax.set_title('CI of overall model in '+
-                       condition + ' condition', size=15, pad=25.0)
-### left - location
-title_ax1 = fig.add_subplot(gs[0,:2], frame_on=False)
-title_ax1.tick_params(**blind_ax)
-title_ax1.set_title(r'\textbf{location}', size=10)
+        fig.suptitle('CI of multivariate model in '+
+                       condition + ' condition', fontsize=15)
 
-# left - variable names
+
+### left - location
+
+# most left - variable names
 text_ax1 = fig.add_subplot(gs[0,0], frame_on=False)
 text_ax1.tick_params(**blind_ax)
 
@@ -230,6 +226,7 @@ ci_ax1.tick_params(**dict(left=False, labelleft=False, right=False,
     labelright=False))
 ci_ax1.plot([0,1], [0,0], 'k-', transform=ci_ax1.transAxes)
 ci_ax1.axvline(0, ls=':', lw=0.75)
+ci_ax1.set_title(r'\textbf{latency}', size=10)
 
 trans1 = mpl.transforms.blended_transform_factory(
     ci_ax1.transData, ci_ax1.transAxes)
@@ -251,23 +248,15 @@ for i in range(len(params_CI_loc)):
                     2*[float(i+1)/(len(params_CI_loc)+1)],
                     ls='-', c=color_now,transform=trans1)
 
-
+### middle - spacing
 
 ### right - scale
-title_ax2 = fig.add_subplot(gs[0,3:], frame_on=False)
-title_ax2.tick_params(**blind_ax)
-title_ax2.set_title(r"""\textbf{scale}""", size=10)
-
-# right - variable names,
-# text_ax2 = fig.add_subplot(gs[0,3], frame_on=False)
-# text_ax2.tick_params(**blind_ax)
-
-# for e,d in enumerate(names):
-#         text_ax2.text(0.95, float(e+1)/(len(params_CI_scale)), '', ha='right', va='center', transform=text_ax2.transAxes,
-#         size=10)
-
 # right - CI
-ci_ax2 = fig.add_subplot(gs[0,4], frame_on=False)
+title_ax2 = fig.add_subplot(gs[0,3], frame_on=False)
+title_ax2.tick_params(**blind_ax)
+title_ax2.set_title(r"""\textbf{jitter}""", size=10)
+
+ci_ax2 = fig.add_subplot(gs[0,3], frame_on=False)
 ci_ax2.tick_params(**dict(left=False, labelleft=False, right=False,
     labelright=False))
 ci_ax2.plot([0,1], [0,0], 'k-', transform=ci_ax2.transAxes)
