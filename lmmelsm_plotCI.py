@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 
 result_folder = sys.argv[1]
 singleVariable = True
-snare = True #change this to make plots for duple or triple
+snare = False #change this to make plots for duple or triple
 condition = ['duple' if snare else 'triple'][0]
 
 location_dict = {} ##should have:
@@ -226,7 +226,7 @@ ci_ax1.tick_params(**dict(left=False, labelleft=False, right=False,
     labelright=False))
 ci_ax1.plot([0,1], [0,0], 'k-', transform=ci_ax1.transAxes)
 ci_ax1.axvline(0, ls=':', lw=0.75)
-ci_ax1.set_title(r'\textbf{latency}', size=10)
+ci_ax1.set_title(r'\textbf{latency (s)}', size=10)
 
 trans1 = mpl.transforms.blended_transform_factory(
     ci_ax1.transData, ci_ax1.transAxes)
@@ -265,7 +265,7 @@ ci_ax2.axvline(0, ls=':', lw=0.75)
 trans2 = mpl.transforms.blended_transform_factory(
     ci_ax2.transData, ci_ax2.transAxes)
 
-for i in range(len(params_CI_scale)):
+for i in range(len(params_CI_scale)-1): #subtract one because last one is intercept we ignore
         if (params_CI_scale[i][1]*params_CI_scale[i][0])>0:
                 color_now='r'
                 # p values only for significant parameters
