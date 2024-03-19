@@ -10,8 +10,7 @@ import helper_functions
 
 s_rate = 1000 # sampling rate of the EEG (1000 samples per sec)
 data_folder = sys.argv[1]
-N_subjects = 21 #here: total number of subjects
-result_folder = sys.argv[3]
+result_folder = sys.argv[2]
 
 if not os.path.exists(result_folder):
     os.mkdir(result_folder)
@@ -52,10 +51,14 @@ chancoords_2d = meet.sphere.projectSphereOnCircle(chancoords,
 n_channels = clean_data.shape[0]
 
 # convert our data to raw format (io: https://mne.tools/stable/auto_examples/io/plot_objects_from_arrays.html#sphx-glr-auto-examples-io-plot-objects-from-arrays-py)
-montage = mne.channels.make_dig_montage(ch_pos=dict(zip(channames, chancoords)),
-                                        coord_frame='head')
-info = mne.create_info(ch_names=channames, montage=montage,
-        sfreq=s_rate, ch_types=np.repeat('eeg',n_channels))
+montage = mne.channels.make_dig_montage(
+        ch_pos=dict(zip(channames, chancoords)),
+        coord_frame='head')
+info = mne.create_info(
+        ch_names=channames,
+        sfreq=s_rate,
+        ch_types=np.repeat('eeg',n_channels))
+info.set_montage(montage)
 raw = mne.io.RawArray(clean_data, info)
 
 #plot to check
