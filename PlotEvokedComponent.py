@@ -313,7 +313,6 @@ def plot_evokedComponents(eeg_data):
 
         return fig,plt
 
-1/0
 ##### check for each subject if it shows entrainment
 for i in subject_list:
         eeg_subj = np.hstack([all_listen[i-1], all_silence[i-1]])
