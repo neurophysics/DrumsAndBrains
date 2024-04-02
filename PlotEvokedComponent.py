@@ -89,6 +89,7 @@ all_listen = []
 all_silence = []
 snare_N = 0
 wdBlk_N = 0
+subject_list = []
 for i in range(1, N_subjects + 1, 1):
     try:
         with np.load(
@@ -119,38 +120,37 @@ for i in range(1, N_subjects + 1, 1):
             marker_fname = os.path.join(args.data_folder, 'S%02d' % i, 'S%02d_eeg.vmrk' % i)
 
         eeg_clocks = helper_functions.getSessionClocks(marker_fname)
+        # now, find the sample of each
+        eeg_clocks = [c for c in eeg_clocks if len(c) > 100]
+        snareCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
+                snareCue_nearestClock, snareCue_DevToClock)
+        wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
+                wdBlkCue_nearestClock, wdBlkCue_DevToClock)
+        # get each begin of listen and silence period
+        snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
+        wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
+        snareSilenceMarker = snareCue_pos - int(bar_duration*s_rate)
+        wdBlkSilenceMarker = wdBlkCue_pos - int(bar_duration*s_rate)
+        # rereference to the average EEG amplitude
+        EEG -= EEG.mean(0)
+        # epoch to listening
+        all_win = [0, int(4*bar_duration*s_rate)]
+        # !! takes snare and wdblk together so not weighted by number of trials
+        all_l = meet.epochEEG(EEG,
+                np.r_[snareListenMarker[snareInlier],
+                        wdBlkListenMarker[wdBlkInlier]],
+                all_win)
+        all_listen.append(all_l.mean(-1)) #trial avg
+        all_s = meet.epochEEG(EEG,
+                np.r_[snareSilenceMarker[snareInlier],
+                        wdBlkSilenceMarker[wdBlkInlier]],
+                all_win)
+        all_silence.append(all_s.mean(-1))
+        wdBlk_N += snareInlier.sum()
+        snare_N += wdBlkInlier.sum()
+        subject_list.append(i)
     except IOError:
         print('Warning: Subject %02d could not be loaded!' %i)
-    # now, find the sample of each
-    eeg_clocks = [c for c in eeg_clocks if len(c) > 100]
-    snareCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
-            snareCue_nearestClock, snareCue_DevToClock)
-    wdBlkCue_pos = helper_functions.SyncMusicToEEG(eeg_clocks,
-            wdBlkCue_nearestClock, wdBlkCue_DevToClock)
-    # get each begin of listen and silence period
-    snareListenMarker = snareCue_pos - int(4*bar_duration*s_rate)
-    wdBlkListenMarker = wdBlkCue_pos - int(4*bar_duration*s_rate)
-    snareSilenceMarker = snareCue_pos - int(bar_duration*s_rate)
-    wdBlkSilenceMarker = wdBlkCue_pos - int(bar_duration*s_rate)
-    # rereference to the average EEG amplitude
-    EEG -= EEG.mean(0)
-    # epoch to listening
-    all_win = [0, int(4*bar_duration*s_rate)]
-    # !! takes snare and wdblk together so not weighted by number of trials
-    all_l = meet.epochEEG(EEG,
-            np.r_[snareListenMarker[snareInlier],
-                wdBlkListenMarker[wdBlkInlier]],
-            all_win)
-    all_listen.append(all_l.mean(-1)) #trial avg
-    all_s = meet.epochEEG(EEG,
-            np.r_[snareSilenceMarker[snareInlier],
-                wdBlkSilenceMarker[wdBlkInlier]],
-            all_win)
-    all_silence.append(all_s.mean(-1))
-    wdBlk_N += snareInlier.sum()
-    snare_N += wdBlkInlier.sum()
-
-
 
 def plot_evokedComponents(eeg_data):
         t = np.arange(eeg_data.shape[-1])/float(s_rate)
@@ -313,9 +313,9 @@ def plot_evokedComponents(eeg_data):
 
         return fig,plt
 
-
+1/0
 ##### check for each subject if it shows entrainment
-for i in range(1, 1+N_subjects, 1):
+for i in subject_list:
         eeg_subj = np.hstack([all_listen[i-1], all_silence[i-1]])
         fig,plt = plot_evokedComponents(eeg_subj)
         fig.savefig(os.path.join(args.result_folder, 'S%02d' % i,
