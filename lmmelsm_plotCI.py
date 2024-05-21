@@ -26,24 +26,38 @@ location_dict = {} ##should have:
 # only do snare for now...
 scale_dict = {} ##should have:
 
-names = ['EEG comp. 2\n(within subj.)', 'EEG comp. 2\n(between subj.)','EEG comp. 1\n(within subj.)', 'EEG comp. 1\n(between subj.)','musicality', 'session','trial',  'intercept']
-name_i = 0
 
+
+name_i = 0 # loop through names
 if singleVariable:
-        #see if plot is for duple or triple rhythm:
+        names = ['EEG 2, triple freq.\n(within subj.)',
+                'EEG 2, triple freq.\n(between subj.)',
+                'EEG 1, triple freq.\n(within subj.)',
+                'EEG 1, triple freq.\n(between subj.)',
+                'EEG 2, duple freq.\n(within subj.)',
+                'EEG 2, duple freq.\n(between subj.)',
+                'EEG 1, duple freq.\n(within subj.)',
+                'EEG 1, duple freq.\n(between subj.)',
+                'musicality', 'session', 'trial',  'intercept']       #see if plot is for duple or triple rhythm:
         if snare:
                 all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [ #it gets plotted in reverse order
-                        'snare_Snare2_within',
+                       'snare_Snare2_within',
                         'snare_Snare2_between',
                         'snare_Snare1_within',
-                        'snare_Snare1_between',
+                        'snare_Snare1_between',                        'snare_WdBlk2_within',
+                        'snare_WdBlk2_between',
+                        'snare_WdBlk1_within',
+                        'snare_WdBlk1_between',
                         'snare_musicality0995',
                         'snare_session',
                         'snare_trial10k',
                         'snare_intercept']]
         else:
                 all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [
-                        'wdBlk_WdBlk2_within',
+                        'wdBlk_Snare2_within',
+                        'wdBlk_Snare2_between',
+                        'wdBlk_Snare1_within',
+                        'wdBlk_Snare1_between',                        'wdBlk_WdBlk2_within',
                         'wdBlk_WdBlk2_between',
                         'wdBlk_WdBlk1_within',
                         'wdBlk_WdBlk1_between',
@@ -122,9 +136,21 @@ if singleVariable:
 else: #all models
         #### read model ####
         if snare:
+                names = [
+                        'EEG 2, duple freq.\n(within subj.)',
+                        'EEG 2, duple freq.\n(between subj.)',
+                        'EEG 1, duple freq.\n(within subj.)',
+                        'EEG 1, duple freq.\n(between subj.)',
+                        'musicality', 'session', 'trial',  'intercept']
                 file_path = result_folder + 'models/snare_all25k099.txt'
         else:
-                file_path = result_folder + 'models/wdBlk_all25k099.txt'
+                 names = [
+                        'EEG 2, triple freq.\n(within subj.)',
+                        'EEG 2, triple freq.\n(between subj.)',
+                        'EEG 1, triple freq.\n(within subj.)',
+                        'EEG 1, triple freq.\n(between subj.)',
+                        'musicality', 'session', 'trial',  'intercept']
+                 file_path = result_folder + 'models/wdBlk_all25k099.txt'
         # Open and read the file
         with open(file_path, 'r') as file:
                 intercept_lines = []
@@ -199,7 +225,10 @@ blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
         labelbottom=False)
 
-fig = plt.figure()
+if singleVariable:
+        fig = plt.figure(figsize=(7, 7))
+else:
+        fig = plt.figure()
 
 gs = mpl.gridspec.GridSpec(nrows=1, ncols=4, width_ratios=[1,5,0.1,5]) #have one empty/title one in the middle for some spacing between plots so it'S (variable names, latency, spacing with title, jitter)'
 

@@ -37,7 +37,7 @@ uni_lmmelms_fct <- function(x, data) lmmelsm(
     as.formula(paste("location ~", x)),
     as.formula(paste("scale ~", x)),
     as.formula(paste("between ~", x))),
-  group = subject, data = snare_data, cores = 8, iter=10000, warmup=2000,
+  group = subject, data = snare_data, cores = 8, iter=5000, warmup=1000,
   control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10))
 
 fit_musicality <- uni_lmmelms_fct(x = "musicality", data=snare_data)
@@ -82,7 +82,32 @@ print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 1
 print(summary(fit_Snare2_within))
 save(fit_Snare2_within, file = "Results/models/singleVariable/snare_Snare2_within.RData")
 
+fit_WdBlk1_between <- uni_lmmelms_fct(x = "WdBlk1_between", data=snare_data)
+sink("Results/models/singleVariable/snare_WdBlk1_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk1_between))
+save(fit_WdBlk1_between, file = "Results/models/singleVariable/snare_WdBlk1_between.RData")
+
+fit_WdBlk2_between <- uni_lmmelms_fct(x = "WdBlk2_between", data=snare_data)
+sink("Results/models/singleVariable/snare_WdBlk2_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk2_between))
+save(fit_WdBlk2_between, file = "Results/models/singleVariable/snare_WdBlk2_between.RData")
+
+fit_WdBlk1_within <- uni_lmmelms_fct(x = "WdBlk1_within", data=snare_data)
+sink("Results/models/singleVariable/snare_WdBlk1_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk1_within))
+save(fit_WdBlk1_within, file = "Results/models/singleVariable/snare_WdBlk1_within.RData")
+
+fit_WdBlk2_within <- uni_lmmelms_fct(x = "WdBlk2_within", data=snare_data)
+sink("Results/models/singleVariable/snare_WdBlk2_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_WdBlk2_within))
+save(fit_WdBlk2_within, file = "Results/models/singleVariable/snare_WdBlk2_within.RData")
 closeAllConnections()
+
+
 ##### univariate wdBlk models #####
 # intercept only
 fit_wdBlk_intercept <- lmmelsm(
@@ -102,8 +127,8 @@ uni_lmmelms_fct <- function(x, data) lmmelsm(
     as.formula(paste("location ~", x)),
     as.formula(paste("scale ~", x)),
     as.formula(paste("between ~", x))),
-  group = subject, data = wdBlk_data, cores = 8, iter=10000, warmup=3000,
-  control = list(adapt_delta = 0.995, stepsize = 1, max_treedepth = 10))
+  group = subject, data = wdBlk_data, cores = 8, iter=5000, warmup=1000,
+  control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10))
 
 fit_musicality <- uni_lmmelms_fct(x = "musicality", data=wdBlk_data)
 sink("Results/models/singleVariable/wdBlk_musicality.txt")
@@ -146,6 +171,31 @@ sink("Results/models/singleVariable/wdBlk_WdBlk2_within.txt")
 print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_WdBlk2_within))
 save(fit_WdBlk2_within, file = "Results/models/singleVariable/wdBlk_WdBlk2_within.RData")
+
+
+fit_Snare1_between <- uni_lmmelms_fct(x = "Snare1_between", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_Snare1_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_Snare1_between))
+save(fit_Snare1_between, file = "Results/models/singleVariable/wdBlk_Snare1_between.RData")
+
+fit_Snare2_between <- uni_lmmelms_fct(x = "Snare2_between", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_Snare2_between.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_Snare2_between))
+save(fit_Snare2_between, file = "Results/models/singleVariable/wdBlk_Snare2_between.RData")
+
+fit_Snare1_within <- uni_lmmelms_fct(x = "Snare1_within", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_Snare1_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_Snare1_within))
+save(fit_Snare1_within, file = "Results/models/singleVariable/wdBlk_Snare1_within.RData")
+
+fit_Snare2_within <- uni_lmmelms_fct(x = "Snare2_within", data=wdBlk_data)
+sink("Results/models/singleVariable/wdBlk_Snare2_within.txt")
+print('iter=5000, warmup=1000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+print(summary(fit_Snare2_within))
+save(fit_Snare2_within, file = "Results/models/singleVariable/wdBlk_Snare2_within.RData")
 
 closeAllConnections() #closes sink so that output is back to console
 

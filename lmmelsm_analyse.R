@@ -11,23 +11,32 @@ library('rstan')
 
 # specify model data to be used
 model_names_sv <- c(#'singleVariable/snare_intercept',
-                    'singleVariable/snare_musicality0995', #3 div
-                    #'singleVariable/snare_session',
-                    #'singleVariable/snare_Snare1_between',
-                    #'singleVariable/snare_Snare1_within',
-                    #'singleVariable/snare_Snare2_between',
-                    #'singleVariable/snare_Snare2_within',
-                    'singleVariable/snare_trial10k', #high rhats, what do we do with these?
-                    #'singleVariable/wdBlk_intercept',
-                    'singleVariable/wdBlk_musicality', #3 div, looks fine
-                    #'singleVariable/wdBlk_session',
-                    'singleVariable/wdBlk_trial_10k', #45 div
-                    #'singleVariable/wdBlk_WdBlk1_between',
-                    'singleVariable/wdBlk_WdBlk1_within'#3 div, looks ok
-                    #'singleVariable/wdBlk_WdBlk2_between',
-                    #'singleVariable/wdBlk_WdBlk2_within'
+                    #' 'singleVariable/snare_musicality0995', #3 div
+                    #' #'singleVariable/snare_session',
+                    #' #'singleVariable/snare_Snare1_between',
+                    #' #'singleVariable/snare_Snare1_within',
+                    #' #'singleVariable/snare_Snare2_between',
+                    #' #'singleVariable/snare_Snare2_within',
+                    #' 'singleVariable/snare_trial10k', #high rhats, what do we do with these?
+                    #' #'singleVariable/wdBlk_intercept',
+                    #' 'singleVariable/wdBlk_musicality', #3 div, looks fine
+                    #' #'singleVariable/wdBlk_session',
+                    #' 'singleVariable/wdBlk_trial_10k', #45 div
+                    #' #'singleVariable/wdBlk_WdBlk1_between',
+                    #' 'singleVariable/wdBlk_WdBlk1_within'#3 div, looks ok
+                    #' #'singleVariable/wdBlk_WdBlk2_between',
+                    #' #'singleVariable/wdBlk_WdBlk2_within',
+                    # exermining integrated processing:
+                    'singleVariable/wdBlk_Snare2_within',
+                    'singleVariable/wdBlk_Snare2_between',
+                    'singleVariable/wdBlk_Snare1_within',
+                    'singleVariable/wdBlk_Snare1_between',
+                    'singleVariable/snare_WdBlk2_within',
+                    'singleVariable/snare_WdBlk2_between',
+                    'singleVariable/snare_WdBlk1_within',
+                    'singleVariable/snare_WdBlk1_between'                    
                     )
-model_name = 'singleVariable/wdBlk_trial_10k'
+model_name = 'singleVariable/wdBlk_Snare1_within'
 path_RData = paste('Results/models/', model_name, '.RData', sep='')
 loaded_data <-  load(path_RData)
 fit_name <- get(loaded_data)
@@ -180,25 +189,31 @@ p_value <- function(sample, name){
 
 ### do the following for each model
 # get data
-result_file_name = paste('Results/models/', model_name, '_p.txt', sep='')
-sample_df <- get_samples(fit_name)
-
-# calculate p_values
-all_p_values <- c()
-for(i in 1:ncol(sample_df)) {       # for-loop over columns which are variables
-  res <- p_value(sample_df[,i], colnames(sample_df)[i])
-  all_p_values <- c(all_p_values,res)
-}
-# check whether histograms are symmetrical!
-# store together with column names
-sink(result_file_name)
-print_df <- data.frame(all_p_values)
-rownames(print_df) <- colnames(sample_df)
-print(print_df)
-closeAllConnections()
-print(paste('stored p values in', result_file_name, sep=' '))
+for (model_name in model_names_sv) {
+  path_RData = paste('Results/models/', model_name, '.RData', sep='')
+  loaded_data <-  load(path_RData)
+  fit_name <- get(loaded_data)
+  result_file_name = paste('Results/models/', model_name, '_p.txt', sep='')
+  sample_df <- get_samples(fit_name)
+  
+  # calculate p_values
+  all_p_values <- c()
+  for(i in 1:ncol(sample_df)) {       # for-loop over columns which are variables
+    res <- p_value(sample_df[,i], colnames(sample_df)[i])
+    all_p_values <- c(all_p_values,res)
+  }
+  # check whether histograms are symmetrical!
+  # store together with column names
+  sink(result_file_name)
+  print_df <- data.frame(all_p_values)
+  rownames(print_df) <- colnames(sample_df)
+  print(print_df)
+  closeAllConnections()
+  print(paste('stored p values in', result_file_name, sep=' '))
+  }
 #p_value(loc_int) # können Ho dass µ=0 ist nicht ablehnen, weil wahrscheinlichkeit dafür dass µ≠0'nur'67% 
 # wenn man summary mit prob=1-p_loc_int nimmt, ist der eine wert beim quantil dann 0, denn ab da ist es significant
+
 
 # aus p-werten dann false discovery rate berechnen: 
 test_df <- read.table("Results/models/snare_all25k_p.txt")
