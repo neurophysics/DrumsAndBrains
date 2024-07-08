@@ -9,10 +9,16 @@ import re
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-result_folder = sys.argv[1]
-singleVariable = True
-snare = False #change this to make plots for duple or triple
+# use as run lmmelsm_plotCI.py Results/ T F
+try:
+        result_folder = sys.argv[1]
+        singleVariable = bool(int(sys.argv[2])) #plot univariate or multivariate model
+        snare = bool(int(sys.argv[3])) #plot duple or triple
+except:
+        print('Please use as follows where \n the first is 1 for the univariate models and 0 for multivariate and \nthe second is 1 for the Duple and 0 for the Triple models: run lmmelsm_plotCI.py Results/ T F')
 condition = ['duple' if snare else 'triple'][0]
+modeltype = ['univariate' if singleVariable else 'multivariate'][0]
+print('Plotting ' + modeltype + ' models for ' + condition + ' condition...')
 
 location_dict = {} ##should have:
 # snare trial
@@ -26,33 +32,48 @@ location_dict = {} ##should have:
 # only do snare for now...
 scale_dict = {} ##should have:
 
-
+if snare: #duple first
+        categories = ['non-target EEG freq. (triple)', 'target EEG freq. (duple)', '']
+else:   # triple first
+        categories = ['non-target EEG freq. (duple)', 'target EEG freq. (triple)', '']
 
 name_i = 0 # loop through names
 if singleVariable:
-        names = ['EEG 2, triple freq.\n(within subj.)',
-                'EEG 2, triple freq.\n(between subj.)',
-                'EEG 1, triple freq.\n(within subj.)',
-                'EEG 1, triple freq.\n(between subj.)',
-                'EEG 2, duple freq.\n(within subj.)',
-                'EEG 2, duple freq.\n(between subj.)',
-                'EEG 1, duple freq.\n(within subj.)',
-                'EEG 1, duple freq.\n(between subj.)',
-                'musicality', 'session', 'trial',  'intercept']       #see if plot is for duple or triple rhythm:
-        if snare:
-                all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [ #it gets plotted in reverse order
-                       'snare_Snare2_within',
-                        'snare_Snare2_between',
-                        'snare_Snare1_within',
-                        'snare_Snare1_between',                        'snare_WdBlk2_within',
+     #see if plot is for duple or triple rhythm:
+     #it gets plotted in reverse order
+        if snare: #duple first
+                names = ['Component 2,\n(within subj.)', #triple
+                        'Component 2,\n(between subj.)',
+                        'Component 1,\n(within subj.)',
+                        'Component 1,\n(between subj.)',
+                        'Component 2,\n(within subj.)', #duple
+                        'Component 2,\n(between subj.)',
+                        'Component 1,\n(within subj.)',
+                        'Component 1,\n(between subj.)',
+                        'musicality', 'session', 'trial',  'intercept']
+                all_files = [result_folder + 'models/singleVariable/'  + name +'.txt' for name in [
+                        'snare_WdBlk2_within',
                         'snare_WdBlk2_between',
                         'snare_WdBlk1_within',
                         'snare_WdBlk1_between',
+                        'snare_Snare2_within',
+                        'snare_Snare2_between',
+                        'snare_Snare1_within',
+                        'snare_Snare1_between',
                         'snare_musicality0995',
                         'snare_session',
                         'snare_trial10k',
                         'snare_intercept']]
-        else:
+        else:   # triple first
+                names = ['Component 2,\n(within subj.)', #duple
+                        'Component 2,\n(between subj.)',
+                        'Component 1,\n(within subj.)',
+                        'Component 1,\n(between subj.)',
+                        'Component 2,\n(within subj.)',#triple
+                        'Component 2,\n(between subj.)',
+                        'Component 1,\n(within subj.)',
+                        'Component 1,\n(between subj.)',
+                        'musicality', 'session', 'trial',  'intercept']
                 all_files = [result_folder + 'models/singleVariable/' + name +'.txt' for name in [
                         'wdBlk_Snare2_within',
                         'wdBlk_Snare2_between',
@@ -66,44 +87,48 @@ if singleVariable:
                         'wdBlk_trial_10k',
                         'wdBlk_intercept']]
 
-        #loop over all single variabkle model files
+        #loop over all single variable model files
         for file_path in all_files:
-                # Open and read the file
-                with open(file_path, 'r') as file:
-                        intercept_lines = []
-                        variable_lines = []
-                        for line in file:
-                                if re.search(r'\s+(\w+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)',  line): #thanks, chatGPT (match lines in the format "label number number," where "label" is one or more word characters, and "number" can be a positive or negative decimal number with one or more digits before and after the decimal point)
-                                        if "deviation" in line:
-                                                intercept_lines.append(line.strip())
-                                        else:
-                                                variable_lines.append(line.strip())
+                try:
+                        # Open and read the file
+                        with open(file_path, 'r') as file:
+                                intercept_lines = []
+                                variable_lines = []
+                                for line in file:
+                                        if re.search(r'\s+(\w+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)',  line): #thanks, chatGPT (match lines in the format "label number number," where "label" is one or more word characters, and "number" can be a positive or negative decimal number with one or more digits before and after the decimal point)
+                                                if "deviation" in line:
+                                                        intercept_lines.append(line.strip())
+                                                else:
+                                                        variable_lines.append(line.strip())
 
-                        #e.g. deviation 0.0791 0.0787 0.021 0.0383 0.121 where order is  param  predictor   Mean Median    SD   Q2.5   Q97.5 so last five are numbers
-                        data_dict = {}
-                        name_list = ['loc_intercept', 'scale_intercept', 'loc_RE','scale_RE']
-                        for c,i in enumerate(intercept_lines):
-                                parts = i.split()
-                                key = name_list[c]
-                                values = [float(value) for value in parts[-5:]]
-                                data_dict[key] = values
-                        name_list_var = ['loc_variable', 'scale_variable', 'loc_group','scale_group'] #order in teh files never changes
-                        for c,i in enumerate(variable_lines):
-                                parts = i.split()
-                                key = name_list_var[c]
-                                values = [float(value) for value in parts[-5:]]
-                                data_dict[key] = values
+                                #e.g. deviation 0.0791 0.0787 0.021 0.0383 0.121 where order is  param  predictor   Mean Median    SD   Q2.5   Q97.5 so last five are numbers
+                                data_dict = {}
+                                name_list = ['loc_intercept', 'scale_intercept', 'loc_RE','scale_RE']
+                                for c,i in enumerate(intercept_lines):
+                                        parts = i.split()
+                                        key = name_list[c]
+                                        values = [float(value) for value in parts[-5:]]
+                                        data_dict[key] = values
+                                name_list_var = ['loc_variable', 'scale_variable', 'loc_group','scale_group'] #order in teh files never changes
+                                for c,i in enumerate(variable_lines):
+                                        parts = i.split()
+                                        key = name_list_var[c]
+                                        values = [float(value) for value in parts[-5:]]
+                                        data_dict[key] = values
 
-                        #we only need the one location and scale CIs for now
-                        key = names[name_i]
-                        if key=='intercept': #exception bc some lines are missing
-                                location_dict[key] = data_dict['loc_intercept']
-                                #ignore intercept for scale so just 0
-                                scale_dict[key] = [0]*len(data_dict['scale_intercept'])
-                        else:
-                                location_dict[key] = data_dict['loc_variable']
-                                scale_dict[key] = data_dict['scale_variable']
-                        name_i+=1
+                                #we only need the one location and scale CIs for now
+                                key = names[name_i]
+                                if key=='intercept': #exception bc some lines are missing
+                                        location_dict[key] = data_dict['loc_intercept']
+                                        #ignore intercept for scale so just 0
+                                        scale_dict[key] = [0]*len(data_dict['scale_intercept'])
+                                else:
+                                        key = names[name_i]+str(name_i) #so same names dont get overwritten...
+                                        location_dict[key] = data_dict['loc_variable']
+                                        scale_dict[key] = data_dict['scale_variable']
+                                name_i+=1
+                except IOError:
+                        print('file not found: ',file_path)
 
 
         #params_p=np.arange(0.1,0.8,0.1) #CHANGE LATER by reading from _p file
@@ -224,13 +249,19 @@ else: #all models
 blind_ax = dict(top=False, bottom=False, left=False, right=False,
         labelleft=False, labelright=False, labeltop=False,
         labelbottom=False)
+adj_ymax = len(params_CI_loc) + 2 + 1 # adjust for 2 breaks
+
 
 if singleVariable:
-        fig = plt.figure(figsize=(7, 7))
+        fig = plt.figure(figsize=(5, 7))
+        ncol = 5
+        wr = [1.5,1,5,0.1,5]
 else:
         fig = plt.figure()
+        ncol = 4
+        wr = [1,5,0.1,5]
 
-gs = mpl.gridspec.GridSpec(nrows=1, ncols=4, width_ratios=[1,5,0.1,5]) #have one empty/title one in the middle for some spacing between plots so it'S (variable names, latency, spacing with title, jitter)'
+gs = mpl.gridspec.GridSpec(nrows=1, ncols=ncol, width_ratios=wr) #have one empty/title one in the middle for some spacing between plots so it'S (variable names, latency, spacing with title, jitter)'
 
 if singleVariable:
         fig.suptitle('CI of univariate models in '+
@@ -239,20 +270,40 @@ else:
         fig.suptitle('CI of multivariate model in '+
                        condition + ' condition', fontsize=15)
 
+col_counter = 0 #single variable plots hvae one column more for categories
+if singleVariable:
+        ### title left
+        text_ax1 = fig.add_subplot(gs[0,col_counter], frame_on=False)
+        text_ax1.tick_params(**blind_ax)
+
+        for i,d in enumerate(categories):
+                text_ax1.text(-0.95,
+                        ((i*4 + min((i+1)*4, len(params_CI_loc))-1) / 2 + (i/2)+i*0.5+1 ) / adj_ymax,
+                        d, weight = 'bold', ha='center', va='center',
+                rotation = 'vertical', transform=text_ax1.transAxes, size=10)
+        col_counter+=1
+
 
 ### left - location
 
-# most left - variable names
-text_ax1 = fig.add_subplot(gs[0,0], frame_on=False)
+# left - variable names
+text_ax1 = fig.add_subplot(gs[0,col_counter], frame_on=False) #col_counter=0 or 1
 text_ax1.tick_params(**blind_ax)
 
-for e,d in enumerate(names):
-        text_ax1.text(0.95, float(e+1)/(len(params_CI_loc)+1), d,         ha='right', va='center', transform=text_ax1.transAxes, size=10)
+for i,d in enumerate(names):
+        text_ax1.text(0.95, float(i + 1 + (i // 4))/  (adj_ymax), d,
+        ha='right', va='center', transform=text_ax1.transAxes, size=10)
+col_counter+=1
 
 # left - CI
-ci_ax1 = fig.add_subplot(gs[0,1], frame_on=False)
+ci_ax1 = fig.add_subplot(gs[0,col_counter], frame_on=False) #col_counter  = 1 or 2
 ci_ax1.tick_params(**dict(left=False, labelleft=False, right=False,
     labelright=False))
+# Set x-axis
+ci_ax1.set_xlim([-np.abs(params_CI_loc).max(), np.abs(params_CI_loc).max()])
+# Set y-axis to accommodate breaks
+ci_ax1.set_ylim(0, adj_ymax)
+
 ci_ax1.plot([0,1], [0,0], 'k-', transform=ci_ax1.transAxes)
 ci_ax1.axvline(0, ls=':', lw=0.75)
 ci_ax1.set_title(r'\textbf{latency (s)}', size=10)
@@ -268,28 +319,37 @@ for i in range(len(params_CI_loc)):
                 if params_p_loc[i]<0.001:
                         current_p = r'$p<0.001$'
                 ci_ax1.text(params_CI_loc[i].mean(), #middle of bar
-                            float(i+1)/(len(params_CI_loc)+1)+0.01,
+                            float(i + 1 + (i // 4))/(adj_ymax)+0.01,
                             current_p,
                         transform=trans1, ha='center', va='bottom', size=7, color=color_now)
         else:
                 color_now='k'
+
         ci_ax1.plot(params_CI_loc[i],
-                    2*[float(i+1)/(len(params_CI_loc)+1)],
+                    2*[float(i + 1 + (i // 4))/(adj_ymax)],
                     ls='-', c=color_now,transform=trans1)
+col_counter+=1
+
 
 ### middle - spacing
+col_counter+=1
+
 
 ### right - scale
 # right - CI
-title_ax2 = fig.add_subplot(gs[0,3], frame_on=False)
+title_ax2 = fig.add_subplot(gs[0,col_counter], frame_on=False) #col_counter = 3 or 4
 title_ax2.tick_params(**blind_ax)
 title_ax2.set_title(r"""\textbf{jitter}""", size=10)
 
-ci_ax2 = fig.add_subplot(gs[0,3], frame_on=False)
+ci_ax2 = fig.add_subplot(gs[0,col_counter], frame_on=False) #col_counter=3 or 4
 ci_ax2.tick_params(**dict(left=False, labelleft=False, right=False,
     labelright=False))
 ci_ax2.plot([0,1], [0,0], 'k-', transform=ci_ax2.transAxes)
 ci_ax2.axvline(0, ls=':', lw=0.75)
+# Set x-axis
+ci_ax2.set_xlim([-np.abs(params_CI_scale).max(), np.abs(params_CI_scale).max()])
+# Set y-axis to accommodate breaks
+ci_ax2.set_ylim(0, adj_ymax)
 
 trans2 = mpl.transforms.blended_transform_factory(
     ci_ax2.transData, ci_ax2.transAxes)
@@ -302,18 +362,15 @@ for i in range(len(params_CI_scale)-1): #subtract one because last one is interc
                 if params_p_scale[i]<0.001:
                         current_p = r'$p<0.001$'
                 ci_ax2.text(
-                params_CI_scale[i].mean(),                             float(i+1)/(len(params_p_scale)+1)+0.01,
+                params_CI_scale[i].mean(),                             float(i + 1 + (i // 4))/(adj_ymax)+0.01,
                 current_p,
                 transform=trans2, ha='center', va='bottom', size=7, color=color_now)
         else:
                 color_now='k'
         ci_ax2.plot(params_CI_scale[i],
-                2*[float(i+1)/(len(params_CI_scale)+1)],
+                2*[float(i + 1 + (i // 4))/(adj_ymax)],
                 ls='-', c=color_now, transform=trans2)
 
-
-ci_ax1.set_xlim([-np.abs(params_CI_loc).max(), np.abs(params_CI_loc).max()])
-ci_ax2.set_xlim([-np.abs(params_CI_scale).max(), np.abs(params_CI_scale).max()])
 
 # bottom - plot legend
 ci_ax1.set_xlabel('model coefficients')
@@ -331,7 +388,10 @@ ci_ax2.text(0.975, 0.025, r'\textit{irregular}', ha='right',
 
 #gs.tight_layout(fig, pad=0.3)
 if singleVariable:
-        fig.savefig(os.path.join(result_folder, 'models/singleVariable/paramsCI_'+ condition +'.pdf'))
+        plot_path = os.path.join(result_folder, 'models/singleVariable/paramsCI_'+ condition +'.pdf')
 else:
-        fig.savefig(os.path.join(result_folder, 'models/paramsCI_'+ condition +'.pdf'))
+        plot_path = os.path.join(result_folder, 'models/paramsCI_'+ condition +'.pdf')
 
+fig.savefig(plot_path)
+
+print('Done. Stored in '+ plot_path)
