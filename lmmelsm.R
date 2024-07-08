@@ -208,25 +208,31 @@ fit_snareAll <- lmmelsm(
   list(
     observed ~ deviation,
     location ~ musicality + trial + session + 
-      Snare1_between + Snare2_between + 
-      Snare1_within + Snare2_within ,
+      # Snare1_between + Snare2_between + 
+      # Snare1_within + Snare2_within +
+      WdBlk1_between + WdBlk2_between + 
+      WdBlk1_within + WdBlk2_within,
     scale ~ musicality + trial + session + 
-      Snare1_between + Snare2_between + 
-      Snare1_within + Snare2_within,
+      # Snare1_between + Snare2_between + 
+      # Snare1_within + Snare2_within +      
+      WdBlk1_between + WdBlk2_between + 
+      WdBlk1_within + WdBlk2_within,
     between ~ musicality + trial + session + 
-      Snare1_between + Snare2_between + 
-      Snare1_within + Snare2_within),
-  group = subject, data = snare_data, cores=8, iter=25000, warmup=5000,
+      # Snare1_between + Snare2_between + 
+      # Snare1_within + Snare2_within +
+      WdBlk1_between + WdBlk2_between + 
+      WdBlk1_within + WdBlk2_within),
+  group = subject, data = snare_data, cores=8, iter=25000, warmup=15000,
   # default: adapt_delta = 0.95 (bei lmmelsm, 0.8 stan), stepsize = 1, max_treedepth = 10
   #see http://singmann.org/hierarchical-mpt-in-stan-i-dealing-with-convergent-transitions-via-control-arguments/
   control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10)) 
-save(fit_snareAll, file = "Results/models/snare_all25k099.RData")
 
-sink("Results/models/snare_all25k099.txt")
-print('iter=25000, warmup=5000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+save(fit_snareAll, file = "Results/models/snare_all_crossOnly.RData")
+sink("Results/models/snare_all_crossOnly.txt")
+print('iter=25000, warmup=15000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_snareAll))
 
-sink("Results/models/snare_all25k099_bonferroni.txt")
+sink("Results/models/snare_all_crossFreq_bonferroni.txt")
 print(summary(fit_snareAll, prob=prob)) 
 
 
@@ -235,23 +241,29 @@ fit_wdBlkAll <- lmmelsm(
   list(
     observed ~ deviation,
     location ~ musicality + trial + session + 
-      WdBlk1_between + WdBlk2_between + 
-      WdBlk1_within + WdBlk2_within,
+      # WdBlk1_between + WdBlk2_between + 
+      # WdBlk1_within + WdBlk2_within +
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within,
     scale ~ musicality + trial + session + 
-      WdBlk1_between + WdBlk2_between + 
-      WdBlk1_within + WdBlk2_within,
+      # WdBlk1_between + WdBlk2_between + 
+      # WdBlk1_within + WdBlk2_within + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within,
     between ~ musicality + trial + session + 
-      WdBlk1_between + WdBlk2_between + 
-      WdBlk1_within + WdBlk2_within),
-  group = subject, data = wdBlk_data, cores=8, iter=25000, warmup=5000,
+      # WdBlk1_between + WdBlk2_between + 
+      # WdBlk1_within + WdBlk2_within + 
+      Snare1_between + Snare2_between + 
+      Snare1_within + Snare2_within),
+  group = subject, data = wdBlk_data, cores=8, iter=25000, warmup=15000,
   control = list(adapt_delta = 0.99, stepsize = 1, max_treedepth = 10)) 
 
-save(fit_wdBlkAll, file = "Results/models/wdBlk_all25k099_control2.RData")
-sink("Results/models/wdBlk_all25k099_control2.txt")
-print('iter=25000, warmup=5000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
+save(fit_wdBlkAll, file = "Results/models/wdBlk_all_crossOnly.RData")
+sink("Results/models/wdBlk_all_crossOnly.txt")
+print('iter=25000, warmup=15000, adapt_delta=0.99, stepsize = 1, max_treedepth = 10')
 print(summary(fit_wdBlkAll))
 
-sink("Results/models/wdBlk_all25k099_bonferroni_control2.txt")
+sink("Results/models/wdBlk_all_crossFreq_bonferroni.txt")
 print(summary(fit_wdBlkAll, prob=prob))
 
 
